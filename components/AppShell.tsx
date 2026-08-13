@@ -20,6 +20,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  Timer,
   Upload,
   X,
 } from "lucide-react";
@@ -60,6 +61,7 @@ const NAV = [
     { href: "/safe-harbours", label: "Safe harbours", icon: Shield },
     { href: "/globe-income", label: "GloBE income", icon: FileText },
     { href: "/covered-taxes", label: "Covered taxes", icon: FileText },
+    { href: "/deferred-tax", label: "Deferred tax", icon: Timer },
     { href: "/etr", label: "ETR", icon: Map },
     { href: "/sbie", label: "SBIE", icon: Scale },
     { href: "/top-up", label: "Top-up tax", icon: Shield },
@@ -122,6 +124,7 @@ const TITLES: Record<string, [string, string]> = {
   "/safe-harbours": ["Killer feature", "Safe Harbour Navigator"],
   "/globe-income": ["Pillar Two", "GloBE income"],
   "/covered-taxes": ["Pillar Two", "Covered taxes"],
+  "/deferred-tax": ["Killer feature", "Deferred Tax Intelligence"],
   "/etr": ["Pillar Two", "Jurisdictional ETR"],
   "/sbie": ["Pillar Two", "Substance-based income exclusion"],
   "/top-up": ["Pillar Two", "Top-up tax"],

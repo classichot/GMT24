@@ -60,7 +60,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "Preparer, then reviewer",
     steps: [
       { n: "01", title: "Confirm scope & harbours", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out.", href: "/scope", hrefLabel: "Scope" },
-      { n: "02", title: "Build the ETR", body: "GloBE income waterfall, then covered taxes, then jurisdictional ETR. Click amounts for the ledger trail.", href: "/etr", hrefLabel: "ETR" },
+      { n: "02", title: "Build the ETR", body: "GloBE income (FANIL engine) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/deferred-tax", hrefLabel: "Deferred tax" },
       { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR.", href: "/top-up", hrefLabel: "Top-up tax" },
     ],
   },

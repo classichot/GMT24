@@ -652,6 +652,8 @@ html[data-theme="bw"] .map-dot.topup {
 
 @media (max-width: 720px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .dt-timeline { grid-template-columns: repeat(3, 1fr); }
+  .dt-flow, .dt-engines { grid-template-columns: 1fr; }
   .login-split { grid-template-columns: 1fr; }
   .login-pane { min-height: auto; padding: 28px 24px; }
   .login-hero { border-right: 0; border-bottom: 2px solid var(--color-divider); }
@@ -666,6 +668,89 @@ html[data-theme="bw"] .map-dot.topup {
   .drawer-panel { width: 100%; border-left: 0; }
   .btn { min-height: 44px; }
   .input, select.input, textarea.input { font-size: 16px; }
+}
+
+.dt-timeline {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.dt-year {
+  border: 2px solid var(--color-divider);
+  background: var(--color-bg);
+  color: inherit;
+  padding: 10px 8px 8px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dt-year.on { border-color: var(--color-accent); }
+.dt-year.risk { box-shadow: inset 0 -2px 0 var(--color-hot); }
+.dt-year-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.dt-year-total { font-size: 12px; font-variant-numeric: tabular-nums; }
+.dt-stack {
+  flex: 1;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column-reverse;
+  background: var(--color-neutral-200);
+}
+.dt-seg { width: 100%; min-height: 0; }
+.dt-seg.reversed { background: var(--color-accent-300); }
+.dt-seg.exception { background: var(--color-accent); }
+.dt-seg.outstanding { background: var(--color-warn); }
+.dt-seg.recapture { background: var(--color-hot); }
+.dt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--color-neutral-600);
+}
+.dt-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.dt-dot.reversed { background: var(--color-accent-300); }
+.dt-dot.exception { background: var(--color-accent); }
+.dt-dot.outstanding { background: var(--color-warn); }
+.dt-dot.recapture { background: var(--color-hot); }
+
+.dt-flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.dt-flow-step {
+  border: 2px solid var(--color-divider);
+  padding: 12px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  min-height: 100%;
+}
+.dt-flow-step:hover { border-color: var(--color-accent); }
+.dt-engines {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .dt-flow { grid-template-columns: repeat(2, 1fr); }
+  .dt-engines { grid-template-columns: 1fr; }
 }
 
 @media print {

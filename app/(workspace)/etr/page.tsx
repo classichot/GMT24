@@ -70,6 +70,7 @@ function Inner() {
         </div>
         <div className="stack-actions">
           <Link href="/covered-taxes" className="btn btn-secondary">Covered taxes</Link>
+          <Link href="/deferred-tax" className="btn btn-secondary">Deferred tax</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
           <button className="btn btn-primary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
         </div>
@@ -90,6 +91,39 @@ function Inner() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="dt-engines" style={{ marginBottom: 20 }}>
+        <div className="panel">
+          <div className="panel-head">
+            <h4>FANIL Engine</h4>
+            <span className="text-muted">Denominator</span>
+          </div>
+          <div className="panel-body waterfall">
+            <div className="wf-row"><span>FANIL ± Art. 3.2</span><Link href="/globe-income">GloBE income</Link></div>
+            <div className="wf-row total"><span>Net GloBE Income</span><Amount n={sel.globeIncome} audit={sel.audit} /></div>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-head">
+            <h4>Covered Tax &amp; Deferred Tax Engine</h4>
+            <span className="text-muted">Numerator</span>
+          </div>
+          <div className="panel-body waterfall">
+            <div className="wf-row"><span>Current + Art. 4.4 recast {min}</span><Link href={`/deferred-tax?iso=${sel.iso}`}>Deferred tax</Link></div>
+            <div className="wf-row total"><span>Adjusted Covered Taxes</span><Amount n={sel.coveredTax} audit={sel.audit} /></div>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-head">
+            <h4>Jurisdictional ETR Engine</h4>
+            <span className="text-muted">Art. 5.1.1</span>
+          </div>
+          <div className="panel-body waterfall">
+            <div className="wf-row"><span>Covered ÷ GloBE</span><strong>{pct(sel.etr, 2)}</strong></div>
+            <div className="wf-row total"><span>Top-up</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
+          </div>
+        </div>
       </div>
 
       <div className="grid-2">
@@ -164,7 +198,11 @@ function Inner() {
       <p className="text-muted" style={{ marginTop: 14, fontSize: 13 }}>
         SBIE changes Excess Profit, not the ETR. Top-up is Top-up Tax Percentage × Excess Profit (<Link href="/top-up">Art. 5.2.3</Link>).
         {" "}
+        <Link href="/globe-income">FANIL engine</Link>
+        {" · "}
         <Link href="/covered-taxes">Covered taxes</Link>
+        {" · "}
+        <Link href={`/deferred-tax?iso=${sel.iso}`}>Deferred tax engine</Link>
         {" · "}
         <Link href={`/sbie?iso=${sel.iso}`}>SBIE</Link>
       </p>

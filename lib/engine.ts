@@ -13,6 +13,7 @@ import {
   type ShResult,
 } from "./model";
 import { money } from "./format";
+import { deferredTaxAdjustment } from "./deferredTax";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -78,7 +79,8 @@ function entityGlobe(f: Financials, entityId: string) {
 }
 
 function entityCovered(f: Financials) {
-  return money(f.currentTax + f.deferredTax + f.otherCovered);
+  const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
+  return money(f.currentTax + deferred + f.otherCovered);
 }
 
 function shPass(flag: boolean): ShResult {
@@ -261,14 +263,14 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
                   label: e.name,
                   amount: entityCovered(f),
                   kind: "entity" as const,
-                  detail: `Current ${f.currentTax.toLocaleString("en-GB")} + deferred ${f.deferredTax.toLocaleString("en-GB")}`,
+                  detail: `Current ${f.currentTax.toLocaleString("en-GB")} + deferred ${ (deferredTaxAdjustment(e.id) ?? f.deferredTax).toLocaleString("en-GB")} (Art. 4.4 recast)`,
                   children: [
                     {
                       id: `${e.id}-720060`,
                       label: "Account 720060 — Deferred income tax",
-                      amount: f.deferredTax,
+                      amount: deferredTaxAdjustment(e.id) ?? f.deferredTax,
                       kind: "account" as const,
-                      detail: "Mapped to covered tax — deferred · recast at 15%",
+                      detail: "DTA/DTL sub-ledger · recast at the Minimum Rate · Art. 4.4",
                       children: [{
                         id: `${e.id}-src`,
                         label: `${e.code} trial balance / tax provision`,

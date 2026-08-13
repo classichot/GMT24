@@ -14,6 +14,21 @@ function th() {
 
 const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   {
+    match: /deferred tax|recast|dtl recapture|recapture exception|4\.4\.|time machine/i,
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `Deferred tax is in the ETR numerator, not a GloBE-income adjustment.\n\n1. Recast (Art. 4.4.1): Thai CIT 20% DTL is counted at 15%. A high statutory rate cannot inflate ETR.\n2. DTA: tax losses are tracked through utilisation so a later low-current-tax year is not mistaken for undertaxation. Deemed DTAs are held until evidence exists.\n3. Recapture (Art. 4.4.4): non-excepted DTLs that have not reversed by the fifth subsequent year reopen the origin-year ETR.\n\nThailand FY2026: Covered taxes ${eur(j.coveredTax)} ÷ GloBE ${eur(j.globeIncome)} = ETR ${pct(j.etr, 2)}. Open Deferred Tax Intelligence for the pipeline, DTA ledger, recapture clocks and Time Machine.\n\nRules OECD-DT-441 / OECD-DT-444 / OECD-DT-445 v2026.1.`,
+        cites: [
+          { label: "OECD-DT-441 Art. 4.4.1", href: "/deferred-tax" },
+          { label: "OECD-DT-444 Art. 4.4.4", href: "/deferred-tax" },
+          { label: "OECD-DT-445 Art. 4.4.5", href: "/deferred-tax" },
+        ],
+      };
+    },
+  },
+  {
     match: /thailand.*etr|etr.*thailand|11\.|10\./i,
     answer: () => {
       const j = th();
@@ -117,6 +132,7 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
 
 export const SUGGESTIONS = [
   "Why is Thailand's ETR 10.8%?",
+  "Explain deferred tax recast and DTL recapture for Thailand",
   "Which entities caused the reduction?",
   "Can Thailand qualify for a safe harbour?",
   "What happens if the BOI tax holiday expires?",

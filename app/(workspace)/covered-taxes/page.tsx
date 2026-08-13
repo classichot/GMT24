@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ENTITIES, FINANCIALS } from "@/lib/model";
 import { entityCalc, MIN_RATE } from "@/lib/engine";
+import { deferredTaxAdjustment } from "@/lib/deferredTax";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
@@ -26,7 +27,7 @@ const METHOD = [
   {
     n: "03",
     title: "Recast deferred tax at 15%",
-    body: "The Total Deferred Tax Adjustment Amount takes deferred tax expense. If the local rate is above the Minimum Rate, recast at 15%. Recapture accounts track DTLs that are not Recapture Exception Accruals; unpaid amounts reverse after five years and re-open the prior ETR.",
+    body: "The Total Deferred Tax Adjustment Amount takes deferred tax expense. If the local rate is above the Minimum Rate, recast at 15%. Recapture accounts track DTLs that are not Recapture Exception Accruals; unpaid amounts reverse after five years and re-open the prior ETR. Open the Deferred Tax Intelligence Engine for the sub-ledger and Time Machine.",
     refs: ["Art. 4.4.1", "Art. 4.4.4"],
   },
   {
@@ -60,6 +61,7 @@ export default function CoveredTaxesPage() {
   if (!row) return null;
   const f = row.f;
   const min = pct(MIN_RATE, 0);
+  const deferred = deferredTaxAdjustment(id) ?? f.deferredTax;
 
   return (
     <div>
@@ -69,6 +71,7 @@ export default function CoveredTaxesPage() {
           <span className="mono">ACT = current Covered Tax ± Art. 4.1 adj. + Art. 4.4 deferred (recast {min})</span>
         </div>
         <div className="stack-actions">
+          <Link href="/deferred-tax" className="btn btn-secondary">Deferred tax engine</Link>
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
           <button className="btn btn-primary" onClick={() => ask("Explain deferred tax recast for Thailand")}>Ask GMT24</button>
@@ -115,7 +118,7 @@ export default function CoveredTaxesPage() {
                 + Deferred tax (recast {min})
                 <div className="text-muted" style={{ fontSize: 12 }}>Total Deferred Tax Adjustment Amount · <Link href="/rulebook">Art. 4.4.1</Link></div>
               </span>
-              <span>{eur(f.deferredTax)}</span>
+              <span>{eur(deferred)}</span>
             </div>
             <div className="wf-row">
               <span>
@@ -140,6 +143,7 @@ export default function CoveredTaxesPage() {
             </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
+            <Link href={`/deferred-tax?iso=${row.entity.iso}`} className="btn btn-secondary">Deferred tax ledger</Link>
             <Link href="/globe-income" className="btn btn-secondary">GloBE income</Link>
             <Link href={jur ? `/etr?iso=${jur.iso}` : "/etr"} className="btn btn-primary">ETR</Link>
           </div>
@@ -164,7 +168,7 @@ export default function CoveredTaxesPage() {
             </div>
           </div>
           <p className="text-muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-            Opening DTA {eur(f.priorDta)} · opening DTL {eur(f.priorDtl)}. Recapture is five-year state carried into the next Fiscal Year (<Link href="/rulebook">Art. 4.4.4</Link>). Pillar Two is not an isolated annual calc.
+            Opening DTA {eur(f.priorDta)} · opening DTL {eur(f.priorDtl)}. Recapture is five-year state carried into the next Fiscal Year (<Link href="/rulebook">Art. 4.4.4</Link>). Open the <Link href={`/deferred-tax?iso=${row.entity.iso}`}>Deferred Tax Time Machine</Link> — Pillar Two is not an isolated annual calc.
           </p>
         </div>
       </div>
@@ -188,12 +192,13 @@ export default function CoveredTaxesPage() {
               {FINANCIALS.map((fin) => {
                 const e = ENTITIES.find((x) => x.id === fin.entityId)!;
                 const c = calcs.find((x) => x.iso === e.iso);
-                const covered = fin.currentTax + fin.deferredTax + fin.otherCovered;
+                const deferred = deferredTaxAdjustment(fin.entityId) ?? fin.deferredTax;
+                const covered = fin.currentTax + deferred + fin.otherCovered;
                 return (
                   <tr key={fin.entityId} className="clickable" onClick={() => setId(fin.entityId)}>
                     <td>{e.name}</td>
                     <td className="num">{eur(fin.currentTax, true)}</td>
-                    <td className="num">{eur(fin.deferredTax, true)}</td>
+                    <td className="num">{eur(deferred, true)}</td>
                     <td className="num">{eur(fin.otherCovered, true)}</td>
                     <td className="num">{eur(fin.nonCovered, true)}</td>
                     <td className="num">{eur(fin.priorDta, true)}</td>
@@ -210,6 +215,8 @@ export default function CoveredTaxesPage() {
       <p className="text-muted" style={{ marginTop: 14, fontSize: 13 }}>
         Recast at {min} sits in Chapter 4, not Art. 3.2. Non-covered tax is stripped from Covered Taxes; it is not a GloBE-income delta.
         {" "}
+        <Link href="/deferred-tax">Deferred tax engine</Link>
+        {" · "}
         <Link href="/globe-income">GloBE income</Link>
         {" · "}
         <Link href="/etr">ETR</Link>

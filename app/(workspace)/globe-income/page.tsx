@@ -151,6 +151,8 @@ export default function GlobeIncomePage() {
         {" "}
         <Link href="/covered-taxes">Open covered taxes</Link>
         {" · "}
+        <Link href="/deferred-tax">Deferred tax engine</Link>
+        {" · "}
         <Link href="/etr">Open ETR</Link>
       </p>
 
