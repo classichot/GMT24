@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ModeToggle } from "@/components/ModeToggle";
 import { useStore } from "@/lib/store";
 import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
 
 export default function SettingsPage() {
   const { mode, setMode, flash } = useStore();
+  const router = useRouter();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   return (
     <div className="grid-2">
@@ -14,11 +16,11 @@ export default function SettingsPage() {
         <div className="panel-body">
           <div className="seg" style={{ width: "100%", marginBottom: 14 }}>
             <label className="seg-opt" style={{ flex: 1 }}>
-              <input type="radio" name="mode" checked={mode === "inhouse"} onChange={() => { setMode("inhouse"); flash("In-house mode"); }} />
+              <input type="radio" name="mode" checked={mode === "inhouse"} onChange={() => { setMode("inhouse"); flash("In-house mode"); router.push("/overview"); }} />
               In-house
             </label>
             <label className="seg-opt" style={{ flex: 1 }}>
-              <input type="radio" name="mode" checked={mode === "advisor"} onChange={() => { setMode("advisor"); flash("Advisor mode"); }} />
+              <input type="radio" name="mode" checked={mode === "advisor"} onChange={() => { setMode("advisor"); flash("Advisor mode"); router.push("/clients"); }} />
               Advisor
             </label>
           </div>

@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { INCENTIVES, ENTITIES } from "@/lib/model";
 import { useStore } from "@/lib/store";
 
 export default function IncentivesPage() {
-  const { ask } = useStore();
+  const { ask, setScenario } = useStore();
+  const router = useRouter();
   return (
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>
@@ -25,7 +28,11 @@ export default function IncentivesPage() {
               <div className="wf-row"><span>Rate</span><span>{i.rate}</span></div>
               <div className="wf-row"><span>Conditions</span><span>{i.conditions}</span></div>
               <div className="wf-row"><span>Extracted from</span><span>{i.extractedFrom}</span></div>
-              <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => ask("What happens if the BOI tax holiday expires?")}>Simulate expiry</button>
+              <div className="stack-actions" style={{ marginTop: 12 }}>
+                <button className="btn btn-primary" onClick={() => { setScenario({ boiExtend: true }); router.push("/simulator"); }}>Open simulator</button>
+                <button className="btn btn-secondary" onClick={() => ask("What happens if the BOI tax holiday expires?")}>Ask GMT24</button>
+                <Link href="/safe-harbours" className="btn btn-secondary">Safe harbours</Link>
+              </div>
             </div>
           </div>
         );

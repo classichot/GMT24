@@ -1,13 +1,16 @@
-export function eur(n: number, compact = false) {
+export function usd(n: number, compact = false) {
   const abs = Math.abs(n);
   const sign = n < 0 ? "−" : "";
   if (compact) {
-    if (abs >= 1_000_000_000) return `${sign}€${(abs / 1_000_000_000).toFixed(2)}B`;
-    if (abs >= 1_000_000) return `${sign}€${(abs / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${sign}€${(abs / 1_000).toFixed(0)}k`;
+    if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(2)}B`;
+    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}k`;
   }
-  return `${sign}€${abs.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+  return `${sign}$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
+
+/** @deprecated use usd — kept so existing screens compile during the currency swap */
+export const eur = usd;
 
 export function pct(n: number, digits = 1) {
   return `${(n * 100).toFixed(digits)}%`;
@@ -38,8 +41,12 @@ export const THEMES = {
       "--color-accent-700": "#243266",
       "--color-accent-800": "#1a2447",
       "--color-accent-900": "#131a33",
-      "--sig-red": "#b42318",
-      "--sig-amber": "#b54708",
+      "--sig-red": "#243266",
+      "--sig-amber": "#3a4fa8",
+      "--color-hot": "#243266",
+      "--color-warn": "#3a4fa8",
+      "--color-ok": "#3a4fa8",
+      "--color-on-accent": "#ffffff",
       "--color-neutral-100": "#f4f5f4",
       "--color-neutral-200": "#e6e9e7",
       "--color-neutral-300": "#d3d8d5",
@@ -80,8 +87,12 @@ export const THEMES = {
       "--color-neutral-700": "#b3b8c4",
       "--color-neutral-800": "#d3d7df",
       "--color-neutral-900": "#eaecf1",
-      "--sig-red": "#e2725b",
-      "--sig-amber": "#d9a441",
+      "--sig-red": "#c4cefb",
+      "--sig-amber": "#7e93f4",
+      "--color-hot": "#c4cefb",
+      "--color-warn": "#7e93f4",
+      "--color-ok": "#5c78f0",
+      "--color-on-accent": "#0d0f14",
       "--shadow-md": "0 0 0 1px color-mix(in srgb, #e8eeec 12%, transparent), 0 8px 20px rgba(0,0,0,0.45)",
       "--shadow-lg": "0 0 0 1px color-mix(in srgb, #e8eeec 16%, transparent), 0 18px 40px rgba(0,0,0,0.55)",
     },
@@ -113,6 +124,12 @@ export const THEMES = {
       "--color-neutral-700": "#525252",
       "--color-neutral-800": "#333333",
       "--color-neutral-900": "#111111",
+      "--sig-red": "#000000",
+      "--sig-amber": "#6e6e6e",
+      "--color-hot": "#000000",
+      "--color-warn": "#6e6e6e",
+      "--color-ok": "#111111",
+      "--color-on-accent": "#ffffff",
       "--shadow-md": "0 3px 10px color-mix(in srgb, #111111 14%, transparent)",
       "--shadow-lg": "0 12px 32px color-mix(in srgb, #111111 20%, transparent)",
     },

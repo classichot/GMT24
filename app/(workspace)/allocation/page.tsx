@@ -1,19 +1,25 @@
 "use client";
 
-import { calculateGroup } from "@/lib/engine";
-import { useStore } from "@/lib/store";
-import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { JURISDICTION_PACKS } from "@/lib/model";
+import { FlowBar } from "@/components/FlowBar";
+import { useCalc } from "@/lib/useCalc";
+import { eur } from "@/lib/format";
+import Link from "next/link";
 
 export default function AllocationPage() {
-  const { groupId } = useStore();
-  const calcs = calculateGroup(groupId).filter((c) => c.jurisdictionalTopUp > 0);
+  const { calcs } = useCalc();
+  const exposed = calcs.filter((c) => c.jurisdictionalTopUp > 0);
   return (
     <div>
+      <FlowBar />
       <p className="text-muted" style={{ marginBottom: 16 }}>Who pays → where → why → amount. Collection follows the Global Rulebook (qualified QDMTT first, residual IIR to the UPE, then UTPR).</p>
+      <div className="stack-actions" style={{ marginBottom: 16 }}>
+        <Link href="/gir" className="btn btn-primary">Build GIR</Link>
+        <Link href="/jurisdictions" className="btn btn-secondary">Rule packs</Link>
+      </div>
       <div className="grid-2">
-        {calcs.map((c) => (
+        {exposed.map((c) => (
           <div key={c.iso} className="panel">
             <div className="panel-head"><h4>{c.name}</h4><Amount n={c.jurisdictionalTopUp} audit={c.audit} compact /></div>
             <div className="panel-body">

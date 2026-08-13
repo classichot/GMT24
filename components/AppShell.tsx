@@ -6,6 +6,7 @@ import {
   BookOpen,
   Building2,
   Check,
+  ClipboardList,
   Database,
   FileText,
   GitBranch,
@@ -27,8 +28,9 @@ import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
-import { calculateGroup, totals } from "@/lib/engine";
+import { useCalc } from "@/lib/useCalc";
 import { eur } from "@/lib/format";
+import { PLAYBOOKS } from "@/lib/playbooks";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
@@ -37,18 +39,21 @@ const NAV = [
     { href: "/overview", label: "Global dashboard", icon: LayoutGrid },
     { href: "/etr-map", label: "ETR map", icon: Map },
     { href: "/exposure", label: "Top-up exposure", icon: Shield },
+    { href: "/playbook/overview", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Group", items: [
     { href: "/clients", label: "Clients", icon: Building2, advisor: true },
     { href: "/group", label: "Group structure", icon: GitBranch },
     { href: "/entities", label: "Entities", icon: Building2 },
     { href: "/graph", label: "Ownership graph", icon: Globe },
+    { href: "/playbook/group", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Data", items: [
     { href: "/data", label: "Data Hub", icon: Upload },
     { href: "/mapping", label: "Account mapping", icon: Sparkles },
     { href: "/quality", label: "Data quality", icon: Database },
     { href: "/requests", label: "Data requests", icon: FileText },
+    { href: "/playbook/data", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Pillar Two", items: [
     { href: "/scope", label: "Scope", icon: Scale },
@@ -59,31 +64,37 @@ const NAV = [
     { href: "/sbie", label: "SBIE", icon: Scale },
     { href: "/top-up", label: "Top-up tax", icon: Shield },
     { href: "/allocation", label: "QDMTT / IIR / UTPR", icon: GitBranch },
+    { href: "/playbook/pillar-two", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Incentives", items: [
     { href: "/incentives", label: "Tax incentives", icon: Sparkles },
+    { href: "/playbook/incentives", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Forecast", items: [
     { href: "/simulator", label: "Simulator", icon: Sparkles },
     { href: "/forecast", label: "Forecast", icon: LayoutGrid },
+    { href: "/playbook/forecast", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Compliance", items: [
     { href: "/gir", label: "GIR", icon: FileText },
     { href: "/filings", label: "Filing matrix", icon: Check },
     { href: "/notifications", label: "Notifications", icon: FileText },
     { href: "/archive", label: "Filing archive", icon: Database },
+    { href: "/playbook/compliance", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Review", items: [
     { href: "/issues", label: "Issues", icon: Shield },
     { href: "/audit", label: "Audit trail", icon: GitBranch },
     { href: "/evidence", label: "Evidence", icon: FileText },
     { href: "/approvals", label: "Approvals", icon: Check },
+    { href: "/playbook/review", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Intelligence", items: [
     { href: "/copilot", label: "AI Copilot", icon: MessageSquare },
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/playbook/intelligence", label: "Playbook", icon: ClipboardList },
   ]},
 ];
 
@@ -139,14 +150,19 @@ function isActive(path: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, flash, toast, navOpen, setNavOpen, mode, groupId, setCopilotOpen, copilotOpen } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, groupId, setCopilotOpen, copilotOpen } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
-  const t = totals(calculateGroup(groupId));
+  const { t } = useCalc();
 
   useEffect(() => { setNavOpen(false); }, [path, setNavOpen]);
 
-  const [kicker, title] = TITLES[path] || ["GMT24", "Pillar Two OS"];
+  const book = path.startsWith("/playbook/")
+    ? PLAYBOOKS.find((p) => path === `/playbook/${p.slug}`)
+    : null;
+  const [kicker, title] = book
+    ? (["Playbook", book.title] as [string, string])
+    : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
 
   return (
     <div className="shell">
@@ -186,17 +202,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div style={{ borderTop: "2px solid var(--color-divider)", padding: "12px 16px", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="sidebar-foot">
           <span style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>{mode === "advisor" ? "Advisor firm" : "In-house team"}</span>
           <span>Rule pack 2026.2</span>
           <span>Engine GMT24-CALC · deterministic</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-            <span style={{ width: 30, height: 30, flex: "none", background: "var(--color-neutral-300)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontFamily: "var(--font-heading)", fontSize: 12 }}>{user.initials}</span>
+          <div className="user-frame">
+            <span style={{ width: 30, height: 30, flex: "none", background: "var(--color-neutral-300)", color: "var(--color-text)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontFamily: "var(--font-heading)", fontSize: 12 }}>{user.initials}</span>
             <div style={{ flex: 1, lineHeight: 1.2, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)" }}>{user.name}</div>
               <div>{user.role}</div>
             </div>
-            <button title="Sign out" onClick={() => { logout(); router.push("/"); }} style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--color-neutral-600)" }}>
+            <button title="Sign out" onClick={() => { logout(); router.push("/"); }} style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--color-neutral-600)", display: "inline-flex", width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
               <LogOut size={16} />
             </button>
           </div>

@@ -1,18 +1,18 @@
 "use client";
 
 import { FORECAST } from "@/lib/model";
-import { calculateGroup, totals } from "@/lib/engine";
-import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
+import { useCalc } from "@/lib/useCalc";
+import Link from "next/link";
 
 export default function ForecastPage() {
-  const { groupId } = useStore();
-  const t = totals(calculateGroup(groupId));
+  const { t } = useCalc();
   const projected = FORECAST.reduce((a, p) => a + p.topUp, 0);
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20 }}>
-        Don’t wait until year-end. Monthly / quarterly actuals + forecast feed the same engine.
+        Don’t wait until year-end. Monthly / quarterly actuals + forecast feed the same engine. YTD uses the live (scenario-aware) calculation.{" "}
+        <Link href="/simulator">Open simulator</Link>
       </div>
       <div className="kpi-grid cols-3" style={{ marginBottom: 20 }}>
         <div className="kpi"><div className="kpi-label">FY2026 YTD calc</div><div className="kpi-val">{eur(t.topUp, true)}</div></div>

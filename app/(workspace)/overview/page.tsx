@@ -2,23 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ACTIVITY, GROUPS } from "@/lib/model";
-import { calculateGroup, totals } from "@/lib/engine";
+import { ACTIVITY, GROUPS, MAP_COORDS } from "@/lib/model";
 import { eur, pct } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
-import { MAP_COORDS } from "@/lib/model";
+import { WorldMap } from "@/components/WorldMap";
+import { FlowBar } from "@/components/FlowBar";
+import { useCalc } from "@/lib/useCalc";
 
 export default function OverviewPage() {
-  const { groupId, mode, ask } = useStore();
+  const { mode, ask, scenario } = useStore();
   const router = useRouter();
+  const { calcs, t, groupId } = useCalc();
   const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
-  const calcs = calculateGroup(groupId);
-  const t = totals(calcs);
   const th = calcs.find((c) => c.iso === "TH");
+  const scenarioOn = scenario.boiExtend || scenario.payrollTh > 0 || scenario.tpMargin !== 3;
 
   return (
     <div>
+      <FlowBar iso="TH" />
+      {scenarioOn && (
+        <div className="callout" style={{ marginBottom: 16 }}>
+          <strong>Scenario active.</strong> Dashboard numbers include simulator assumptions.{" "}
+          <Link href="/simulator">Open simulator</Link>
+        </div>
+      )}
       <div className="callout" style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <strong>{mode === "advisor" ? "Advisory engagement" : "In-house close"} · {group.name} · {group.fy}.</strong>{" "}
@@ -28,7 +36,6 @@ export default function OverviewPage() {
           <Link href="/audit" className="btn btn-secondary">Explain calculation</Link>
           <Link href="/data" className="btn btn-secondary">View source</Link>
           <Link href="/simulator" className="btn btn-secondary">Run scenario</Link>
-          <button className="btn btn-primary" onClick={() => ask("Why is Thailand's ETR 10.8%?")}>Ask GMT24</button>
         </div>
       </div>
 
@@ -97,6 +104,7 @@ export default function OverviewPage() {
             <Link href="/etr-map" className="btn btn-ghost">Open ETR map</Link>
           </div>
           <div className="map-canvas">
+            <WorldMap />
             {calcs.map((c) => {
               const pos = MAP_COORDS[c.iso];
               if (!pos) return null;
@@ -113,9 +121,8 @@ export default function OverviewPage() {
             })}
           </div>
           <div className="map-legend">
-            <span><i className="map-dot topup" style={{ position: "static", display: "inline-block", transform: "none", marginRight: 6 }} />Top-up</span>
-            <span><i className="map-dot sh" style={{ position: "static", display: "inline-block", transform: "none", marginRight: 6 }} />Safe harbour</span>
-            <span><i className="map-dot ok" style={{ position: "static", display: "inline-block", transform: "none", marginRight: 6 }} />No top-up</span>
+            <span><i className="map-dot topup" />Top-up</span>
+            <span><i className="map-dot ok" />No top-up / review</span>
           </div>
         </div>
         <div className="panel">

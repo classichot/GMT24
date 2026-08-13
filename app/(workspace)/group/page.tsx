@@ -24,7 +24,7 @@ export default function GroupPage() {
           <div className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>{scope.rule.id} · {scope.rule.version}</div>
         </div>
         <div className="panel">
-          <div className="panel-head"><h4>Revenue history vs €750m</h4></div>
+          <div className="panel-head"><h4>Revenue history vs $750m</h4></div>
           <div className="panel-body">
             {scope.window.map((r) => (
               <div key={r.fy} style={{ display: "grid", gridTemplateColumns: "80px 1fr 120px", gap: 12, alignItems: "center", marginBottom: 10 }}>

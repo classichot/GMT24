@@ -19,11 +19,11 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
       const j = th();
       return {
         role: "assistant",
-        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe reduction versus the 15% minimum is driven by Aetherion (Thailand) Ltd. (TH001): BOI holiday income taxed at 0%, deferred tax recast at 15%, and excluded dividends of €1.84M under Art. 3.2.1(b). Rayong PE is included in the Thai blending.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
+        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe reduction versus the 15% minimum is driven by Aetherion (Thailand) Ltd. (TH001): BOI holiday income taxed at 0%, deferred tax recast at 15%, and excluded dividends of $1.84M under Art. 3.2.1(b). Rayong PE is included in the Thai blending.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
         cites: [
-          { label: "OECD-GloBE-15 v2026.1" },
-          { label: "TH001 Trial Balance FY2026.xlsx" },
-          { label: "BOI_Certificate_TH001.pdf" },
+          { label: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+          { label: "TH001 Trial Balance FY2026.xlsx", href: "/data" },
+          { label: "BOI_Certificate_TH001.pdf", href: "/incentives" },
         ],
       };
     },
@@ -35,7 +35,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
       return {
         role: "assistant",
         text: `Thailand does not qualify for the Transitional CbCR Safe Harbour in FY2026.\n\n${j.sh.navigator}\n\nQDMTT Safe Harbour is not available because a full GloBE top-up of ${eur(j.jurisdictionalTopUp)} is computed and collected as Thai QDMTT (rule TH-QDMTT-2025, Central Record transitional qualified).\n\nSBTISH (Substance-based Tax Incentive Safe Harbour) is under review for the BOI holiday — the incentive is substance-based, but GMT24 still needs qualifying expenditure tracing before the harbour can be elected.\n\nRule versions: OECD-TCSH-2026 v2026.2 · OECD-SBTISH v2026.2 · TH-QDMTT-2025 v2025.1.`,
-        cites: [{ label: "OECD-TCSH-2026 v2026.2" }, { label: "TH-QDMTT-2025" }],
+        cites: [{ label: "OECD-TCSH-2026 v2026.2", href: "/safe-harbours" }, { label: "TH-QDMTT-2025", href: "/rulebook" }],
       };
     },
   },
@@ -54,7 +54,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /singapore.*missing|missing.*singapore|data.*sg/i,
     answer: () => ({
       role: "assistant",
-      text: `Singapore data gaps:\n\n1. CbCR revenue €88.0M vs consolidation €86.4M (€1.6M). Likely the 50% JV is in CbCR but equity-accounted in consolidation.\n2. DEI incentive agreement conditions (headcount / spending) are extracted but not tied to SBIE payroll.\n3. Mapping for HoldCo dividend accounts is approved; JV TB is only 72% complete.\n\nGMT24 cannot finish a lock-quality Singapore harbour file until the CbCR bridge is signed off. A data request to L. Tan is ready in Data Requests.`,
+      text: `Singapore data gaps:\n\n1. CbCR revenue $88.0M vs consolidation $86.4M ($1.6M). Likely the 50% JV is in CbCR but equity-accounted in consolidation.\n2. DEI incentive agreement conditions (headcount / spending) are extracted but not tied to SBIE payroll.\n3. Mapping for HoldCo dividend accounts is approved; JV TB is only 72% complete.\n\nGMT24 cannot finish a lock-quality Singapore harbour file until the CbCR bridge is signed off. A data request to L. Tan is ready in Data Requests.`,
       cites: [{ label: "IQ-04 CbCR vs consolidation" }, { label: "OECD-TCSH-2026" }],
     }),
   },
@@ -70,15 +70,26 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /adjustment|810020|dividend/i,
     answer: () => ({
       role: "assistant",
-      text: `TH001 excluded dividends €1.84M (account 810020) are subtracted from FANIL under GloBE Model Rules Art. 3.2.1(b) — ownership ≥ 10%, intra-group dividend from MY-CE.\n\nOriginal amount €1.84M · adjustment −€1.84M · preparer N. Chai · reviewer M. Sato · source TH001 Trial Balance FY2026.xlsx · rule OECD-DIV-EXCL v2026.1.\n\nThis is a canonical GloBE adjustment, not an LLM estimate.`,
+      text: `TH001 excluded dividends $1.84M (account 810020) are subtracted from FANIL under GloBE Model Rules Art. 3.2.1(b) — ownership ≥ 10%, intra-group dividend from MY-CE.\n\nOriginal amount $1.84M · adjustment −$1.84M · preparer N. Chai · reviewer M. Sato · source TH001 Trial Balance FY2026.xlsx · rule OECD-DIV-EXCL v2026.1.\n\nThis is a canonical GloBE adjustment, not an LLM estimate.`,
       cites: [{ label: "OECD-DIV-EXCL v2026.1" }, { label: "TH001 Trial Balance FY2026.xlsx" }],
+    }),
+  },
+  {
+    match: /central record|jurisdiction pack|oecd scrape|refresh from oecd/i,
+    answer: () => ({
+      role: "assistant",
+      text: `Jurisdiction packs are taken from the OECD Central Record of legislation with transitional qualified status — not invented by the model.\n\nRefresh from OECD fetches the live Inclusive Framework page, extracts IIR / QDMTT / QDMTT Safe Harbour / SbS listings for countries in this group, and diffs them against the signed Aug 2026 pack.\n\nAI extracts. A reviewer accepts. The engine does not switch collection (QDMTT → IIR → UTPR) until the pack is signed. Absence from the Record is not a finding that the law is unqualified (Vietnam in this demo).\n\nSource: OECD Central Record HTML + PDF.`,
+      cites: [
+        { label: "OECD Central Record", href: "/jurisdictions" },
+        { label: "GMT24 jurisdiction packs", href: "/jurisdictions" },
+      ],
     }),
   },
   {
     match: /oecd|basis|rule/i,
     answer: () => ({
       role: "assistant",
-      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — €750m / 2-of-4\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
+      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — $750m / 2-of-4 (group presentation USD)\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
       cites: RULES.slice(0, 6).map((r) => ({ label: `${r.id} ${r.version}` })),
     }),
   },

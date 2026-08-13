@@ -160,7 +160,7 @@ export type Group = {
   fy: string;
   fyStart: string;
   fyEnd: string;
-  currency: "EUR";
+  currency: "USD";
   revenueHistory: { fy: string; amount: number }[];
   entities: number;
   jurisdictions: number;
@@ -205,7 +205,7 @@ export const RULES: Rule[] = [
     effectiveTo: null,
     source: "GloBE Model Rules Art. 1.1",
     version: "2026.1",
-    formula: "in_scope if 2 of last 4 FYs consolidated revenue >= 750m EUR",
+    formula: "in_scope if 2 of last 4 FYs consolidated revenue >= 750m USD (presentation)",
     parameters: { thresholdEur: 750_000_000, window: 4, hits: 2 },
     status: "active",
   },
@@ -328,7 +328,7 @@ export const GROUPS: Group[] = [
     fy: "FY2026",
     fyStart: "2026-04-01",
     fyEnd: "2027-03-31",
-    currency: "EUR",
+    currency: "USD",
     revenueHistory: [
       { fy: "FY2023", amount: 1_420_000_000 },
       { fy: "FY2024", amount: 1_610_000_000 },
@@ -348,7 +348,7 @@ export const GROUPS: Group[] = [
     fy: "FY2026",
     fyStart: "2026-01-01",
     fyEnd: "2026-12-31",
-    currency: "EUR",
+    currency: "USD",
     revenueHistory: [
       { fy: "FY2023", amount: 880_000_000 },
       { fy: "FY2024", amount: 910_000_000 },
@@ -368,7 +368,7 @@ export const GROUPS: Group[] = [
     fy: "FY2026",
     fyStart: "2026-01-01",
     fyEnd: "2026-12-31",
-    currency: "EUR",
+    currency: "USD",
     revenueHistory: [
       { fy: "FY2023", amount: 2_100_000_000 },
       { fy: "FY2024", amount: 2_240_000_000 },
@@ -388,7 +388,7 @@ export const GROUPS: Group[] = [
     fy: "FY2026",
     fyStart: "2026-01-01",
     fyEnd: "2026-12-31",
-    currency: "EUR",
+    currency: "USD",
     revenueHistory: [
       { fy: "FY2023", amount: 610_000_000 },
       { fy: "FY2024", amount: 690_000_000 },
@@ -482,7 +482,7 @@ export const ISSUES: Issue[] = [
   { id: "IQ-01", severity: "block", area: "Covered tax", entity: "VN-CE", jurisdiction: "Vietnam", title: "Prior-year DTA/DTL missing", detail: "Vietnam deferred-tax opening balances are blank. Recapture and recast cannot be completed.", owner: "Local Tax VN" },
   { id: "IQ-02", severity: "block", area: "SBIE", entity: "VN-CE", jurisdiction: "Vietnam", title: "Payroll file incomplete", detail: "Eligible employee listing covers 11 of 12 months. SBIE payroll carve-out is estimated.", owner: "VN Finance" },
   { id: "IQ-03", severity: "warn", area: "Mapping", entity: "TH-CE", jurisdiction: "Thailand", title: "FX gain mapping at 62% confidence", detail: "Account 830010 — FX Gain needs tax-team approval before lock.", owner: "N. Chai" },
-  { id: "IQ-04", severity: "warn", area: "CbCR", jurisdiction: "Singapore", title: "CbCR revenue vs consolidation", detail: "Singapore CbCR revenue €88.0M vs consolidation €86.4M (HoldCo + JV). €1.6M unexplained.", owner: "L. Tan" },
+  { id: "IQ-04", severity: "warn", area: "CbCR", jurisdiction: "Singapore", title: "CbCR revenue vs consolidation", detail: "Singapore CbCR revenue $88.0M vs consolidation $86.4M (HoldCo + JV). $1.6M unexplained.", owner: "L. Tan" },
   { id: "IQ-05", severity: "info", area: "Ownership", entity: "ID-CE", jurisdiction: "Indonesia", title: "1% minority", detail: "PT Aetherion Indonesia is 99% owned. Confirm MOCE treatment is not required.", owner: "Group Tax" },
   { id: "IQ-06", severity: "warn", area: "Deferred tax", entity: "AE-CE", jurisdiction: "UAE", title: "Deferred tax movement unexplained", detail: "UAE CIT commencement created a DTL with no roll-forward narrative.", owner: "MENA Tax" },
 ];
@@ -525,21 +525,22 @@ export const JURISDICTION_PACKS = [
   { iso: "ID", name: "Indonesia", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT", fx: "IDR", notes: "" },
 ];
 
+/** Equirectangular: x = (lon+180)/360*100, y = (90−lat)/180*100 */
 export const MAP_COORDS: Record<string, { x: number; y: number }> = {
-  JP: { x: 82, y: 38 },
-  SG: { x: 74, y: 58 },
-  TH: { x: 72, y: 52 },
-  VN: { x: 75, y: 50 },
-  MY: { x: 73, y: 56 },
-  ID: { x: 76, y: 62 },
-  AE: { x: 62, y: 46 },
-  GB: { x: 47, y: 32 },
-  DE: { x: 51, y: 34 },
-  FR: { x: 48, y: 36 },
-  NL: { x: 50, y: 32 },
-  HU: { x: 54, y: 36 },
-  US: { x: 22, y: 40 },
-  IE: { x: 44, y: 32 },
+  JP: { x: 88.4, y: 29.9 },
+  SG: { x: 78.8, y: 49.3 },
+  TH: { x: 77.9, y: 41.2 },
+  VN: { x: 80.1, y: 42.2 },
+  MY: { x: 78.3, y: 47.7 },
+  ID: { x: 81.6, y: 50.4 },
+  AE: { x: 65.0, y: 37.0 },
+  GB: { x: 49.0, y: 19.2 },
+  DE: { x: 52.9, y: 21.6 },
+  FR: { x: 50.6, y: 24.3 },
+  NL: { x: 51.5, y: 21.0 },
+  HU: { x: 55.4, y: 23.8 },
+  US: { x: 23.4, y: 29.4 },
+  IE: { x: 47.7, y: 20.3 },
 };
 
 export const GIR_SECTIONS = [
@@ -551,7 +552,7 @@ export const GIR_SECTIONS = [
 ];
 
 export const ACTIVITY = [
-  { text: "Thailand QDMTT calculation locked for review — €1.55M", who: "N. Chai", when: "13 Aug, 16:40" },
+  { text: "Thailand QDMTT calculation locked for review — $1.55M", who: "N. Chai", when: "13 Aug, 16:40" },
   { text: "AI mapping approved for TH001 accounts 610001–720050", who: "M. Sato", when: "13 Aug, 14:12" },
   { text: "Data request sent to Vietnam finance: DTA/DTL + payroll", who: "GMT24 Gap Hunter", when: "13 Aug, 11:05" },
   { text: "Ireland KDB treatment flagged by AI Reviewer (SBTISH: no)", who: "AI Reviewer", when: "12 Aug, 18:22" },

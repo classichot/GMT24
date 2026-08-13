@@ -41,6 +41,14 @@ type Store = {
   approveMap: (account: string) => void;
   scenario: { boiExtend: boolean; payrollTh: number; tpMargin: number };
   setScenario: (p: Partial<Store["scenario"]>) => void;
+  workflow: {
+    girValidated: boolean;
+    girExported: boolean;
+    snapshotApproved: boolean;
+    sentRequests: Record<string, boolean>;
+    reviewerRan: boolean;
+  };
+  patchWorkflow: (p: Partial<Store["workflow"]>) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -58,6 +66,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [audit, setAudit] = useState<AuditNode | null>(null);
   const [approvedMaps, setApprovedMaps] = useState<Record<string, boolean>>({});
   const [scenario, setScenarioState] = useState({ boiExtend: false, payrollTh: 0, tpMargin: 3 });
+  const [workflow, setWorkflow] = useState({
+    girValidated: false,
+    girExported: false,
+    snapshotApproved: false,
+    sentRequests: {} as Record<string, boolean>,
+    reviewerRan: false,
+  });
 
   useEffect(() => {
     setAuthed(localStorage.getItem("gmt24_auth") === "1");
@@ -124,6 +139,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScenarioState((s) => ({ ...s, ...p }));
   }, []);
 
+  const patchWorkflow = useCallback((p: Partial<Store["workflow"]>) => {
+    setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
+  }, []);
+
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
   const value = useMemo(
@@ -155,8 +174,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       approveMap,
       scenario,
       setScenario,
+      workflow,
+      patchWorkflow,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -11,6 +11,8 @@ export function ThemeWrap({ children }: { children: ReactNode }) {
     Object.entries(themeVars).forEach(([key, value]) => root.style.setProperty(key, value));
     root.dataset.theme = theme;
     root.style.colorScheme = THEMES[theme].scheme;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", themeVars["--color-bg"] ?? "#ffffff");
   }, [theme, themeVars]);
   return <>{children}</>;
 }

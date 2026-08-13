@@ -2,14 +2,21 @@
 
 import { ACCOUNTS } from "@/lib/model";
 import { useStore } from "@/lib/store";
+import Link from "next/link";
 
 export default function MappingPage() {
   const { approvedMaps, approveMap, flash } = useStore();
   const pending = ACCOUNTS.filter((a) => !a.approved && !approvedMaps[a.account]).length;
   return (
     <div>
-      <div className="callout" style={{ marginBottom: 20 }}>
-        <strong>AI Smart Mapping</strong> — Account → Financial category → GloBE category → potential adjustment → covered-tax treatment → SBIE relevance. The tax team approves once; GMT24 remembers the map for subsequent years. Confidence below 80% is held for review. The LLM never posts a GloBE number.
+      <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <strong>AI Smart Mapping</strong> — Account → Financial category → GloBE category → potential adjustment → covered-tax treatment → SBIE relevance. The tax team approves once; GMT24 remembers the map for subsequent years.
+        </div>
+        <div className="stack-actions">
+          <Link href="/data" className="btn btn-secondary">Data Hub</Link>
+          <Link href="/quality" className="btn btn-primary">Data quality</Link>
+        </div>
       </div>
       <div className="kpi-grid cols-3" style={{ marginBottom: 20 }}>
         <div className="kpi"><div className="kpi-label">Accounts</div><div className="kpi-val">{ACCOUNTS.length}</div><div className="kpi-sub">TH001 sample</div></div>
@@ -29,7 +36,7 @@ export default function MappingPage() {
                 const ok = a.approved || approvedMaps[a.account];
                 return (
                   <tr key={a.account}>
-                    <td>{a.account}</td>
+                    <td className="mono">{a.account}</td>
                     <td>{a.name}</td>
                     <td>{a.financial}</td>
                     <td>{a.globe}</td>

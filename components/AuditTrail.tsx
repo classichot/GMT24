@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { eur, pct } from "@/lib/format";
 import type { AuditNode } from "@/lib/engine";
@@ -20,8 +21,8 @@ function Step({ node, depth = 0 }: { node: AuditNode; depth?: number }) {
       <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>{node.detail}</div>
       {(node.ruleId || node.sourceFile) && (
         <div style={{ marginTop: 6, fontSize: 11 }}>
-          {node.ruleId && <span className="tag tag-accent">Rule {node.ruleId} · {node.ruleVersion}</span>}
-          {node.sourceFile && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>{node.sourceFile}</span>}
+          {node.ruleId && <Link href="/rulebook" className="tag tag-accent mono" onClick={(e) => e.stopPropagation()}>Rule {node.ruleId} · {node.ruleVersion}</Link>}
+          {node.sourceFile && <Link href="/data" className="tag tag-neutral" style={{ marginLeft: 6 }} onClick={(e) => e.stopPropagation()}>{node.sourceFile}</Link>}
         </div>
       )}
       {node.children?.map((c) => <Step key={c.id} node={c} depth={depth + 1} />)}

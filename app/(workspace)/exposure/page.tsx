@@ -1,15 +1,12 @@
 "use client";
 
-import { calculateGroup, totals } from "@/lib/engine";
-import { useStore } from "@/lib/store";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import Link from "next/link";
+import { useCalc } from "@/lib/useCalc";
 
 export default function ExposurePage() {
-  const { groupId } = useStore();
-  const calcs = calculateGroup(groupId);
-  const t = totals(calcs);
+  const { calcs, t } = useCalc();
   const hot = calcs.filter((c) => c.jurisdictionalTopUp > 0);
   const max = Math.max(...calcs.map((c) => c.jurisdictionalTopUp), 1);
 
@@ -19,7 +16,7 @@ export default function ExposurePage() {
         <div className="kpi"><div className="kpi-label">Group top-up</div><div className="kpi-val">{eur(t.topUp, true)}</div></div>
         <div className="kpi"><div className="kpi-label">QDMTT</div><div className="kpi-val">{eur(t.qdmtt, true)}</div><div className="kpi-sub">local</div></div>
         <div className="kpi"><div className="kpi-label">IIR</div><div className="kpi-val">{eur(t.iir, true)}</div><div className="kpi-sub">Japan UPE</div></div>
-        <div className="kpi"><div className="kpi-label">UTPR</div><div className="kpi-val">€0</div><div className="kpi-sub">residual none</div></div>
+        <div className="kpi"><div className="kpi-label">UTPR</div><div className="kpi-val">$0</div><div className="kpi-sub">residual none</div></div>
       </div>
       <div className="panel">
         <div className="panel-head"><h4>Who pays</h4><Link href="/allocation" className="btn btn-ghost">Allocation map</Link></div>

@@ -1,23 +1,25 @@
 "use client";
 
-import { ISSUES } from "@/lib/model";
-import { totals, calculateGroup } from "@/lib/engine";
+import { ISSUES, ACCOUNTS } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
+import { useCalc } from "@/lib/useCalc";
 
 export default function QualityPage() {
-  const { groupId } = useStore();
-  const t = totals(calculateGroup(groupId));
+  const { approvedMaps } = useStore();
+  const { t } = useCalc();
+  const mapped = ACCOUNTS.filter((a) => a.approved || approvedMaps[a.account]).length;
+  const readiness = Math.min(99, t.readiness + mapped);
   return (
     <div>
       <div className="grid-score" style={{ marginBottom: 24 }}>
         <div className="panel" style={{ padding: 24, textAlign: "center" }}>
           <div className="kpi-label">Pillar Two Data Readiness</div>
-          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 72, lineHeight: 1, margin: "12px 0 4px" }}>{t.readiness}%</div>
-          <p className="text-muted">{ISSUES.filter((i) => i.severity === "block").length} issues must be resolved before lock.</p>
+          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 72, lineHeight: 1, margin: "12px 0 4px" }}>{readiness}%</div>
+          <p className="text-muted">{ISSUES.filter((i) => i.severity === "block").length} issues must be resolved before lock. {mapped}/{ACCOUNTS.length} sample accounts mapped.</p>
         </div>
         <div className="panel">
-          <div className="panel-head"><h4>Validation engine</h4><Link href="/requests" className="btn btn-ghost">Gap Hunter</Link></div>
+          <div className="panel-head"><h4>Validation engine</h4><div className="stack-actions"><Link href="/mapping" className="btn btn-ghost">Mapping</Link><Link href="/requests" className="btn btn-ghost">Gap Hunter</Link></div></div>
           <div>
             {ISSUES.map((i) => (
               <div key={i.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-divider)" }}>

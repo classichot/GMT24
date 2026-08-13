@@ -101,7 +101,7 @@ export function scopeTest(groupId = "aetherion") {
       window: g.revenueHistory,
       threshold: Number(rule.parameters.thresholdEur),
       rule,
-      note: "FY2026 revenue €768m is above €750m but only one prior year is clearly above the threshold. Confirm exchange-rate translation and excluded-entity revenue.",
+      note: "FY2026 revenue $768m is above $750m but only one prior year is clearly above the threshold. Confirm exchange-rate translation and excluded-entity revenue.",
     };
   }
   return {
@@ -110,7 +110,7 @@ export function scopeTest(groupId = "aetherion") {
     window: g.revenueHistory,
     threshold: Number(rule.parameters.thresholdEur),
     rule,
-    note: `${hits} of the last ${g.revenueHistory.length} years meet the €750m test.`,
+    note: `${hits} of the last ${g.revenueHistory.length} years meet the $750m test.`,
   };
 }
 
@@ -209,13 +209,13 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
         qdmtt = jurisdictionalTopUp;
         payer = `${entities[0].jurisdiction} QDMTT`;
         path.push(`${entities[0].jurisdiction} QDMTT ${qdmtt.toLocaleString("en-GB")}`);
-        path.push("Remaining top-up €0");
+        path.push("Remaining top-up $0");
       } else {
         iir = jurisdictionalTopUp;
         payer = "Japan UPE — IIR";
         path.push("No qualified QDMTT");
         path.push(`Parent IIR (JP) ${iir.toLocaleString("en-GB")}`);
-        path.push("Residual UTPR €0");
+        path.push("Residual UTPR $0");
       }
     }
 
@@ -367,6 +367,28 @@ export function totals(calcs: JurCalc[]) {
     issues: ISSUES.length,
     minRate: MIN_RATE,
   };
+}
+
+export type ScenarioInput = { boiExtend: boolean; payrollTh: number; tpMargin: number };
+
+export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
+  const live = s.boiExtend || s.payrollTh > 0 || s.tpMargin !== 3;
+  if (!live) return calcs;
+  return calcs.map((c) => {
+    if (c.iso === "TH") {
+      const extraSbie = money(s.payrollTh * PAYROLL_RATE);
+      const sbie = money(c.sbie + extraSbie);
+      const excess = money(Math.max(0, c.globeIncome - sbie));
+      let jurisdictionalTopUp = money(c.topUpRate * excess);
+      if (s.boiExtend) jurisdictionalTopUp = money(jurisdictionalTopUp * 0.38);
+      return { ...c, sbie, excess, jurisdictionalTopUp };
+    }
+    if (c.iso === "IE" && s.tpMargin !== 3) {
+      const factor = 1 + ((s.tpMargin - 3) / 2) * 0.08;
+      return { ...c, jurisdictionalTopUp: money(Math.max(0, c.jurisdictionalTopUp * factor)) };
+    }
+    return c;
+  });
 }
 
 export function calcForIso(iso: string, groupId = "aetherion") {

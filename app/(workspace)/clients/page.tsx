@@ -5,12 +5,18 @@ import { calculateGroup, scopeTest, totals } from "@/lib/engine";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ClientsPage() {
   const { mode, setGroupId, groupId, flash } = useStore();
   const router = useRouter();
   if (mode !== "advisor") {
-    return <p>Client portfolio is an Advisor-mode surface. Switch mode in Settings.</p>;
+    return (
+      <p>
+        Client portfolio is an Advisor-mode surface.{" "}
+        <Link href="/settings">Switch mode in Settings</Link>.
+      </p>
+    );
   }
   return (
     <div>

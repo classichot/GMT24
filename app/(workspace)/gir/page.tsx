@@ -1,13 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { GIR_SECTIONS } from "@/lib/model";
+import { GROUPS } from "@/lib/model";
 import { useStore } from "@/lib/store";
-import { calculateGroup, totals } from "@/lib/engine";
 import { eur } from "@/lib/format";
+import { FlowBar } from "@/components/FlowBar";
+import { useCalc } from "@/lib/useCalc";
 
 export default function GirPage() {
-  const { flash, groupId } = useStore();
-  const t = totals(calculateGroup(groupId));
+  const { flash, workflow, patchWorkflow } = useStore();
+  const { t, groupId } = useCalc();
+  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <GIR xmlns="urn:oecd:ties:gir:v1" version="2026.1">
   <MessageSpec>
@@ -16,17 +20,23 @@ export default function GirPage() {
     <ReportingPeriod>2026-04-01/2027-03-31</ReportingPeriod>
   </MessageSpec>
   <MneGroup>
-    <UPE>Nippon Aether Holdings K.K.</UPE>
-    <TopUpTaxEUR>${t.topUp}</TopUpTaxEUR>
+    <UPE>${group.upe}</UPE>
+    <TopUpTax currCode="USD">${t.topUp}</TopUpTax>
   </MneGroup>
 </GIR>`;
   return (
     <div>
+      <FlowBar />
       <div className="callout" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div><strong>GIR Autopilot</strong> — calculation → GIR fields → XML → schema validation → reviewer → filing pack. OECD GIR XML schema 2026 + June 2026 validation guidance.</div>
+        <div>
+          <strong>GIR Autopilot</strong> — calculation → GIR fields → XML → schema validation → reviewer → filing pack.
+          Group top-up {eur(t.topUp)}. {workflow.girValidated ? "Schema validated." : "Not yet validated."} {workflow.girExported ? "Pack exported." : ""}
+        </div>
         <div className="stack-actions">
-          <button className="btn btn-secondary" onClick={() => flash("Schema validation passed · 0 errors, 2 warnings (VN DTA)")}>Validate XML</button>
-          <button className="btn btn-primary" onClick={() => flash("GIR pack exported (XML + PDF + evidence zip)")}>Export pack</button>
+          <button className="btn btn-secondary" onClick={() => { patchWorkflow({ girValidated: true }); flash("Schema validation passed · 0 errors, 2 warnings (VN DTA)"); }}>Validate XML</button>
+          <button className="btn btn-primary" onClick={() => { patchWorkflow({ girExported: true }); flash("GIR pack exported (XML + PDF + evidence zip)"); }}>Export pack</button>
+          <Link href="/filings" className="btn btn-secondary">Filing matrix</Link>
+          <Link href="/approvals" className="btn btn-secondary">Approvals</Link>
         </div>
       </div>
       <div className="grid-2">
@@ -35,7 +45,7 @@ export default function GirPage() {
           {GIR_SECTIONS.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-divider)" }}>
               <div><strong>{s.id}. {s.title}</strong><div className="text-muted" style={{ fontSize: 12 }}>{s.fields} fields · {s.missing} missing</div></div>
-              <span className="status-prep">{s.status}</span>
+              <span className="status-prep">{s.id === "C" ? `Top-up ${eur(t.topUp, true)}` : s.status}</span>
             </div>
           ))}
         </div>

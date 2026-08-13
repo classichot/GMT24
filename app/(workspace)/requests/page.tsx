@@ -4,7 +4,7 @@ import { ISSUES } from "@/lib/model";
 import { useStore } from "@/lib/store";
 
 export default function RequestsPage() {
-  const { flash, mode } = useStore();
+  const { flash, mode, workflow, patchWorkflow } = useStore();
   const blocks = ISSUES.filter((i) => i.severity !== "info");
   return (
     <div>
@@ -19,7 +19,9 @@ export default function RequestsPage() {
               <h5 style={{ margin: 0 }}>{i.title}</h5>
               <div className="text-muted" style={{ fontSize: 12 }}>To: {i.owner} · {i.jurisdiction}</div>
             </div>
-            <button className="btn btn-primary" onClick={() => flash(`Request queued to ${i.owner}`)}>Send request</button>
+            <button className="btn btn-primary" onClick={() => { patchWorkflow({ sentRequests: { [i.id]: true } }); flash(`Request queued to ${i.owner}`); }}>
+              {workflow.sentRequests[i.id] ? "Sent" : "Send request"}
+            </button>
           </div>
           <div className="panel-body" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
             {`Please provide the following for FY2026 Pillar Two:\n\n${i.detail}\n\nNeeded to complete GloBE / covered tax / SBIE. Upload to GMT24 Data Hub (XLSX or PDF).`}

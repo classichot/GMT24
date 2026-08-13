@@ -16,9 +16,9 @@ export default function RulebookPage() {
               {RULES.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <div style={{ fontWeight: 700 }}>{r.id}</div>
+                    <div className="mono" style={{ fontWeight: 600 }}>{r.id}</div>
                     <div className="text-muted" style={{ fontSize: 12 }}>{r.source}</div>
-                    <div className="text-muted" style={{ fontSize: 12, fontFamily: "ui-monospace, monospace" }}>{r.formula}</div>
+                    <div className="text-muted mono" style={{ fontSize: 12 }}>{r.formula}</div>
                   </td>
                   <td>{r.jurisdiction}</td>
                   <td>{r.ruleType}</td>

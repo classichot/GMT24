@@ -23,8 +23,8 @@ export default function EntitiesPage() {
             {ENTITIES.map((e) => {
               const c = calcs.find((x) => x.iso === e.iso);
               return (
-                <tr key={e.id} className="clickable" onClick={() => router.push(`/graph`)}>
-                  <td>{e.code}</td>
+                <tr key={e.id} className="clickable" onClick={() => router.push(`/etr?iso=${e.iso}`)}>
+                  <td className="mono">{e.code}</td>
                   <td>{e.name}</td>
                   <td>{e.type}</td>
                   <td>{e.iso}</td>
