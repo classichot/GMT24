@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ENTITIES, FINANCIALS } from "@/lib/model";
-import { entityCalc, MIN_RATE } from "@/lib/engine";
+import { entityCalc, MIN_RATE, traceCoveredEntity, traceDeferredEntity } from "@/lib/engine";
 import { deferredTaxAdjustment } from "@/lib/deferredTax";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -111,35 +111,35 @@ export default function CoveredTaxesPage() {
                 Current tax expense
                 <div className="text-muted" style={{ fontSize: 12 }}>Covered Taxes accrued in FANIL · <Link href="/rulebook">Art. 4.1.1</Link> / <Link href="/rulebook">Art. 4.2</Link></div>
               </span>
-              <span>{eur(f.currentTax)}</span>
+              <Amount n={f.currentTax} audit={row.trace.current} />
             </div>
             <div className="wf-row">
               <span>
                 + Deferred tax (recast {min})
                 <div className="text-muted" style={{ fontSize: 12 }}>Total Deferred Tax Adjustment Amount · <Link href="/rulebook">Art. 4.4.1</Link></div>
               </span>
-              <span>{eur(deferred)}</span>
+              <Amount n={deferred} audit={row.trace.deferred ?? undefined} />
             </div>
             <div className="wf-row">
               <span>
                 + Other covered
                 <div className="text-muted" style={{ fontSize: 12 }}>In-lieu / allocated PE · CFC · hybrid · distributions · <Link href="/rulebook">Art. 4.2</Link> / <Link href="/rulebook">Art. 4.3</Link></div>
               </span>
-              <span>{eur(f.otherCovered)}</span>
+              <Amount n={f.otherCovered} audit={row.trace.other} />
             </div>
             <div className="wf-row">
               <span>
                 Non-covered (excluded)
                 <div className="text-muted" style={{ fontSize: 12 }}>Not in Adjusted Covered Taxes · <Link href="/rulebook">Art. 4.2</Link> / <Link href="/rulebook">Art. 4.1.3</Link></div>
               </span>
-              <span className="text-muted">{eur(f.nonCovered)}</span>
+              <Amount n={f.nonCovered} audit={row.trace.nonCovered} className="text-muted" />
             </div>
             <div className="wf-row total">
               <span>
                 Adjusted Covered Taxes
                 <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>Current + deferred (recast) + other covered · <Link href="/rulebook">Art. 4.1.1</Link></div>
               </span>
-              <Amount n={row.covered} audit={jur?.audit} />
+              <Amount n={row.covered} audit={row.trace.covered} />
             </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
@@ -156,15 +156,15 @@ export default function CoveredTaxesPage() {
           <div className="panel-body waterfall">
             <div className="wf-row">
               <span>Σ Adjusted Covered Taxes</span>
-              <Amount n={jur?.coveredTax ?? 0} audit={jur?.audit} />
+              <Amount n={jur?.coveredTax ?? 0} audit={jur?.trace.covered} />
             </div>
             <div className="wf-row">
               <span>÷ Net GloBE Income</span>
-              <Amount n={jur?.globeIncome ?? 0} audit={jur?.audit} />
+              <Amount n={jur?.globeIncome ?? 0} audit={jur?.trace.globe} />
             </div>
             <div className="wf-row total">
               <span>Jurisdictional ETR</span>
-              <strong>{jur ? pct(jur.etr, 2) : "—"}</strong>
+              {jur ? <Amount n={jur.etr} audit={jur.trace.etr} /> : <strong>—</strong>}
             </div>
           </div>
           <p className="text-muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13, lineHeight: 1.5 }}>
@@ -191,19 +191,19 @@ export default function CoveredTaxesPage() {
             <tbody>
               {FINANCIALS.map((fin) => {
                 const e = ENTITIES.find((x) => x.id === fin.entityId)!;
-                const c = calcs.find((x) => x.iso === e.iso);
                 const deferred = deferredTaxAdjustment(fin.entityId) ?? fin.deferredTax;
                 const covered = fin.currentTax + deferred + fin.otherCovered;
+                const ct = traceCoveredEntity(fin.entityId);
                 return (
                   <tr key={fin.entityId} className="clickable" onClick={() => setId(fin.entityId)}>
                     <td>{e.name}</td>
-                    <td className="num">{eur(fin.currentTax, true)}</td>
-                    <td className="num">{eur(deferred, true)}</td>
+                    <td className="num"><Amount n={fin.currentTax} audit={ct?.children?.find((n) => n.id.endsWith("-current"))} compact /></td>
+                    <td className="num"><Amount n={deferred} audit={traceDeferredEntity(fin.entityId) ?? undefined} compact /></td>
                     <td className="num">{eur(fin.otherCovered, true)}</td>
                     <td className="num">{eur(fin.nonCovered, true)}</td>
                     <td className="num">{eur(fin.priorDta, true)}</td>
                     <td className="num">{eur(fin.priorDtl, true)}</td>
-                    <td className="num"><Amount n={covered} audit={c?.audit} compact /></td>
+                    <td className="num"><Amount n={covered} audit={ct ?? undefined} compact /></td>
                   </tr>
                 );
               })}

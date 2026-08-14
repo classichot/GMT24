@@ -19,7 +19,16 @@ export function Amount({
   const label = n !== 0 && Math.abs(n) <= 1 && Math.abs(n) > 0 && n < 2 ? pct(n, 2) : eur(n, compact);
   if (!audit) return <span className={className}>{label}</span>;
   return (
-    <button type="button" className={`amt ${className ?? ""}`} onClick={() => openAudit(audit)} title="Open audit trail">
+    <button
+      type="button"
+      className={`amt ${className ?? ""}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        openAudit(audit);
+      }}
+      title="Open audit trail — rule → entity → account → source"
+    >
       {label}
     </button>
   );

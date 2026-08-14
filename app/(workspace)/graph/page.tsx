@@ -6,6 +6,7 @@ import { ENTITIES } from "@/lib/model";
 import { calculateGroup } from "@/lib/engine";
 import { useStore } from "@/lib/store";
 import { eur, pct } from "@/lib/format";
+import { Amount } from "@/components/Amount";
 
 export default function GraphPage() {
   const { groupId } = useStore();
@@ -64,11 +65,11 @@ export default function GraphPage() {
         {jc && (
           <div className="kpi-grid cols-6">
             <div className="kpi"><div className="kpi-label">Revenue</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.revenue, true)}</div></div>
-            <div className="kpi"><div className="kpi-label">GloBE</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.globeIncome, true)}</div></div>
-            <div className="kpi"><div className="kpi-label">Covered tax</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.coveredTax, true)}</div></div>
-            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}>{pct(jc.etr, 1)}</div></div>
+            <div className="kpi"><div className="kpi-label">GloBE</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.globeIncome} audit={jc.trace.globe} compact /></div></div>
+            <div className="kpi"><div className="kpi-label">Covered tax</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.coveredTax} audit={jc.trace.covered} compact /></div></div>
+            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} audit={jc.trace.etr} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Safe harbour</div><div className="kpi-val" style={{ fontSize: 18 }}>{jc.sh.outcome}</div></div>
-            <div className="kpi"><div className="kpi-label">Top-up</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.jurisdictionalTopUp, true)}</div></div>
+            <div className="kpi"><div className="kpi-label">Top-up</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></div></div>
           </div>
         )}
       </div>

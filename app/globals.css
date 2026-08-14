@@ -181,7 +181,8 @@ pre { font-size: 12px; line-height: 1.65; }
 .num { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
 .amt {
   font-variant-numeric: tabular-nums; font-weight: 800; font-family: var(--font-heading);
-  background: none; border: 0; padding: 0; color: inherit; cursor: pointer; text-decoration: none;
+  background: none; border: 0; padding: 0; color: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
 }
 .amt:hover { color: var(--color-accent); }
 

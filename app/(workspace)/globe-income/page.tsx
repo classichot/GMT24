@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
-import { entityCalc, calculateGroup } from "@/lib/engine";
+import { entityCalc, calculateGroup, traceAdj } from "@/lib/engine";
 import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
@@ -109,7 +109,7 @@ export default function GlobeIncomePage() {
         <div className="panel-body waterfall">
           <div className="wf-row">
             <span>FANIL (Art. 3.1.1 — accounting)</span>
-            <span>{eur(f.fanil)}</span>
+            <Amount n={f.fanil} audit={row.trace.fanil} />
           </div>
           {row.adjustments.map((a) => {
             running += a.amount;
@@ -129,7 +129,7 @@ export default function GlobeIncomePage() {
                     {a.reason} · {a.sourceDoc} · {a.preparer}{a.reviewer ? ` / ${a.reviewer}` : ""} · {a.status}
                   </div>
                 </span>
-                <span>{eur(a.amount)}</span>
+                <Amount n={a.amount} audit={traceAdj(a)} />
               </div>
             );
           })}
@@ -141,7 +141,7 @@ export default function GlobeIncomePage() {
           )}
           <div className="wf-row total">
             <span>GloBE income (Art. 3.1 + 3.2)</span>
-            <Amount n={row.globe} audit={jur?.audit} />
+            <Amount n={row.globe} audit={row.trace.globe} />
           </div>
         </div>
       </div>

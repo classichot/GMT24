@@ -45,7 +45,7 @@ export function AuditTrail() {
         </div>
         <div className="panel-body">
           <p className="text-muted" style={{ fontSize: 13 }}>
-            Click any euro amount in GMT24 to walk from the result to the ledger and the uploaded source file. The engine is deterministic — this is not an LLM estimate.
+            Every GMT24 amount is posted by the deterministic engine. This trail walks the amount → OECD rule (id + version) → entity → account → uploaded source file. The LLM never posts FANIL, GloBE income, Covered Taxes, or ETR.
           </p>
           <Step node={audit} />
         </div>

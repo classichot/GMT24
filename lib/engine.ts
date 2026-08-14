@@ -9,11 +9,12 @@ import {
   type Entity,
   type Exposure,
   type Financials,
+  type Adjustment,
   type ScopeStatus,
   type ShResult,
 } from "./model";
 import { money } from "./format";
-import { deferredTaxAdjustment } from "./deferredTax";
+import { deferredTaxAdjustment, viewsForEntity, type DtView } from "./deferredTax";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -67,6 +68,15 @@ export type JurCalc = {
   completeness: number;
   pack: (typeof JURISDICTION_PACKS)[number] | undefined;
   audit: AuditNode;
+  trace: {
+    globe: AuditNode;
+    covered: AuditNode;
+    sbie: AuditNode;
+    payroll: AuditNode;
+    assets: AuditNode;
+    excess: AuditNode;
+    etr: AuditNode;
+  };
 };
 
 function sum(xs: number[]) {
@@ -81,6 +91,165 @@ function entityGlobe(f: Financials, entityId: string) {
 function entityCovered(f: Financials) {
   const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
   return money(f.currentTax + deferred + f.otherCovered);
+}
+
+function sourceNode(id: string, file: string, detail: string): AuditNode {
+  return { id, label: file, kind: "source", sourceFile: file, detail };
+}
+
+export function traceAdj(a: Adjustment): AuditNode {
+  return {
+    id: a.id,
+    label: a.category,
+    amount: a.amount,
+    kind: "formula",
+    ruleId: a.ruleId,
+    ruleVersion: "2026.1",
+    sourceFile: a.sourceDoc,
+    detail: `Art. 3.2 · original ${a.original.toLocaleString("en-GB")} · delta ${a.amount.toLocaleString("en-GB")}${a.account ? ` · acct ${a.account}` : ""} · ${a.reason} · ${a.preparer}${a.reviewer ? ` / ${a.reviewer}` : ""} · ${a.status}`,
+    children: [sourceNode(`${a.id}-src`, a.sourceDoc, "Approved mapping · engine posted the delta, not the LLM")],
+  };
+}
+
+export function traceFanil(entityId: string): AuditNode | null {
+  const e = ENTITIES.find((x) => x.id === entityId);
+  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  if (!e || !f) return null;
+  const file = `${e.code} Trial Balance FY2026.xlsx`;
+  return {
+    id: `${e.id}-fanil`,
+    label: `FANIL · ${e.code}`,
+    amount: f.fanil,
+    kind: "entity",
+    ruleId: "OECD-GloBE-15",
+    ruleVersion: "2026.1",
+    sourceFile: file,
+    detail: `Art. 3.1.1 — Financial Accounting Net Income or Loss from the UPE consolidation (${e.gaap}). Not local taxable profit.`,
+    children: [sourceNode(`${e.id}-fanil-src`, file, "Data Hub · UPE CFS / trial balance")],
+  };
+}
+
+export function traceGlobeEntity(entityId: string): AuditNode | null {
+  const e = ENTITIES.find((x) => x.id === entityId);
+  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const fanil = traceFanil(entityId);
+  if (!e || !f || !fanil) return null;
+  const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
+  return {
+    id: `${e.id}-globe`,
+    label: `GloBE income · ${e.code}`,
+    amount: entityGlobe(f, entityId),
+    kind: "formula",
+    ruleId: "OECD-GloBE-15",
+    ruleVersion: "2026.1",
+    detail: "GloBE = FANIL + Σ Art. 3.2 deltas. Engine posted; LLM did not.",
+    children: [fanil, ...adjs.map(traceAdj)],
+  };
+}
+
+export function traceDtPosition(p: DtView): AuditNode {
+  return {
+    id: p.id,
+    label: `${p.side} · ${p.type}`,
+    amount: p.globeClosing,
+    kind: "account",
+    ruleId: p.exception ? "OECD-DT-445" : p.deadlineYear ? "OECD-DT-444" : "OECD-DT-441",
+    ruleVersion: "2026.1",
+    sourceFile: p.evidence.split("·")[0].trim(),
+    detail: `Accounting close ${p.closing.toLocaleString("en-GB")} at ${(p.accountingRate * 100).toFixed(1)}% → GloBE ${p.globeClosing.toLocaleString("en-GB")} at ${(p.globeRate * 100).toFixed(0)}%. ${p.treatment}. Origin FY${p.originYear}${p.deadlineYear ? ` · recapture deadline FY${p.deadlineYear}` : ""}. FY movement in TDTA ${p.pnl.toLocaleString("en-GB")}. ${p.evidence}`,
+    children: [
+      { id: `${p.id}-open`, label: "Opening (accounting)", amount: p.opening, kind: "formula", detail: "Sub-ledger opening" },
+      { id: `${p.id}-add`, label: "Addition (accounting)", amount: p.addition, kind: "formula", detail: "This-year addition" },
+      { id: `${p.id}-rev`, label: "Reversal (accounting)", amount: p.reversal, kind: "formula", detail: "This-year reversal" },
+      { id: `${p.id}-pnl`, label: "GloBE FY movement", amount: p.pnl, kind: "formula", ruleId: "OECD-DT-441", ruleVersion: "2026.1", detail: "Enters Total Deferred Tax Adjustment Amount after recast" },
+    ],
+  };
+}
+
+export function traceDeferredEntity(entityId: string): AuditNode | null {
+  const e = ENTITIES.find((x) => x.id === entityId);
+  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  if (!e || !f) return null;
+  const deferred = deferredTaxAdjustment(entityId) ?? f.deferredTax;
+  const rows = viewsForEntity(entityId);
+  const material = [...rows].sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl)).slice(0, 12);
+  return {
+    id: `${e.id}-dt`,
+    label: `Deferred tax recast · ${e.code}`,
+    amount: deferred,
+    kind: "formula",
+    ruleId: "OECD-DT-441",
+    ruleVersion: "2026.1",
+    sourceFile: "Deferred_tax_rollforward.xlsx",
+    detail: `Art. 4.4 Total Deferred Tax Adjustment Amount · ${rows.length} sub-ledger positions · recast at the Minimum Rate`,
+    children: [
+      ...material.map(traceDtPosition),
+      sourceNode(`${e.id}-dt-src`, "Deferred_tax_rollforward.xlsx", "DTA/DTL register · tax provision"),
+    ],
+  };
+}
+
+export function traceDeferredIso(iso: string): AuditNode | null {
+  const entities = ENTITIES.filter((e) => e.iso === iso);
+  const children = entities.map((e) => traceDeferredEntity(e.id)).filter(Boolean) as AuditNode[];
+  if (!children.length) return null;
+  const name = entities[0]?.jurisdiction ?? iso;
+  return {
+    id: `${iso}-dt-all`,
+    label: `${name} Total Deferred Tax Adjustment Amount`,
+    amount: money(sum(children.map((c) => c.amount ?? 0))),
+    kind: "formula",
+    ruleId: "OECD-DT-441",
+    ruleVersion: "2026.1",
+    detail: `Art. 4.4 · Σ Constituent Entity recast deferred tax · ${children.length} entities · engine posted, not the LLM`,
+    children,
+  };
+}
+
+export function traceCoveredEntity(entityId: string): AuditNode | null {
+  const e = ENTITIES.find((x) => x.id === entityId);
+  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  if (!e || !f) return null;
+  const deferred = traceDeferredEntity(entityId);
+  const file = `${e.code} Trial Balance FY2026.xlsx`;
+  return {
+    id: `${e.id}-ct`,
+    label: `Covered taxes · ${e.code}`,
+    amount: entityCovered(f),
+    kind: "entity",
+    ruleId: "OECD-GloBE-15",
+    ruleVersion: "2026.1",
+    detail: "Current Covered Tax + Art. 4.4 deferred (recast) + other covered. Non-covered excluded.",
+    children: [
+      {
+        id: `${e.id}-current`,
+        label: "Current Covered Tax",
+        amount: f.currentTax,
+        kind: "account",
+        ruleId: "OECD-GloBE-15",
+        ruleVersion: "2026.1",
+        sourceFile: file,
+        detail: "Art. 4.1.1 current tax expense on Covered Taxes accrued in FANIL",
+        children: [sourceNode(`${e.id}-current-src`, file, "Account 720050 · tax provision")],
+      },
+      ...(deferred ? [deferred] : []),
+      {
+        id: `${e.id}-other`,
+        label: "Other covered",
+        amount: f.otherCovered,
+        kind: "formula",
+        detail: "Art. 4.2 / 4.3 in-lieu, PE, CFC, hybrid, distributions",
+      },
+      {
+        id: `${e.id}-non`,
+        label: "Non-covered (excluded)",
+        amount: f.nonCovered,
+        kind: "formula",
+        detail: "Art. 4.2 — not in Adjusted Covered Taxes",
+        sourceFile: file,
+      },
+    ],
+  };
 }
 
 function shPass(flag: boolean): ShResult {
@@ -224,12 +393,83 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
     const completeness = Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length);
     const name = entities[0].jurisdiction;
 
+    const globeTrace: AuditNode = {
+      id: `${iso}-gi`,
+      label: `${name} GloBE income`,
+      amount: globeIncome,
+      kind: "formula",
+      ruleId: "OECD-GloBE-15",
+      ruleVersion: "2026.1",
+      detail: "Σ FANIL ± Art. 3.2 of Constituent Entities in the jurisdiction",
+      children: entities.map((e) => traceGlobeEntity(e.id)).filter(Boolean) as AuditNode[],
+    };
+    const coveredTrace: AuditNode = {
+      id: `${iso}-ct`,
+      label: `${name} Covered taxes`,
+      amount: coveredTax,
+      kind: "formula",
+      ruleId: "OECD-GloBE-15",
+      ruleVersion: "2026.1",
+      detail: "Current + deferred (Art. 4.4 recast) + other covered − non-covered",
+      children: entities.map((e) => traceCoveredEntity(e.id)).filter(Boolean) as AuditNode[],
+    };
+    const payrollTrace: AuditNode = {
+      id: `${iso}-payroll`,
+      label: `${name} payroll carve-out`,
+      amount: payrollCarve,
+      kind: "formula",
+      ruleId: "OECD-SBIE-2026",
+      ruleVersion: "2026.1",
+      sourceFile: "Payroll_TH_FY2026.csv",
+      detail: `Art. 5.3.3 / 9.2 · ${PAYROLL_RATE * 100}% × eligible payroll ${payroll.toLocaleString("en-GB")}`,
+    };
+    const assetTrace: AuditNode = {
+      id: `${iso}-assets`,
+      label: `${name} tangible-asset carve-out`,
+      amount: assetCarve,
+      kind: "formula",
+      ruleId: "OECD-SBIE-2026",
+      ruleVersion: "2026.1",
+      sourceFile: "Fixed_asset_register_TH.xlsx",
+      detail: `Art. 5.3.4 / 9.2 · ${ASSET_RATE * 100}% × eligible tangible assets ${assets.toLocaleString("en-GB")}`,
+    };
+    const sbieTrace: AuditNode = {
+      id: `${iso}-sbie`,
+      label: `${name} SBIE`,
+      amount: sbie,
+      kind: "formula",
+      ruleId: "OECD-SBIE-2026",
+      ruleVersion: "2026.1",
+      detail: "Payroll carve-out + tangible-asset carve-out. Does not change ETR.",
+      children: [payrollTrace, assetTrace],
+    };
+    const excessTrace: AuditNode = {
+      id: `${iso}-excess`,
+      label: `${name} Excess Profit`,
+      amount: excess,
+      kind: "formula",
+      ruleId: "OECD-GloBE-15",
+      ruleVersion: "2026.1",
+      detail: "max(0, Net GloBE Income − SBIE) · Art. 5.2.2",
+      children: [globeTrace, sbieTrace],
+    };
+    const etrTrace: AuditNode = {
+      id: `${iso}-etr`,
+      label: `${name} jurisdictional ETR`,
+      amount: etr,
+      kind: "formula",
+      ruleId: "OECD-GloBE-15",
+      ruleVersion: "2026.1",
+      detail: `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1`,
+      children: [coveredTrace, globeTrace],
+    };
+
     const audit: AuditNode = {
       id: `${iso}-topup`,
       label: `${name} top-up tax`,
       amount: jurisdictionalTopUp,
       kind: "result",
-      detail: `Snapshot FY2026 · engine GMT24-CALC 2026.2 · min rate 15%`,
+      detail: `Snapshot FY2026 · engine GMT24-CALC 2026.2 · min rate 15% · Top-up % × Excess Profit`,
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
       children: [
@@ -242,67 +482,9 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
           ruleId: "OECD-GloBE-15",
           ruleVersion: "2026.1",
         },
-        {
-          id: `${iso}-etr`,
-          label: "Jurisdictional ETR",
-          amount: etr,
-          kind: "formula",
-          detail: `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")}`,
-          children: [
-            {
-              id: `${iso}-ct`,
-              label: "Covered taxes",
-              amount: coveredTax,
-              kind: "formula",
-              detail: "Current + deferred (recast) + other covered − non-covered",
-              children: entities.flatMap((e) => {
-                const f = FINANCIALS.find((x) => x.entityId === e.id);
-                if (!f) return [];
-                return [{
-                  id: `${e.id}-ct`,
-                  label: e.name,
-                  amount: entityCovered(f),
-                  kind: "entity" as const,
-                  detail: `Current ${f.currentTax.toLocaleString("en-GB")} + deferred ${ (deferredTaxAdjustment(e.id) ?? f.deferredTax).toLocaleString("en-GB")} (Art. 4.4 recast)`,
-                  children: [
-                    {
-                      id: `${e.id}-720060`,
-                      label: "Account 720060 — Deferred income tax",
-                      amount: deferredTaxAdjustment(e.id) ?? f.deferredTax,
-                      kind: "account" as const,
-                      detail: "DTA/DTL sub-ledger · recast at the Minimum Rate · Art. 4.4",
-                      children: [{
-                        id: `${e.id}-src`,
-                        label: `${e.code} trial balance / tax provision`,
-                        kind: "source" as const,
-                        sourceFile: `${e.code} Trial Balance FY2026.xlsx`,
-                        detail: "Uploaded source file in Data Hub",
-                      }],
-                    },
-                  ],
-                }];
-              }),
-            },
-            {
-              id: `${iso}-gi`,
-              label: "GloBE income",
-              amount: globeIncome,
-              kind: "formula",
-              detail: "FANIL ± GloBE adjustments",
-              ruleId: "OECD-DIV-EXCL",
-              ruleVersion: "2026.1",
-            },
-          ],
-        },
-        {
-          id: `${iso}-sbie`,
-          label: "SBIE",
-          amount: sbie,
-          kind: "formula",
-          detail: `Payroll ${PAYROLL_RATE * 100}% + tangible assets ${ASSET_RATE * 100}% (FY2026)`,
-          ruleId: "OECD-SBIE-2026",
-          ruleVersion: "2026.1",
-        },
+        etrTrace,
+        sbieTrace,
+        excessTrace,
         {
           id: `${iso}-sh`,
           label: "Safe harbour navigator",
@@ -335,6 +517,15 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       completeness,
       pack,
       audit,
+      trace: {
+        globe: globeTrace,
+        covered: coveredTrace,
+        sbie: sbieTrace,
+        payroll: payrollTrace,
+        assets: assetTrace,
+        excess: excessTrace,
+        etr: etrTrace,
+      },
     });
   }
 
@@ -354,6 +545,16 @@ export function totals(calcs: JurCalc[]) {
   const readiness = Math.round(
     (1 - ISSUES.filter((i) => i.severity === "block").length * 0.06 - ISSUES.filter((i) => i.severity === "warn").length * 0.025) * 100,
   );
+  const audit: AuditNode = {
+    id: "group-topup",
+    label: "Group jurisdictional top-up",
+    amount: topUp,
+    kind: "result",
+    ruleId: "OECD-GloBE-15",
+    ruleVersion: "2026.1",
+    detail: "Σ jurisdictional top-up · snapshot FY2026 · engine GMT24-CALC 2026.2 · presentation USD. Posted by the engine, not the LLM.",
+    children: calcs.filter((c) => c.jurisdictionalTopUp > 0).map((c) => c.audit),
+  };
   return {
     topUp,
     qdmtt,
@@ -368,6 +569,7 @@ export function totals(calcs: JurCalc[]) {
     readiness: Math.max(60, readiness),
     issues: ISSUES.length,
     minRate: MIN_RATE,
+    audit,
   };
 }
 
@@ -403,13 +605,25 @@ export function entityCalc(entityId: string) {
   if (!e || !f) return null;
   const globe = entityGlobe(f, entityId);
   const covered = entityCovered(f);
+  const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
+  const coveredTrace = traceCoveredEntity(entityId)!;
   return {
     entity: e,
     f,
     globe,
     covered,
     etr: globe > 0 ? covered / globe : 0,
-    adjustments: ADJUSTMENTS.filter((a) => a.entityId === entityId),
+    adjustments: adjs,
+    trace: {
+      fanil: traceFanil(entityId)!,
+      globe: traceGlobeEntity(entityId)!,
+      covered: coveredTrace,
+      current: coveredTrace.children?.find((c) => c.id === `${entityId}-current`),
+      deferred: traceDeferredEntity(entityId),
+      other: coveredTrace.children?.find((c) => c.id === `${entityId}-other`),
+      nonCovered: coveredTrace.children?.find((c) => c.id === `${entityId}-non`),
+      adj: adjs.map(traceAdj),
+    },
   };
 }
 

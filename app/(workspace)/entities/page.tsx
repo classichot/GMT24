@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
 import { calculateGroup } from "@/lib/engine";
+import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
-import { pct } from "@/lib/format";
 
 export default function EntitiesPage() {
   const { groupId } = useStore();
@@ -30,7 +30,7 @@ export default function EntitiesPage() {
                   <td>{e.iso}</td>
                   <td>{e.ownership}%</td>
                   <td>{e.gaap}</td>
-                  <td className="num">{pct(c?.etr ?? 0, 1)}</td>
+                  <td className="num"><Amount n={c?.etr ?? 0} audit={c?.trace.etr} compact /></td>
                   <td>{c?.sh.outcome}</td>
                   <td className="num">{e.completeness}%</td>
                   <td><span className="status-prep">{e.review}</span></td>

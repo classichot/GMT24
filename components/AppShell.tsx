@@ -29,8 +29,8 @@ import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
+import { Amount } from "@/components/Amount";
 import { useCalc } from "@/lib/useCalc";
-import { eur } from "@/lib/format";
 import { PLAYBOOKS } from "@/lib/playbooks";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -183,7 +183,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href={mode === "advisor" ? "/clients" : "/overview"} onClick={() => setNavOpen(false)} style={{ display: "block", padding: "12px 14px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", textDecoration: "none", color: "inherit" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-neutral-600)" }}>{mode === "advisor" ? "Engagement" : "MNE group"}</div>
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 13 }}>{group.name}</div>
-          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>{group.fy} · {eur(t.topUp, true)} top-up</div>
+          <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>{group.fy} · <Amount n={t.topUp} audit={t.audit} compact /> top-up</div>
         </Link>
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
           {NAV.map((g) => {

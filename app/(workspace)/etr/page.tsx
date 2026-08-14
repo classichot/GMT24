@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { eur, pct } from "@/lib/format";
+import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
@@ -101,7 +101,7 @@ function Inner() {
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row"><span>FANIL ± Art. 3.2</span><Link href="/globe-income">GloBE income</Link></div>
-            <div className="wf-row total"><span>Net GloBE Income</span><Amount n={sel.globeIncome} audit={sel.audit} /></div>
+            <div className="wf-row total"><span>Net GloBE Income</span><Amount n={sel.globeIncome} audit={sel.trace.globe} /></div>
           </div>
         </div>
         <div className="panel">
@@ -111,7 +111,7 @@ function Inner() {
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row"><span>Current + Art. 4.4 recast {min}</span><Link href={`/deferred-tax?iso=${sel.iso}`}>Deferred tax</Link></div>
-            <div className="wf-row total"><span>Adjusted Covered Taxes</span><Amount n={sel.coveredTax} audit={sel.audit} /></div>
+            <div className="wf-row total"><span>Adjusted Covered Taxes</span><Amount n={sel.coveredTax} audit={sel.trace.covered} /></div>
           </div>
         </div>
         <div className="panel">
@@ -120,7 +120,7 @@ function Inner() {
             <span className="text-muted">Art. 5.1.1</span>
           </div>
           <div className="panel-body waterfall">
-            <div className="wf-row"><span>Covered ÷ GloBE</span><strong>{pct(sel.etr, 2)}</strong></div>
+            <div className="wf-row"><span>Covered ÷ GloBE</span><Amount n={sel.etr} audit={sel.trace.etr} /></div>
             <div className="wf-row total"><span>Top-up</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
           </div>
         </div>
@@ -138,21 +138,21 @@ function Inner() {
                 Adjusted Covered Taxes
                 <div className="text-muted" style={{ fontSize: 12 }}>Numerator · <Link href="/covered-taxes">Art. 4.1.1</Link> / <Link href="/rulebook">Art. 4.4.1</Link></div>
               </span>
-              <Amount n={sel.coveredTax} audit={sel.audit} />
+              <Amount n={sel.coveredTax} audit={sel.trace.covered} />
             </div>
             <div className="wf-row">
               <span>
                 ÷ Net GloBE Income
                 <div className="text-muted" style={{ fontSize: 12 }}>Denominator — not reduced by SBIE · <Link href="/globe-income">Art. 5.1.2</Link></div>
               </span>
-              <Amount n={sel.globeIncome} audit={sel.audit} />
+              <Amount n={sel.globeIncome} audit={sel.trace.globe} />
             </div>
             <div className="wf-row total">
               <span>
                 Jurisdictional ETR
                 <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}><Link href="/rulebook">Art. 5.1.1</Link></div>
               </span>
-              <strong>{pct(sel.etr, 2)}</strong>
+              <Amount n={sel.etr} audit={sel.trace.etr} />
             </div>
             <div className="wf-row">
               <span>
@@ -166,7 +166,7 @@ function Inner() {
                 Top-up Tax Percentage
                 <div className="text-muted" style={{ fontSize: 12 }}>max(0, {min} − ETR) · <Link href="/top-up">Art. 5.2.1</Link></div>
               </span>
-              <span>{pct(sel.topUpRate, 2)}</span>
+              <Amount n={sel.topUpRate} audit={sel.audit.children?.find((n) => n.id.endsWith("-rate"))} />
             </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
@@ -183,9 +183,9 @@ function Inner() {
                 {calcs.map((c) => (
                   <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
                     <td>{c.name}</td>
-                    <td className="num">{eur(c.globeIncome, true)}</td>
-                    <td className="num">{eur(c.coveredTax, true)}</td>
-                    <td className="num">{pct(c.etr, 1)}</td>
+                    <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
+                    <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
+                    <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
                     <td>{c.exposure}</td>
                   </tr>
                 ))}

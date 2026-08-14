@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { PAYROLL_RATE, ASSET_RATE } from "@/lib/engine";
-import { eur, pct } from "@/lib/format";
+import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
@@ -103,7 +103,7 @@ function Inner() {
                 GloBE income
                 <div className="text-muted" style={{ fontSize: 12 }}>Denominator of ETR — not reduced by SBIE · <Link href="/rulebook">Art. 5.1.1</Link></div>
               </span>
-              <Amount n={sel.globeIncome} audit={sel.audit} />
+              <Amount n={sel.globeIncome} audit={sel.trace.globe} />
             </div>
             <div className="wf-row">
               <span>
@@ -112,7 +112,7 @@ function Inner() {
                   {pr} × Eligible Payroll Costs · <Link href="/rulebook">Art. 5.3.3</Link> / <Link href="/rulebook">Art. 9.2</Link>
                 </div>
               </span>
-              <span>{eur(sel.payrollCarve)}</span>
+              <Amount n={sel.payrollCarve} audit={sel.trace.payroll} />
             </div>
             <div className="wf-row">
               <span>
@@ -121,21 +121,21 @@ function Inner() {
                   {ar} × average carrying value of Eligible Tangible Assets · <Link href="/rulebook">Art. 5.3.4</Link> / <Link href="/rulebook">Art. 5.3.5</Link> / <Link href="/rulebook">Art. 9.2</Link>
                 </div>
               </span>
-              <span>{eur(sel.assetCarve)}</span>
+              <Amount n={sel.assetCarve} audit={sel.trace.assets} />
             </div>
             <div className="wf-row">
               <span>
                 SBIE
                 <div className="text-muted" style={{ fontSize: 12 }}>Payroll carve-out + asset carve-out · <Link href="/rulebook">Art. 5.3.2</Link></div>
               </span>
-              <span>{eur(sel.sbie)}</span>
+              <Amount n={sel.sbie} audit={sel.trace.sbie} />
             </div>
             <div className="wf-row total">
               <span>
                 Excess profit
                 <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>max(0, Net GloBE income − SBIE) · <Link href="/rulebook">Art. 5.2.2</Link></div>
               </span>
-              <strong>{eur(sel.excess)}</strong>
+              <Amount n={sel.excess} audit={sel.trace.excess} />
             </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
@@ -151,10 +151,10 @@ function Inner() {
                 {calcs.map((c) => (
                   <tr key={c.iso} className="clickable" onClick={() => router.push(`/sbie?iso=${c.iso}`)}>
                     <td>{c.name}</td>
-                    <td className="num">{eur(c.payrollCarve, true)}</td>
-                    <td className="num">{eur(c.assetCarve, true)}</td>
-                    <td className="num">{eur(c.sbie, true)}</td>
-                    <td className="num">{eur(c.excess, true)}</td>
+                    <td className="num"><Amount n={c.payrollCarve} audit={c.trace.payroll} compact /></td>
+                    <td className="num"><Amount n={c.assetCarve} audit={c.trace.assets} compact /></td>
+                    <td className="num"><Amount n={c.sbie} audit={c.trace.sbie} compact /></td>
+                    <td className="num"><Amount n={c.excess} audit={c.trace.excess} compact /></td>
                   </tr>
                 ))}
               </tbody>

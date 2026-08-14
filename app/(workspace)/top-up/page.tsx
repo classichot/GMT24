@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
@@ -29,7 +28,7 @@ export default function TopUpPage() {
         </div>
       </div>
       <div className="panel">
-        <div className="panel-head"><h4>Jurisdictional calculation</h4><span>Group {eur(t.topUp)}</span></div>
+        <div className="panel-head"><h4>Jurisdictional calculation</h4><span>Group <Amount n={t.topUp} audit={t.audit} compact /></span></div>
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -41,12 +40,12 @@ export default function TopUpPage() {
               {calcs.map((c) => (
                 <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
                   <td>{c.name}</td>
-                  <td className="num">{eur(c.globeIncome, true)}</td>
-                  <td className="num">{eur(c.coveredTax, true)}</td>
-                  <td className="num">{pct(c.etr, 1)}</td>
-                  <td className="num">{pct(c.topUpRate, 2)}</td>
-                  <td className="num">{eur(c.sbie, true)}</td>
-                  <td className="num">{eur(c.excess, true)}</td>
+                  <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
+                  <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
+                  <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
+                  <td className="num"><Amount n={c.topUpRate} audit={c.audit.children?.find((n) => n.id.endsWith("-rate"))} compact /></td>
+                  <td className="num"><Amount n={c.sbie} audit={c.trace.sbie} compact /></td>
+                  <td className="num"><Amount n={c.excess} audit={c.trace.excess} compact /></td>
                   <td className="num"><Amount n={c.jurisdictionalTopUp} audit={c.audit} compact /></td>
                 </tr>
               ))}

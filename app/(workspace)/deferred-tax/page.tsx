@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
-import { MIN_RATE, calcForIso } from "@/lib/engine";
+import { MIN_RATE, calcForIso, traceDtPosition, traceDeferredIso } from "@/lib/engine";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
@@ -26,46 +26,59 @@ import {
   type RecaptureStatus,
 } from "@/lib/deferredTax";
 
+const OECD_MODEL =
+  "https://www.oecd.org/content/dam/oecd/en/topics/policy-sub-issues/global-minimum-tax/tax-challenges-arising-from-the-digitalisation-of-the-economy-global-anti-base-erosion-model-rules-pillar-two.pdf";
+const OECD_COMMENTARY =
+  "https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/05/tax-challenges-arising-from-the-digitalisation-of-the-economy-consolidated-commentary-to-the-global-anti-base-erosion-model-rules-2025_be9651c2/a551b351-en.pdf";
+
 const METHOD = [
   {
     n: "01",
-    title: "Recast deferred tax at 15%",
-    body: "Accounting DTL at a 20% CIT is not 20 of GloBE tax. Where the applicable rate exceeds the Minimum Rate, Article 4.4.1 recasts at 15% so a high statutory rate cannot inflate ETR. Timing is not treated as permanent undertaxation.",
-    refs: ["Art. 4.4.1"],
+    title: "Start from deferred tax in FANIL",
+    body: "The Total Deferred Tax Adjustment Amount begins with deferred tax expense (or benefit) accrued in the financial accounts with respect to Covered Taxes. That is the timing bridge: current tax alone would treat accelerated depreciation or a tax-loss DTA as permanent undertaxation.",
+    refs: ["Art. 4.1.1", "Art. 4.4.1"],
   },
   {
     n: "02",
-    title: "Track DTA through utilisation",
-    body: "Tax losses create DTAs. When those losses shelter later profits, current tax is low. GloBE follows the DTA so that year is not mistaken for undertaxation. Where accounting recognition criteria blocked the DTA, a deemed GloBE DTA can still be tracked.",
-    refs: ["Art. 4.4.1", "Art. 4.5"],
+    title: "Strip Article 4.4.1 exclusions",
+    body: "Take out deferred tax on items excluded from GloBE income, disallowed and unclaimed accruals, valuation / recognition adjustments (subject to the GloBE DTA rules), re-measurement from a change in domestic tax rate, and the generation or use of tax credits. Permanent differences never enter Article 4.4.",
+    refs: ["Art. 4.4.1"],
   },
   {
     n: "03",
-    title: "Five-year DTL recapture",
-    body: "Credit for a DTL assumes the tax will be paid. If a non-excepted DTL has not reversed by the end of the fifth subsequent Fiscal Year, Article 4.4.4 recaptures it and the origin-year ETR is recomputed.",
-    refs: ["Art. 4.4.4"],
+    title: "Recast at the Minimum Rate",
+    body: "If the applicable domestic rate exceeds 15%, recast the remaining deferred tax at the Minimum Rate so a high CIT cannot inflate ETR. If the applicable rate is at or below 15%, do not recast upward. A DTA recorded below 15% that is attributable to a GloBE Loss may be recast at 15% under Article 4.4.3.",
+    refs: ["Art. 4.4.1", "Art. 4.4.3"],
+  },
+  {
+    n: "04",
+    title: "Apply Article 4.4.2 adjustments",
+    body: "Increase the amount for disallowed or unclaimed accruals paid this year, and for a recaptured Deferred Tax Liability from a prior year that is paid this year. The result is the Total Deferred Tax Adjustment Amount that enters Adjusted Covered Taxes.",
+    refs: ["Art. 4.4.2"],
   },
   {
     n: "05",
-    title: "Run the Intelligence Engine",
-    body: "Register → temporary differences → map → GloBE-relevant → recast → exclusions → Recapture Exception → Total Deferred Tax Adjustment → Covered Taxes → ETR → Top-up → reversal tracking. AI classifies; the engine posts.",
-    refs: ["Art. 4.1.1", "Art. 4.4"],
+    title: "Classify Recapture Exception Accruals",
+    body: "Article 4.4.5 categories (tangible cost recovery, government licences, R&D, decommissioning, certain fair-value and FX items, insurance reserves, reinvested in-jurisdiction tangible gains, and related accounting-principle changes) do not sit on the five-year clock.",
+    refs: ["Art. 4.4.5"],
   },
   {
-    n: "07",
-    title: "Meet the FANIL engine in ETR",
-    body: "FANIL Engine is the denominator (GloBE income). Covered Tax & Deferred Tax Engine is the numerator (Adjusted Covered Taxes). They meet only in the Jurisdictional ETR Engine.",
-    refs: ["Art. 3.1", "Art. 4.1.1", "Art. 5.1.1"],
+    n: "06",
+    title: "Run the five-year recapture clock",
+    body: "Any other DTL taken into the deferred-tax adjustment must reverse by the end of the fifth subsequent Fiscal Year. If it has not, Article 4.4.4 recaptures it and the origin-year ETR is recomputed. Alternatively, a GloBE Loss Election under Article 4.5 can replace these deferred-tax mechanics.",
+    refs: ["Art. 4.4.4", "Art. 4.5"],
   },
 ];
 
-const REFERENCES = [
-  { cite: "OECD (2021)", work: "GloBE Model Rules — Chapter 4, Computation of Adjusted Covered Taxes", loc: "Arts. 4.1 and 4.4", href: "/rulebook" },
-  { cite: "OECD (2025/2026)", work: "Consolidated Commentary to the GloBE Model Rules", loc: "Arts. 4.4.1, 4.4.4, 4.4.5 — recast, recapture, Recapture Exception Accruals", href: "/rulebook" },
-  { cite: "Art. 4.1.1", work: "Adjusted Covered Taxes include the Total Deferred Tax Adjustment Amount", loc: "OECD-GloBE-15 v2026.1", href: "/covered-taxes" },
-  { cite: "Art. 4.4.1", work: "Total Deferred Tax Adjustment Amount — recast at the Minimum Rate when the applicable rate exceeds 15%; exclude DT on excluded GloBE items", loc: "OECD-DT-441 v2026.1", href: "/rulebook" },
-  { cite: "Art. 4.4.4", work: "Five-year recapture of deferred tax liabilities that are not Recapture Exception Accruals", loc: "OECD-DT-444 v2026.1", href: "/rulebook" },
-  { cite: "Art. 4.4.5", work: "Recapture Exception Accruals — tangible cost recovery, R&D, decommissioning, certain FV / FX / insurance items", loc: "OECD-DT-445 v2026.1", href: "/rulebook" },
+const REFERENCES: { cite: string; work: string; loc: string; href: string; external?: boolean }[] = [
+  { cite: "OECD (2021)", work: "Tax Challenges Arising from the Digitalisation of the Economy – Global Anti-Base Erosion Model Rules (Pillar Two)", loc: "Chapter 4, Art. 4.4 Total Deferred Tax Adjustment Amount", href: OECD_MODEL, external: true },
+  { cite: "OECD (2025)", work: "Consolidated Commentary to the GloBE Model Rules (2025)", loc: "Arts. 4.4.1–4.4.5 — recast, exclusions, DTA recast, recapture, Recapture Exception Accruals", href: OECD_COMMENTARY, external: true },
+  { cite: "Art. 4.1.1", work: "Adjusted Covered Taxes = current tax expense on Covered Taxes ± Art. 4.1.2/4.1.3 + Total Deferred Tax Adjustment Amount", loc: "OECD-GloBE-15 v2026.1", href: "/covered-taxes" },
+  { cite: "Art. 4.4.1", work: "Total Deferred Tax Adjustment Amount — recast at the Minimum Rate when the applicable rate exceeds 15%; listed exclusions", loc: "OECD-DT-441 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4.4.2", work: "Adjustments to the Total Deferred Tax Adjustment Amount (paid disallowed/unclaimed accruals; recaptured DTL paid this year)", loc: "OECD-DT-442 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4.4.3", work: "Deferred Tax Asset recorded below the Minimum Rate may be recast at 15% if attributable to a GloBE Loss", loc: "OECD-DT-443 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4.4.4", work: "Five-year recapture of deferred tax liabilities that are not Recapture Exception Accruals; origin-year ETR recomputed", loc: "OECD-DT-444 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4.4.5", work: "Recapture Exception Accruals — tangible cost recovery, licences, R&D, decommissioning, certain FV / FX / insurance / reinvestment items", loc: "OECD-DT-445 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.5", work: "GloBE Loss Election — in lieu of Article 4.4 deferred-tax mechanics", loc: "Model Rules Ch. 4", href: "/rulebook" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Adjusted Covered Taxes ÷ Net GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
@@ -114,6 +127,37 @@ function Inner() {
   const approachingAmt = dt.approaching + dt.recapture;
   const currentCovered = jur ? jur.coveredTax - dt.pnl : 0;
   const currentOnlyEtr = jur && jur.globeIncome > 0 ? currentCovered / jur.globeIncome : 0;
+  const dtTrace = traceDeferredIso(iso);
+  const currentTrace = jur
+    ? {
+        id: `${iso}-current-blend`,
+        label: `${dt.name} Current Covered Tax`,
+        amount: currentCovered,
+        kind: "formula" as const,
+        ruleId: "OECD-GloBE-15",
+        ruleVersion: "2026.1",
+        detail: "Σ Art. 4.1.1 current tax expense on Covered Taxes of Constituent Entities in the jurisdiction. Engine posted, not the LLM.",
+        children: (jur.trace.covered.children ?? []).flatMap((n) => n.children?.filter((c) => c.id.endsWith("-current")) ?? []),
+      }
+    : undefined;
+  const haircutTrace = {
+    id: `${iso}-haircut`,
+    label: `${dt.name} 15% recast haircut`,
+    amount: dt.haircut,
+    kind: "formula" as const,
+    ruleId: "OECD-DT-441",
+    ruleVersion: "2026.1",
+    detail: `Accounting close ${dt.accountingClose.toLocaleString("en-GB")} recast at the Minimum Rate → GloBE ${dt.globeClose.toLocaleString("en-GB")}. A high domestic CIT cannot inflate ETR.`,
+  };
+  const recaptureTrace = {
+    id: `${iso}-approaching`,
+    label: `${dt.name} approaching recapture`,
+    amount: approachingAmt,
+    kind: "formula" as const,
+    ruleId: "OECD-DT-444",
+    ruleVersion: "2026.1",
+    detail: `Art. 4.4.4 five-year DTL recapture · non-excepted outstanding at FY${DT_FY + 1}`,
+  };
   const flow = intelligenceFlow(dt, jur?.coveredTax ?? 0, jur?.globeIncome ?? 0, jur?.jurisdictionalTopUp ?? 0);
   const hotClock = clocks.find((c) => c.status === "recapture" || c.status === "approaching") ?? clocks[0];
   const originAfter = hotClock ? originRecompute(hotClock) : null;
@@ -132,12 +176,15 @@ function Inner() {
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Deferred Tax Intelligence.</strong> Timing differences are not permanent undertaxation. The numerator of the ETR is Adjusted Covered Taxes, which includes the Article 4.4 Total Deferred Tax Adjustment Amount — recast, excepted, or placed on a five-year recapture clock. Formula:{" "}
-          <span className="mono">ACT = current Covered Tax ± Art. 4.1 + Art. 4.4 deferred (recast {min})</span>
+          <strong>Deferred-tax adjustment method.</strong> Article 4.4 exists so a timing difference is not treated as a real low-tax outcome. Adjusted Covered Taxes take current Covered Tax and add the Total Deferred Tax Adjustment Amount — deferred tax expense recast at the Minimum Rate, after exclusions and Article 4.4.2 adjustments. Formula:{" "}
+          <span className="mono">ACT = current Covered Tax ± Art. 4.1 + Total Deferred Tax Adjustment (recast {min})</span>
+          {" · "}
+          <span className="mono">TDTA = recast deferred tax − Art. 4.4.1 exclusions ± Art. 4.4.2</span>
         </div>
         <div className="stack-actions">
           <Link href="/covered-taxes" className="btn btn-secondary">Covered taxes</Link>
           <Link href={jur ? `/etr?iso=${iso}` : "/etr"} className="btn btn-secondary">ETR</Link>
+          <a href={OECD_COMMENTARY} className="btn btn-secondary" target="_blank" rel="noreferrer">OECD Commentary 2025</a>
           <button className="btn btn-primary" onClick={() => ask("Explain deferred tax recast and DTL recapture for Thailand")}>Ask GMT24</button>
         </div>
       </div>
@@ -151,7 +198,7 @@ function Inner() {
               <p className="text-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>{m.body}</p>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {m.refs.map((r) => (
-                  <Link key={r} href="/rulebook" className="tag tag-outline" style={{ fontSize: 10 }}>{r}</Link>
+                  <Link key={r} href="#references" className="tag tag-outline" style={{ fontSize: 10 }}>{r}</Link>
                 ))}
               </div>
             </div>
@@ -180,17 +227,17 @@ function Inner() {
         </div>
         <div className="kpi">
           <div className="kpi-label">GloBE deferred tax adj.</div>
-          <div className="kpi-val">{eur(dt.pnl, true)}</div>
+          <div className="kpi-val"><Amount n={dt.pnl} audit={dtTrace ?? undefined} compact /></div>
           <div className="kpi-sub">Art. 4.4.1 · recast {min}</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">15% recast haircut</div>
-          <div className="kpi-val">{eur(dt.haircut, true)}</div>
+          <div className="kpi-val"><Amount n={dt.haircut} audit={haircutTrace} compact /></div>
           <div className="kpi-sub">Accounting {eur(dt.accountingClose, true)} → GloBE {eur(dt.globeClose, true)}</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Approaching recapture</div>
-          <div className="kpi-val">{eur(approachingAmt, true)}</div>
+          <div className="kpi-val"><Amount n={approachingAmt} audit={recaptureTrace} compact /></div>
           <div className="kpi-sub">Art. 4.4.4 · deadline FY{DT_FY + 1}</div>
         </div>
       </div>
@@ -268,11 +315,11 @@ function Inner() {
             </div>
             <div className="wf-row">
               <span>Haircut that cannot inflate ETR</span>
-              <span>{eur(dt.haircut)}</span>
+              <Amount n={dt.haircut} audit={haircutTrace} />
             </div>
             <div className="wf-row total">
               <span>With Art. 4.4 deferred · jurisdictional ETR</span>
-              <strong>{jur ? pct(jur.etr, 2) : "—"}</strong>
+              {jur ? <Amount n={jur.etr} audit={jur.trace.etr} /> : "—"}
             </div>
           </div>
         </div>
@@ -466,7 +513,7 @@ function Inner() {
             <div className="wf-row"><span>± Art. 3.2 adjustments</span><span><Link href="/globe-income">Open</Link></span></div>
             <div className="wf-row total">
               <span>Net GloBE Income</span>
-              {jur ? <Amount n={jur.globeIncome} audit={jur.audit} /> : "—"}
+              {jur ? <Amount n={jur.globeIncome} audit={jur.trace.globe} /> : "—"}
             </div>
           </div>
         </div>
@@ -476,11 +523,11 @@ function Inner() {
             <span className="text-muted">Numerator · Art. 4.1–4.4</span>
           </div>
           <div className="panel-body waterfall">
-            <div className="wf-row"><span>Current Covered Tax</span><span>{jur ? eur(currentCovered) : "—"}</span></div>
-            <div className="wf-row"><span>+ Art. 4.4 deferred (recast {min})</span><span>{eur(dt.pnl)}</span></div>
+            <div className="wf-row"><span>Current Covered Tax</span>{jur ? <Amount n={currentCovered} audit={currentTrace} /> : "—"}</div>
+            <div className="wf-row"><span>+ Art. 4.4 deferred (recast {min})</span><Amount n={dt.pnl} audit={dtTrace ?? undefined} /></div>
             <div className="wf-row total">
               <span>Adjusted Covered Taxes</span>
-              {jur ? <Amount n={jur.coveredTax} audit={jur.audit} /> : "—"}
+              {jur ? <Amount n={jur.coveredTax} audit={jur.trace.covered} /> : "—"}
             </div>
           </div>
         </div>
@@ -490,7 +537,7 @@ function Inner() {
             <span className="text-muted">Where they meet · Art. 5.1.1</span>
           </div>
           <div className="panel-body waterfall">
-            <div className="wf-row"><span>Covered Taxes ÷ GloBE Income</span><span>{jur ? pct(jur.etr, 2) : "—"}</span></div>
+            <div className="wf-row"><span>Covered Taxes ÷ GloBE Income</span>{jur ? <Amount n={jur.etr} audit={jur.trace.etr} /> : "—"}</div>
             <div className="wf-row"><span>Top-up Tax Percentage</span><span>{jur ? pct(jur.topUpRate, 2) : "—"}</span></div>
             <div className="wf-row total">
               <span>Jurisdictional Top-up</span>
@@ -523,23 +570,23 @@ function Inner() {
           <div className="panel-body waterfall">
             <div className="wf-row">
               <span>Current Covered Tax</span>
-              <span>{jur ? eur(jur.coveredTax - dt.pnl) : "—"}</span>
+              {jur ? <Amount n={jur.coveredTax - dt.pnl} audit={currentTrace} /> : "—"}
             </div>
             <div className="wf-row">
               <span>+ Total Deferred Tax Adjustment</span>
-              <span>{eur(dt.pnl)}</span>
+              <Amount n={dt.pnl} audit={dtTrace ?? undefined} />
             </div>
             <div className="wf-row total">
               <span>Adjusted Covered Taxes</span>
-              {jur ? <Amount n={jur.coveredTax} audit={jur.audit} /> : "—"}
+              {jur ? <Amount n={jur.coveredTax} audit={jur.trace.covered} /> : "—"}
             </div>
             <div className="wf-row">
               <span>÷ Net GloBE Income</span>
-              {jur ? <Amount n={jur.globeIncome} audit={jur.audit} /> : "—"}
+              {jur ? <Amount n={jur.globeIncome} audit={jur.trace.globe} /> : "—"}
             </div>
             <div className="wf-row total">
               <span>Jurisdictional ETR</span>
-              <strong>{jur ? pct(jur.etr, 2) : "—"}</strong>
+              {jur ? <Amount n={jur.etr} audit={jur.trace.etr} /> : "—"}
             </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
@@ -594,7 +641,7 @@ function Inner() {
                     <td className="num">{eur(p.reversal, true)}</td>
                     <td className="num">{eur(p.closing, true)}</td>
                     <td className="num">{pct(p.accountingRate, p.accountingRate >= 0.2 ? 0 : 1)}</td>
-                    <td className="num">{eur(p.globeClosing, true)}</td>
+                    <td className="num"><Amount n={p.globeClosing} audit={traceDtPosition(p)} compact /></td>
                     <td>{p.treatment}</td>
                     <td>{p.exception ? "Y" : p.side === "DTL" && p.globeRelevant ? "N" : "—"}</td>
                     <td><span className={`tag ${tag}`}>{p.deadlineYear ? `FY${p.deadlineYear}` : label}</span></td>
@@ -622,17 +669,32 @@ function Inner() {
         <Link href="/etr">ETR</Link>
       </p>
 
-      <div className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head"><h4>References</h4><Link href="/rulebook" className="btn btn-ghost">GMT24 rulebook</Link></div>
+      <div className="panel" style={{ marginTop: 20 }} id="references">
+        <div className="panel-head">
+          <h4>References</h4>
+          <div className="stack-actions">
+            <a href={OECD_MODEL} className="btn btn-ghost" target="_blank" rel="noreferrer">Model Rules 2021</a>
+            <a href={OECD_COMMENTARY} className="btn btn-ghost" target="_blank" rel="noreferrer">Commentary 2025</a>
+            <Link href="/rulebook" className="btn btn-ghost">GMT24 rulebook</Link>
+          </div>
+        </div>
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Cite</th><th>Authority</th><th>GMT24 / location</th></tr></thead>
             <tbody>
               {REFERENCES.map((r) => (
-                <tr key={r.cite} className="clickable" onClick={() => router.push(r.href)}>
+                <tr
+                  key={r.cite}
+                  className="clickable"
+                  onClick={() => { if (r.external) window.open(r.href, "_blank", "noopener,noreferrer"); else router.push(r.href); }}
+                >
                   <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.cite}</td>
                   <td>{r.work}</td>
-                  <td><Link href={r.href}>{r.loc}</Link></td>
+                  <td>
+                    {r.external
+                      ? <a href={r.href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{r.loc}</a>
+                      : <Link href={r.href}>{r.loc}</Link>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -661,10 +723,11 @@ function PositionCard({ p, asOf }: { p: DtView; asOf: number }) {
       <div className="wf-row"><span>Opening / + addition / − reversal / closing</span><span>{eur(p.opening, true)} / {eur(p.addition, true)} / {eur(p.reversal, true)} / {eur(p.closing, true)}</span></div>
       <div className="wf-row"><span>Accounting rate</span><span>{pct(p.accountingRate, p.accountingRate >= 0.2 ? 0 : 1)}</span></div>
       <div className="wf-row"><span>GloBE rate</span><span>{pct(p.globeRate, 0)}</span></div>
-      <div className="wf-row"><span>GloBE closing</span><span>{eur(p.globeClosing)}</span></div>
+      <div className="wf-row"><span>GloBE closing</span><Amount n={p.globeClosing} audit={traceDtPosition(p)} /></div>
       <div className="wf-row"><span>Recast haircut</span><span>{eur(p.recastHaircut)}</span></div>
       <div className="wf-row"><span>Article 4.4.5 exception?</span><span>{p.exception ? `Yes · ${p.exception}` : "No"}</span></div>
-      {p.exception && <p className="text-muted" style={{ fontSize: 13, margin: "8px 0 0" }}>{EXCEPTION_LABEL[p.exception]}. Five-year recapture monitoring is not required.</p>}
+      {p.exception && <p className="text-muted" style={{ fontSize: 13, margin: "8px 0 0" }}>{EXCEPTION_LABEL[p.exception]}. Five-year recapture monitoring is not required. <Link href="#references">Art. 4.4.5</Link></p>}
+      {!p.globeRelevant && !p.deemed && <p className="text-muted" style={{ fontSize: 13, margin: "8px 0 0" }}>Excluded from the Total Deferred Tax Adjustment Amount. <Link href="#references">Art. 4.4.1</Link></p>}
       {!p.exception && p.side === "DTL" && (
         <div className="wf-row">
           <span>Five-year deadline</span>

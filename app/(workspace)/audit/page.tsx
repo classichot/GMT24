@@ -11,7 +11,7 @@ export default function AuditPage() {
   return (
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>
-        Killer feature: click any final number and travel back to the ledger and source document. Every step cites rule id + version.
+        Every calculated amount in GMT24 is clickable. The trail walks amount → OECD rule (id + version) → entity → account → uploaded source file. The engine posts the number; the LLM does not.
       </div>
       {calcs.map((c) => (
         <div key={c.iso} className="panel" style={{ marginBottom: 12 }}>
@@ -19,8 +19,16 @@ export default function AuditPage() {
             <h4 style={{ margin: 0 }}>{c.name}</h4>
             <Amount n={c.jurisdictionalTopUp} audit={c.audit} />
           </div>
-          <div className="panel-body text-muted" style={{ fontSize: 13 }}>
-            {c.audit.detail} · QDMTT {eur(c.collection.qdmtt)} · IIR {eur(c.collection.iir)}
+          <div className="panel-body waterfall">
+            <div className="wf-row"><span>GloBE income</span><Amount n={c.globeIncome} audit={c.trace.globe} compact /></div>
+            <div className="wf-row"><span>Covered taxes</span><Amount n={c.coveredTax} audit={c.trace.covered} compact /></div>
+            <div className="wf-row"><span>ETR</span><Amount n={c.etr} audit={c.trace.etr} compact /></div>
+            <div className="wf-row"><span>SBIE</span><Amount n={c.sbie} audit={c.trace.sbie} compact /></div>
+            <div className="wf-row"><span>Excess profit</span><Amount n={c.excess} audit={c.trace.excess} compact /></div>
+            <div className="wf-row total"><span>Top-up</span><Amount n={c.jurisdictionalTopUp} audit={c.audit} compact /></div>
+            <p className="text-muted" style={{ fontSize: 13, margin: "12px 0 0" }}>
+              {c.audit.detail} · QDMTT {eur(c.collection.qdmtt)} · IIR {eur(c.collection.iir)}
+            </p>
           </div>
         </div>
       ))}

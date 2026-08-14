@@ -30,7 +30,7 @@ export default function OverviewPage() {
       <div className="callout" style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <strong>{mode === "advisor" ? "Advisory engagement" : "In-house close"} · {group.name} · {group.fy}.</strong>{" "}
-          AI mapped the trial balances. The deterministic engine produced {eur(t.topUp)} of jurisdictional top-up tax across {t.tu} countries. {t.blocks} data issues still block a lock.
+          AI mapped the trial balances. The deterministic engine produced <Amount n={t.topUp} audit={t.audit} /> of jurisdictional top-up tax across {t.tu} countries. {t.blocks} data issues still block a lock.
         </div>
         <div className="stack-actions">
           <Link href="/audit" className="btn btn-secondary">Explain calculation</Link>
@@ -43,7 +43,7 @@ export default function OverviewPage() {
         <div style={{ flex: 1, padding: "26px 24px 22px", borderRight: "1px solid var(--color-divider)" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>Group Global Minimum Tax exposure · {group.fy}</div>
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 64, lineHeight: 0.95, letterSpacing: "-0.03em", marginTop: 10 }}>
-            <Amount n={t.topUp} audit={th?.audit} />
+            <Amount n={t.topUp} audit={t.audit} />
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             <span className="tag tag-neutral">Calculated 13 Aug 2026</span>
@@ -130,10 +130,10 @@ export default function OverviewPage() {
           <div className="panel-body">
             {th && (
               <>
-                <div className="wf-row"><span>ETR</span><strong>{pct(th.etr, 1)}</strong></div>
-                <div className="wf-row"><span>GloBE income</span><Amount n={th.globeIncome} audit={th.audit} compact /></div>
-                <div className="wf-row"><span>Covered taxes</span><Amount n={th.coveredTax} audit={th.audit} compact /></div>
-                <div className="wf-row"><span>SBIE</span><Amount n={th.sbie} compact /></div>
+                <div className="wf-row"><span>ETR</span><Amount n={th.etr} audit={th.trace.etr} /></div>
+                <div className="wf-row"><span>GloBE income</span><Amount n={th.globeIncome} audit={th.trace.globe} compact /></div>
+                <div className="wf-row"><span>Covered taxes</span><Amount n={th.coveredTax} audit={th.trace.covered} compact /></div>
+                <div className="wf-row"><span>SBIE</span><Amount n={th.sbie} audit={th.trace.sbie} compact /></div>
                 <div className="wf-row total"><span>Estimated top-up</span><Amount n={th.jurisdictionalTopUp} audit={th.audit} compact /></div>
                 <div className="wf-row"><span>Collection</span><span>QDMTT {eur(th.collection.qdmtt, true)}</span></div>
                 <div className="wf-row"><span>Data confidence</span><span>{th.completeness}%</span></div>
@@ -157,9 +157,9 @@ export default function OverviewPage() {
                 {calcs.slice(0, 8).map((c) => (
                   <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
                     <td>{c.name}</td>
-                    <td className="num">{eur(c.globeIncome, true)}</td>
-                    <td className="num">{eur(c.coveredTax, true)}</td>
-                    <td className="num">{pct(c.etr, 1)}</td>
+                    <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
+                    <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
+                    <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
                     <td>{c.jurisdictionalTopUp > 0 ? <span className="tag tag-hot">Exposure</span> : c.exposure === "Safe harbour" ? <span className="tag tag-warn">Review SH</span> : c.exposure === "Review" ? <span className="tag tag-warn">Review SH</span> : <span className="tag tag-ok">No top-up</span>}</td>
                   </tr>
                 ))}
