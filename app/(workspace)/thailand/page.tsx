@@ -80,11 +80,15 @@ Thai Audit Defence Book`}
       <div className="panel">
         <div className="panel-head">
           <h4>Instruments in this pack</h4>
-          <a href={THAI_PACK.rdPage} target="_blank" rel="noreferrer" className="btn btn-ghost">rd.go.th/68005</a>
+          <div className="stack-actions">
+            <a href={THAI_PACK.rdDecree} target="_blank" rel="noreferrer" className="btn btn-ghost">Decree</a>
+            <a href={THAI_PACK.rdPage} target="_blank" rel="noreferrer" className="btn btn-ghost">DG 1–8</a>
+            <a href={THAI_PACK.rdMappingPdf} target="_blank" rel="noreferrer" className="btn btn-ghost">RD mapping</a>
+          </div>
         </div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Instrument</th><th>Content</th><th>GMT24 module</th><th>Status</th></tr></thead>
+            <thead><tr><th>Instrument</th><th>Content</th><th>GMT24 module</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {THAI_INSTRUMENTS.map((r) => (
                 <tr key={r.id}>
@@ -92,6 +96,7 @@ Thai Audit Defence Book`}
                   <td>{r.loc}</td>
                   <td><Link href={r.href}>{r.module}</Link></td>
                   <td><span className={`tag ${r.status === "in-pack" ? "tag-ok" : "tag-warn"}`}>{r.status === "in-pack" ? "In pack" : "Pending"}</span></td>
+                  <td><a className="btn btn-ghost" href={r.url} target="_blank" rel="noreferrer">Source</a></td>
                 </tr>
               ))}
             </tbody>

@@ -17,6 +17,15 @@ export const THAI_PACK = {
   cit: 0.2,
   minRate: 0.15,
   rdPage: "https://www.rd.go.th/68005.html",
+  rdDecree: "https://www.rd.go.th/67365.html",
+  rdMappingPdf:
+    "https://www.rd.go.th/fileadmin/user_upload/porsor/topuptaxreference_170269.pdf",
+  rdDecreeNews:
+    "https://www.rd.go.th/fileadmin/user_upload/news/2567eng/englishnews_6_2025.pdf",
+  rdSecondaryNews:
+    "https://www.rd.go.th/fileadmin/user_upload/news/2568eng/englishnews_5_2026.pdf",
+  oecdModelRules:
+    "https://www.oecd.org/en/topics/sub-issues/global-minimum-tax/global-anti-base-erosion-model-rules-pillar-two.html",
   oecdCommentary:
     "https://www.oecd.org/en/publications/tax-challenges-arising-from-the-digitalisation-of-the-economy-consolidated-commentary-to-the-global-anti-base-erosion-model-rules-2026_4377e89f-en.html",
   oecdCentralRecord:
@@ -33,19 +42,19 @@ export const THAI_PACK = {
 };
 
 export const THAI_INSTRUMENTS = [
-  { id: "prk2567", cite: "Emergency Decree on Top-up Tax B.E. 2567", loc: "Scope, 15%, QDMTT/IIR/UTPR, filing, payment, audit, appeal, penalties", module: "Thai master rules", href: "/thailand/liability", status: "in-pack" as const },
-  { id: "dgtopuptax1", cite: "DG Notification No. 1", loc: "Accepted accounting standards and jurisdictions", module: "Accounting Standard Validator", href: "/thailand/scope", status: "in-pack" as const },
-  { id: "dgtopuptax2", cite: "DG Notification No. 2", loc: "Qualified / disqualified refundable imputation taxes", module: "Covered Tax Classification", href: "/thailand/scope", status: "in-pack" as const },
-  { id: "dgtopuptax3", cite: "DG Notification No. 3", loc: "Dual residence, flow-through and entity location", module: "Thai Entity Situs", href: "/thailand/entities", status: "in-pack" as const },
-  { id: "dgtopuptax4", cite: "DG Notification No. 4", loc: "Payroll and tangible-asset SBIE", module: "Thai SBIE Engine", href: "/thailand/sbie", status: "in-pack" as const },
-  { id: "dgtopuptax5", cite: "DG Notification No. 5", loc: "Employees and assets for Thai UTPR allocation", module: "Thai UTPR Allocation", href: "/thailand/liability", status: "in-pack" as const },
-  { id: "dgtopuptax6", cite: "DG Notification No. 6", loc: "Three BOT foreign-exchange conversion rules", module: "BOT FX Engine", href: "/thailand/fx", status: "in-pack" as const },
-  { id: "dgtopuptax7", cite: "DG Notification No. 7", loc: "Government, non-profit, pension and investment exclusions", module: "Excluded Entity Decision Tree", href: "/thailand/entities", status: "in-pack" as const },
-  { id: "dgtopuptax8", cite: "DG Notification No. 8", loc: "Minority-owned, investment and stateless entities", module: "Special Entity Calculation", href: "/thailand/entities", status: "in-pack" as const },
-  { id: "moftopuptax1", cite: "MOF Notification No. 1", loc: "Transitional SBIE rates by fiscal-year start", module: "Time-versioned SBIE Rate Table", href: "/thailand/sbie", status: "in-pack" as const },
-  { id: "s31", cite: "Section 31 (delegated)", loc: "Detailed GloBE income adjustments", module: "Pending instrument", href: "/thailand", status: "pending" as const },
-  { id: "s33", cite: "Section 33 (delegated)", loc: "Adjusted Covered Tax rules", module: "Pending instrument", href: "/thailand", status: "pending" as const },
-  { id: "s53-57", cite: "Sections 53–57 (delegated)", loc: "Filing forms and electronic submission", module: "Pending filing schema", href: "/thailand/filing", status: "pending" as const },
+  { id: "prk2567", cite: "Emergency Decree on Top-up Tax B.E. 2567", loc: "Scope, 15%, QDMTT/IIR/UTPR, filing, payment, audit, appeal, penalties", module: "Thai master rules", href: "/thailand/liability", url: "https://www.rd.go.th/67365.html", status: "in-pack" as const },
+  { id: "dgtopuptax1", cite: "DG Notification No. 1", loc: "Accepted accounting standards and jurisdictions", module: "Accounting Standard Validator", href: "/thailand/scope", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax2", cite: "DG Notification No. 2", loc: "Qualified / disqualified refundable imputation taxes", module: "Covered Tax Classification", href: "/thailand/scope", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax3", cite: "DG Notification No. 3", loc: "Dual residence, flow-through and entity location", module: "Thai Entity Situs", href: "/thailand/entities", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax4", cite: "DG Notification No. 4", loc: "Payroll and tangible-asset SBIE", module: "Thai SBIE Engine", href: "/thailand/sbie", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax5", cite: "DG Notification No. 5", loc: "Employees and assets for Thai UTPR allocation", module: "Thai UTPR Allocation", href: "/thailand/liability", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax6", cite: "DG Notification No. 6", loc: "Three BOT foreign-exchange conversion rules", module: "BOT FX Engine", href: "/thailand/fx", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax7", cite: "DG Notification No. 7", loc: "Government, non-profit, pension and investment exclusions", module: "Excluded Entity Decision Tree", href: "/thailand/entities", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "dgtopuptax8", cite: "DG Notification No. 8", loc: "Minority-owned, investment and stateless entities", module: "Special Entity Calculation", href: "/thailand/entities", url: "https://www.rd.go.th/68005.html", status: "in-pack" as const },
+  { id: "moftopuptax1", cite: "MOF Notification No. 1", loc: "Transitional SBIE rates by fiscal-year start", module: "Time-versioned SBIE Rate Table", href: "/thailand/sbie", url: "https://www.rd.go.th/67365.html", status: "in-pack" as const },
+  { id: "s31", cite: "Section 31 (delegated)", loc: "Detailed GloBE income adjustments", module: "Pending instrument", href: "/thailand", url: "https://www.rd.go.th/fileadmin/user_upload/news/2568eng/englishnews_5_2026.pdf", status: "pending" as const },
+  { id: "s33", cite: "Section 33 (delegated)", loc: "Adjusted Covered Tax rules", module: "Pending instrument", href: "/thailand", url: "https://www.rd.go.th/fileadmin/user_upload/news/2568eng/englishnews_5_2026.pdf", status: "pending" as const },
+  { id: "s53-57", cite: "Sections 53–57 (delegated)", loc: "Filing forms and electronic submission", module: "Pending filing schema", href: "/thailand/filing", url: "https://www.rd.go.th/67365.html", status: "pending" as const },
 ];
 
 export const THAI_MODULES = [

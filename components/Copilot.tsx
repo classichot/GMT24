@@ -57,9 +57,15 @@ export function Copilot() {
               <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {m.cites.map((c) =>
                   c.href ? (
-                    <Link key={c.label} href={c.href} className="tag tag-outline" style={{ fontSize: 10 }}>
-                      <BookOpen size={10} style={{ marginRight: 4 }} />{c.label}
-                    </Link>
+                    c.href.startsWith("http") ? (
+                      <a key={c.label} href={c.href} target="_blank" rel="noreferrer" className="tag tag-outline" style={{ fontSize: 10 }}>
+                        <BookOpen size={10} style={{ marginRight: 4 }} />{c.label}
+                      </a>
+                    ) : (
+                      <Link key={c.label} href={c.href} className="tag tag-outline" style={{ fontSize: 10 }}>
+                        <BookOpen size={10} style={{ marginRight: 4 }} />{c.label}
+                      </Link>
+                    )
                   ) : (
                     <span key={c.label} className="tag tag-outline" style={{ fontSize: 10 }}><BookOpen size={10} style={{ marginRight: 4 }} />{c.label}</span>
                   ),

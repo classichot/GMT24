@@ -143,7 +143,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Pure OECD rules and the GloBE Core calculation are not the Thai RD return. Close diverge items, overlay Thai procedure, and hold pending instruments as documented exceptions.",
     owner: "Thai tax lead / reviewer",
     steps: [
-      { n: "01", title: "Separate the tests", body: "Run the gap review. Scope (USD vs BOT THB), FX methods and PE category are Thai overlays or divergences. Lock BOT rates before anyone copies a GloBE number onto a Thai form.", href: "/thailand/gap", hrefLabel: "Gap review" },
+      { n: "01", title: "Separate the tests", body: "Run the gap review. Open the source pin on each topic (OECD article, RD instrument, GMT24 rule) before anyone copies a GloBE number onto a Thai form. Lock BOT rates and PE category first.", href: "/thailand/gap", hrefLabel: "Gap review" },
       { n: "02", title: "Reconcile numbers that diverge", body: "Thai SBIE Notification No. 4 versus OECD SBIE. Covered-tax questionnaire versus Art. 4. FANIL stays on OECD 3.2 until Section 31 exists — the LLM does not fill that gap.", href: "/thailand/sbie", hrefLabel: "Thai SBIE" },
       { n: "03", title: "Order liability and hold pending items", body: "QDMTT / IIR / UTPR waterfall and designated taxpayer. Document ss 31, 33 and 53–57 as coverage exceptions. Do not tell the RD that the GIR XML is the Thai return.", href: "/thailand/liability", hrefLabel: "Liability" },
     ],

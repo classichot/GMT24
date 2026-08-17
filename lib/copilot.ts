@@ -21,9 +21,12 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
       const R = reviewOecdRdGap(th());
       return {
         role: "assistant",
-        text: `OECD Model Rules + GMT24 GloBE Core are not the Thai RD Pillar Two file.\n\nThis snapshot: ${R.headline}.\nScope: OECD ${R.oecdScope} (USD 750m) vs Thai BOT ${R.thaiScope}.\nSBIE delta (Thai − OECD) ${eur(R.sbieDelta)}.\nTop-up ${eur(R.topUp)} is collected as Thai QDMTT ${eur(R.payable)} — collection is aligned; SBIE, FX and situs are not.\n\nPending RD instruments (ss 31, 33, 53–57) are documented exceptions. Do not invent those rules in the copilot.\n\nOpen the OECD vs RD gap review, then the playbook.`,
+        text: `OECD Model Rules + GMT24 GloBE Core are not the Thai RD Pillar Two file.\n\nThis snapshot: ${R.headline}.\nScope: OECD ${R.oecdScope} (USD 750m) vs Thai BOT ${R.thaiScope}.\nSBIE delta (Thai − OECD) ${eur(R.sbieDelta)}.\nTop-up ${eur(R.topUp)} is collected as Thai QDMTT ${eur(R.payable)} — collection is aligned; SBIE, FX and situs are not.\n\nGround of analysis: if OECD and RD conflict, cite the Thai instrument (Decree / DG notification). If they do not, cite the 2026 Commentary. Pending RD instruments (ss 31, 33, 53–57) are documented exceptions — see RD news 5/2026. Do not invent those rules in the copilot.\n\nOpen the OECD vs RD gap review. Every topic has a source trail (OECD article → RD instrument → GMT24 rule).`,
         cites: [
           { label: "OECD vs RD gap", href: "/thailand/gap" },
+          { label: "RD GloBE mapping PDF", href: "https://www.rd.go.th/fileadmin/user_upload/porsor/topuptaxreference_170269.pdf" },
+          { label: "OECD Commentary 2026", href: "https://www.oecd.org/en/publications/tax-challenges-arising-from-the-digitalisation-of-the-economy-consolidated-commentary-to-the-global-anti-base-erosion-model-rules-2026_4377e89f-en.html" },
+          { label: "Emergency Decree B.E. 2567", href: "https://www.rd.go.th/67365.html" },
           { label: "Playbook", href: "/playbook/oecd-rd-gap" },
         ],
       };
