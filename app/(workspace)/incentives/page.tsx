@@ -29,7 +29,10 @@ export default function IncentivesPage() {
               <div className="wf-row"><span>Conditions</span><span>{i.conditions}</span></div>
               <div className="wf-row"><span>Extracted from</span><span>{i.extractedFrom}</span></div>
               <div className="stack-actions" style={{ marginTop: 12 }}>
-                <button className="btn btn-primary" onClick={() => { setScenario({ boiExtend: true }); router.push("/simulator"); }}>Open simulator</button>
+                {(i.id === "TH-BOI" || i.id === "TH-BOI-AUTO") && (
+                  <Link href="/thailand/boi" className="btn btn-primary">BOI Optimizer</Link>
+                )}
+                <button className="btn btn-secondary" onClick={() => { setScenario({ boiExtend: true }); router.push("/simulator"); }}>Open simulator</button>
                 <button className="btn btn-secondary" onClick={() => ask("What happens if the BOI tax holiday expires?")}>Ask GMT24</button>
                 <Link href="/safe-harbours" className="btn btn-secondary">Safe harbours</Link>
               </div>

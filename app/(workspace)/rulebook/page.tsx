@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { RULES } from "@/lib/model";
 
 export default function RulebookPage() {
   return (
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>
-        GMT24 Global Rulebook — effective-dated OECD + jurisdictional packs. The calculation DAG selects rules by jurisdiction, fiscal year and entity. An LLM does not write the formula.
+        GMT24 Global Rulebook — effective-dated OECD + jurisdictional packs. The calculation DAG selects rules by jurisdiction, fiscal year and entity. An LLM does not write the formula. Thailand is a separate pack (TH-PACK-2567) — not a translation of this list.{" "}
+        <Link href="/thailand">Open Thailand pack</Link>
       </div>
       <div className="panel">
         <div className="table-wrap">

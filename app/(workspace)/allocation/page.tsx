@@ -15,7 +15,8 @@ export default function AllocationPage() {
       <FlowBar />
       <p className="text-muted" style={{ marginBottom: 16 }}>Who pays → where → why → amount. Collection follows the Global Rulebook (qualified QDMTT first, residual IIR to the UPE, then UTPR).</p>
       <div className="stack-actions" style={{ marginBottom: 16 }}>
-        <Link href="/gir" className="btn btn-primary">Build GIR</Link>
+          <Link href="/thailand/liability" className="btn btn-secondary">Thai liability pack</Link>
+          <Link href="/gir" className="btn btn-primary">Build GIR</Link>
         <Link href="/jurisdictions" className="btn btn-secondary">Rule packs</Link>
       </div>
       <div className="grid-2">

@@ -172,8 +172,10 @@ export default function JurisdictionsPage() {
       </div>
 
       <p className="text-muted" style={{ marginTop: 14, fontSize: 13 }}>
-        Collection order still follows the signed pack (QDMTT → IIR → UTPR).{" "}
-        <Link href="/allocation">Who pays</Link>
+          Collection order still follows the signed pack (QDMTT → IIR → UTPR). Thailand has a separate jurisdiction pack — not a translation of the OECD engine.{" "}
+          <Link href="/thailand">Thailand pack</Link>
+          {" · "}
+          <Link href="/allocation">Who pays</Link>
         {" · "}
         <Link href="/rulebook">Rulebook</Link>
         {" · "}

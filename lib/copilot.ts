@@ -1,6 +1,8 @@
 import { ACCOUNTS, ENTITIES, INCENTIVES, ISSUES, RULES } from "./model";
 import { calculateGroup, calcForIso, type JurCalc } from "./engine";
 import { eur, pct } from "./format";
+import { reviewOecdRdGap } from "./thaiGap";
+import { optimizeBoi } from "./boiOptimizer";
 
 export type CopilotMsg = {
   role: "user" | "assistant";
@@ -13,6 +15,81 @@ function th() {
 }
 
 const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
+  {
+    match: /oecd vs|rd gap|diverge|thai rd|pillar ?2 rd|rd requirement|pure oecd/i,
+    answer: () => {
+      const R = reviewOecdRdGap(th());
+      return {
+        role: "assistant",
+        text: `OECD Model Rules + GMT24 GloBE Core are not the Thai RD Pillar Two file.\n\nThis snapshot: ${R.headline}.\nScope: OECD ${R.oecdScope} (USD 750m) vs Thai BOT ${R.thaiScope}.\nSBIE delta (Thai − OECD) ${eur(R.sbieDelta)}.\nTop-up ${eur(R.topUp)} is collected as Thai QDMTT ${eur(R.payable)} — collection is aligned; SBIE, FX and situs are not.\n\nPending RD instruments (ss 31, 33, 53–57) are documented exceptions. Do not invent those rules in the copilot.\n\nOpen the OECD vs RD gap review, then the playbook.`,
+        cites: [
+          { label: "OECD vs RD gap", href: "/thailand/gap" },
+          { label: "Playbook", href: "/playbook/oecd-rd-gap" },
+        ],
+      };
+    },
+  },
+  {
+    match: /thailand pack|jurisdiction pack|thai liability|who pays the thai|thai qdmtt|residual utpr/i,
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `The Thailand Jurisdiction Pack (TH-PACK-2567 v2567.2) sits on top of GMT24 Global GloBE Core. It does not translate the OECD engine into Thai.\n\nThai liability waterfall for FY2026:\nJurisdictional top-up ${eur(j.jurisdictionalTopUp)}\n− Foreign QDMTT $0 (this is the QDMTT jurisdiction)\n− IIR already imposed $0 (UPE is Japan; Thai IIR is N/A)\n= Residual UTPR $0\n→ Thai QDMTT collects ${eur(j.jurisdictionalTopUp)}\n→ Designated taxpayer TH001 (draft election; joint and several remains).\n\nLegal coverage: calculation rules available / filing schema pending (ss 31, 33, 53–57). Do not treat GMT24 as fully ready for Thai filing.\n\nOpen the Thai Liability Dashboard.`,
+        cites: [
+          { label: "TH-PACK-2567 v2567.2", href: "/thailand" },
+          { label: "Thai liability dashboard", href: "/thailand/liability" },
+          { label: "TH-QDMTT-2025", href: "/rulebook" },
+        ],
+      };
+    },
+  },
+  {
+    match: /thai sbie|notification no\.?\s*4|mof notification/i,
+    answer: () => ({
+      role: "assistant",
+      text: `Thai SBIE is Notification No. 4 plus MOF Notification No. 1 — not a copy of the OECD carve-out screen.\n\nPayroll includes full-time, temporary, ordinary-activity contractors, bonus/SBC/SSC, proportional days where work in Thailand is 50% or less, and excludes capitalised payroll already in PPE.\nAssets include PPE, ROU, tangible-linked government licences; revaluation uplift is out; average opening/closing carrying value.\n\nRates follow the fiscal-year start date. FY beginning 2026-01-01: payroll 9.4% / assets 7.4%, stepping down to 5%/5% from 2033.\n\nOpen the Thai SBIE Engine to reconcile against the GloBE Core SBIE.`,
+      cites: [
+        { label: "TH-SBIE-MOF-1 v2567.2", href: "/thailand/sbie" },
+        { label: "OECD SBIE (core)", href: "/sbie" },
+      ],
+    }),
+  },
+  {
+    match: /bot|bank of thailand|exchange.rate|750m.*thb|thb.*750/i,
+    answer: () => ({
+      role: "assistant",
+      text: `DG Notification No. 6 locks three BOT methods:\n\n1. EUR statutory thresholds → THB: December-preceding average midpoint. FY2026 EUR/THB 36.8247 is archived (BOT-EUR-THB-202512). EUR 750m = about ฿27.6B.\n2. Foreign-currency CFS → THB: the same prescribed December rate (USD/THB 38.45 for FY2026).\n3. Actual payment/refund → THB: commercial-bank average buy/sell on the last business day before approval.\n\nA user cannot apply a convenient year-end rate without a validation warning. The snapshot does not restate.\n\nOpen BOT FX.`,
+      cites: [{ label: "BOT FX Engine", href: "/thailand/fx" }, { label: "Thai scope memorandum", href: "/thailand/scope" }],
+    }),
+  },
+  {
+    match: /thai (return|filing|section 57|section 54)|when is the thai/i,
+    answer: () => ({
+      role: "assistant",
+      text: `Thai Filing Command Centre clocks (Emergency Decree):\n\n• s 54 UPE / GIR-filer notification — 15 months from FY end → 31 Mar 2028 for FY2026\n• ss 55–56 local GIR or exchange exemption — 15 months → 31 Mar 2028\n• s 57 Thai return and payment — 15 months → 31 Mar 2028\n• s 58 first in-scope year (FY2025) — 18 months → 30 Jun 2027 (filed in this demo)\n\nCAA/exchange with Japan is under review before relying on a local GIR exemption. Electronic form schema is not in the pack. Do not market GMT24 as fully ready for Thai filing.\n\nThai tax ID for TH001 (demo): 0107558000121.`,
+      cites: [{ label: "Filing command centre", href: "/thailand/filing" }, { label: "OECD GIR", href: "/gir" }],
+    }),
+  },
+  {
+    match: /rayong pe|situs|dual.resid|notification no\.?\s*3/i,
+    answer: () => ({
+      role: "assistant",
+      text: `Rayong is a fixed-place / manufacturing PE of Aetherion (Thailand) Ltd., located in Thailand, blended in the Thai QDMTT. Notification No. 3 four PE categories were reviewed; treaty tie-breaker is not required.\n\nTH001 itself is a Thai CE (TFRS, 100% owned, not dual-resident, not an Excluded Entity, not MOCE).\nNo Notification No. 7 excluded entity in Thailand.\n\nEach classification stores result, period, facts, evidence, Thai provision, OECD interpretation and reviewer. Open Entity situs.`,
+      cites: [{ label: "Thai entity situs", href: "/thailand/entities" }, { label: "Ownership graph", href: "/graph" }],
+    }),
+  },
+  {
+    match: /net retained|survives qdmtt|boi.*qdmtt|incentive value/i,
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `BOI headline 0% CIT is not what the group keeps.\n\nNominal BOI benefit = 20% CIT not paid on promoted GloBE income.\nMinus Thai QDMTT ${eur(j.jurisdictionalTopUp)} (this snapshot).\nMinus foreign IIR/UTPR $0 after Thai QDMTT.\n= Net retained incentive value.\n\nThe BOI Optimizer ranks keep-holiday vs 10% conversion vs QRTC (not bookable) vs 20% baseline on a 10-year NPV. SBTISH remains a candidate if qualifying expenditure is traced.`,
+        cites: [{ label: "BOI Optimizer", href: "/thailand/boi" }, { label: "Playbook", href: "/playbook/boi-optimizer" }, { label: "TH-BOI certificate", href: "/incentives" }],
+      };
+    },
+  },
   {
     match: /deferred tax|recast|dtl recapture|recapture exception|4\.4\.|time machine/i,
     answer: () => {
@@ -55,13 +132,31 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     },
   },
   {
+    match: /boi optim|should we keep the boi|convert to 10%|announcement no\.?\s*1\/2566|qrtc|stranded boi|10% boi|wait for qrtc|net economic value after/i,
+    answer: () => {
+      const j = th();
+      const O = optimizeBoi(j);
+      const keep = O.scenarios.find((s) => s.id === "keep")!;
+      const conv = O.scenarios.find((s) => s.id === "convert10")!;
+      return {
+        role: "assistant",
+        text: `Pillar Two does not cancel BOI. It changes the economic value.\n\n${O.headline}\n\nBookable ranking (10-year cash-tax NPV, ${(O.discountRate * 100).toFixed(0)}%):\n• Keep 0% holiday — NPV ${eur(keep.npvCash)} · FY2026 net retained ${eur(keep.fy0.netBenefit)}\n• Convert to 10% (Announcement 1/2566) — NPV ${eur(conv.npvCash)}. 10% is still below 15%, so CIT plus top-up still arises. Not automatically cheaper.\n• No CIT incentive (20% baseline) — higher cash tax; non-tax BOI privileges remain.\n• QRTC / SBTISH — ${O.qrtc.status.toUpperCase()}. ${O.qrtc.note}\n\n${O.recommendation}\n\nDo not tell the board the certificate is 0% CIT. Open the BOI Optimizer.`,
+        cites: [
+          { label: "BOI Optimizer", href: "/thailand/boi" },
+          { label: "Playbook", href: "/playbook/boi-optimizer" },
+          { label: "TH-BOI-OPT-2566", href: "/rulebook" },
+        ],
+      };
+    },
+  },
+  {
     match: /boi|holiday|expire/i,
     answer: () => {
       const inc = INCENTIVES.find((i) => i.id === "TH-BOI")!;
       return {
         role: "assistant",
-        text: `The Thai BOI certificate (${inc.name}) runs ${inc.start} → ${inc.end}: ${inc.rate}.\n\nIf the holiday expires or is not extended, current tax in Thailand rises toward the 20% CIT. In the Simulator, extending BOI through 2031 keeps FY2027 top-up near the current ${eur(th().jurisdictionalTopUp)}; letting it expire increases Thai covered taxes and can eliminate Thai top-up while shifting residual exposure depending on blending.\n\nSBTISH may still be relevant for remaining reduced-rate years. GMT24 will not let the model hallucinate the CIT computation — the engine re-runs from mapped tax expense.\n\nSource: ${inc.extractedFrom} · rule OECD-SBTISH v2026.2.`,
-        cites: [{ label: inc.extractedFrom }, { label: "OECD-SBTISH v2026.2" }],
+        text: `The Thai BOI certificates run as a portfolio, not a single 0% promise.\n\nElectronics manufacturing (TH-BOI): ${inc.start} → ${inc.end}: ${inc.rate}.\nAutomation annex (TH-BOI-AUTO) is a separate project account, blended in the same Thai ETR.\n\nIf the holiday expires, current tax rises toward 20% CIT and Thai top-up falls. That is one of four optimizer scenarios — not a reason to drop BOI without an NPV.\n\nAnnouncement 1/2566 (convert to 10%) is not automatically cheaper: 10% is still below 15%. QRTC is not enacted; do not book it.\n\nSource: ${inc.extractedFrom} · rule TH-BOI-OPT-2566 v2567.2.`,
+        cites: [{ label: inc.extractedFrom, href: "/thailand/boi" }, { label: "BOI Optimizer", href: "/thailand/boi" }, { label: "OECD-SBTISH v2026.2", href: "/safe-harbours" }],
       };
     },
   },
@@ -131,7 +226,10 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
 }
 
 export const SUGGESTIONS = [
-  "Why is Thailand's ETR 10.8%?",
+  "Where does the OECD calculation diverge from Thai RD Pillar Two requirements?",
+  "Who pays the Thai QDMTT and is there residual UTPR?",
+  "Should we keep the BOI holiday, convert to 10%, or wait for QRTC?",
+  "How much of the Thai BOI holiday survives QDMTT?",
   "Explain deferred tax recast and DTL recapture for Thailand",
   "Which entities caused the reduction?",
   "Can Thailand qualify for a safe harbour?",

@@ -12,6 +12,16 @@ export function usd(n: number, compact = false) {
 /** @deprecated use usd — kept so existing screens compile during the currency swap */
 export const eur = usd;
 
+export function thb(n: number, compact = false) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "−" : "";
+  if (compact) {
+    if (abs >= 1_000_000_000) return `${sign}฿${(abs / 1_000_000_000).toFixed(2)}B`;
+    if (abs >= 1_000_000) return `${sign}฿${(abs / 1_000_000).toFixed(1)}M`;
+  }
+  return `${sign}฿${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 export function pct(n: number, digits = 1) {
   return `${(n * 100).toFixed(digits)}%`;
 }

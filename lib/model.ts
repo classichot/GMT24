@@ -330,6 +330,42 @@ export const RULES: Rule[] = [
     status: "active",
   },
   {
+    id: "TH-PACK-2567",
+    jurisdiction: "TH",
+    ruleType: "qdmtt",
+    effectiveFrom: "2025-01-01",
+    effectiveTo: null,
+    source: "Thailand Jurisdiction Pack — Emergency Decree B.E. 2567 + DG Notifications 1–8 + MOF Notification 1. Inherits OECD 2026 Commentary; Thai law overrides where provided.",
+    version: "2567.2",
+    formula: "Thai QDMTT / IIR / UTPR orchestrator on top of GloBE Core. Not a translation of the OECD engine.",
+    parameters: { filingSchema: "pending", calculation: "available" },
+    status: "active",
+  },
+  {
+    id: "TH-SBIE-MOF-1",
+    jurisdiction: "TH",
+    ruleType: "sbie",
+    effectiveFrom: "2025-01-01",
+    effectiveTo: null,
+    source: "MOF Notification No. 1 — transitional SBIE rates by fiscal-year start date",
+    version: "2567.2",
+    formula: "payroll and tangible-asset carve-out rates step down to 5%/5% from FY beginning 2033",
+    parameters: { fy2026Payroll: 0.094, fy2026Assets: 0.074 },
+    status: "active",
+  },
+  {
+    id: "TH-BOI-OPT-2566",
+    jurisdiction: "TH",
+    ruleType: "incentive",
+    effectiveFrom: "2025-01-01",
+    effectiveTo: null,
+    source: "BOI Announcement No. 1/2566 · Emergency Decree on Top-up Tax B.E. 2567 · OECD SBTISH 2026. QRTC not enacted.",
+    version: "2567.2",
+    formula: "net retained = 20% CIT not paid on promoted GloBE − Thai QDMTT − foreign IIR/UTPR; rank bookable scenarios on 10-year cash-tax NPV; do not book QRTC",
+    parameters: { cit: 0.2, minRate: 0.15, reducedRate: 0.1, conversionMultiple: 2, conversionCapYears: 10 },
+    status: "active",
+  },
+  {
     id: "IE-QDMTT-2024",
     jurisdiction: "IE",
     ruleType: "qdmtt",
@@ -465,7 +501,7 @@ export const GROUPS: Group[] = [
 export const ENTITIES: Entity[] = [
   { id: "JP-UPE", code: "JP001", name: "Nippon Aether Holdings K.K.", jurisdiction: "Japan", iso: "JP", type: "UPE", parentId: null, ownership: 100, gaap: "IFRS", fx: "JPY", acquired: "1998-04-01", incentiveIds: [], completeness: 98, review: "Reviewed", graph: { x: 480, y: 36 } },
   { id: "SG-HC", code: "SG010", name: "Aetherion Singapore Pte. Ltd.", jurisdiction: "Singapore", iso: "SG", type: "HoldCo", parentId: "JP-UPE", ownership: 100, gaap: "SFRS(I)", fx: "SGD", acquired: "2009-07-01", incentiveIds: ["SG-DE"], completeness: 94, review: "Calculated", graph: { x: 220, y: 140 } },
-  { id: "TH-CE", code: "TH001", name: "Aetherion (Thailand) Ltd.", jurisdiction: "Thailand", iso: "TH", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2012-03-15", incentiveIds: ["TH-BOI"], completeness: 96, review: "Prepared", graph: { x: 110, y: 250 } },
+  { id: "TH-CE", code: "TH001", name: "Aetherion (Thailand) Ltd.", jurisdiction: "Thailand", iso: "TH", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2012-03-15", incentiveIds: ["TH-BOI", "TH-BOI-AUTO"], completeness: 96, review: "Prepared", graph: { x: 110, y: 250 } },
   { id: "VN-CE", code: "VN001", name: "Aetherion Vietnam Co., Ltd.", jurisdiction: "Vietnam", iso: "VN", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "VAS/IFRS", fx: "VND", acquired: "2016-09-01", incentiveIds: ["VN-EIT"], completeness: 81, review: "Validated", graph: { x: 250, y: 250 } },
   { id: "MY-CE", code: "MY001", name: "Aetherion Malaysia Sdn. Bhd.", jurisdiction: "Malaysia", iso: "MY", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "MFRS", fx: "MYR", acquired: "2014-01-12", incentiveIds: [], completeness: 91, review: "Calculated", graph: { x: 180, y: 340 } },
   { id: "ID-CE", code: "ID001", name: "PT Aetherion Indonesia", jurisdiction: "Indonesia", iso: "ID", type: "CE", parentId: "SG-HC", ownership: 99, gaap: "PSAK", fx: "IDR", acquired: "2015-06-20", incentiveIds: [], completeness: 88, review: "Calculated", graph: { x: 320, y: 340 } },
@@ -530,6 +566,7 @@ export const FILES: SourceFile[] = [
   { id: "F04", name: "TH tax provision FY2026.xlsx", kind: "Tax provision", entity: "TH-CE", size: "420 KB", uploaded: "12 Aug 2026", by: "N. Chai", status: "Mapped" },
   { id: "F05", name: "CbCR_FY2026.xlsx", kind: "CbCR", size: "2.1 MB", uploaded: "10 Aug 2026", by: "M. Sato", status: "Validated", rows: 48 },
   { id: "F06", name: "BOI_Certificate_TH001.pdf", kind: "BOI certificate", entity: "TH-CE", size: "1.8 MB", uploaded: "09 Aug 2026", by: "N. Chai", status: "Mapped" },
+  { id: "F13", name: "BOI_Certificate_TH001_annex_automation.pdf", kind: "BOI certificate", entity: "TH-CE", size: "640 KB", uploaded: "09 Aug 2026", by: "N. Chai", status: "Mapped" },
   { id: "F07", name: "IE001 TB FY2026.xlsx", kind: "Trial balance", entity: "IE-CE", size: "1.1 MB", uploaded: "11 Aug 2026", by: "C. Walsh", status: "Mapped", rows: 960 },
   { id: "F08", name: "Fixed_asset_register_TH.xlsx", kind: "Fixed-asset register", entity: "TH-CE", size: "3.2 MB", uploaded: "08 Aug 2026", by: "TH Finance", status: "Imported", rows: 4200 },
   { id: "F09", name: "Payroll_TH_FY2026.csv", kind: "Payroll", entity: "TH-CE", size: "640 KB", uploaded: "08 Aug 2026", by: "TH Finance", status: "Mapped", rows: 1240 },
@@ -550,6 +587,7 @@ export const ISSUES: Issue[] = [
 
 export const INCENTIVES: Incentive[] = [
   { id: "TH-BOI", entityId: "TH-CE", name: "BOI — Electronics manufacturing (Rayong)", type: "Tax holiday / reduced CIT", start: "2019-02-01", end: "2028-01-31", rate: "0% CIT years 1–8; 50% reduction years 9–13", conditions: "Qualifying production at Rayong; eligible capex maintained; BOI reporting", sbtishEligible: true, extractedFrom: "BOI_Certificate_TH001.pdf" },
+  { id: "TH-BOI-AUTO", entityId: "TH-CE", name: "BOI — Productivity / automation (Rayong)", type: "Tax holiday", start: "2024-03-01", end: "2032-02-28", rate: "0% CIT years 1–8", conditions: "Eligible automation capex; separate project accounts; BOI reporting", sbtishEligible: true, extractedFrom: "BOI_Certificate_TH001_annex_automation.pdf" },
   { id: "VN-EIT", entityId: "VN-CE", name: "EIT incentive — high-tech", type: "Reduced CIT", start: "2016-09-01", end: "2026-12-31", rate: "10% CIT (standard 20%)", conditions: "High-tech certificate; headcount in Hanoi", sbtishEligible: true, extractedFrom: "VN_EIT_certificate.pdf" },
   { id: "IE-IP", entityId: "IE-CE", name: "Knowledge Development Box", type: "IP box", start: "2013-04-01", end: "2030-12-31", rate: "6.25% on qualifying IP profits", conditions: "Nexus ratio; qualifying assets", sbtishEligible: false, extractedFrom: "IE_KDB_election.pdf" },
   { id: "SG-DE", entityId: "SG-HC", name: "Development & Expansion Incentive", type: "Reduced CIT", start: "2022-01-01", end: "2027-12-31", rate: "5–10% on qualifying income", conditions: "Headcount and spending commitments", sbtishEligible: true, extractedFrom: "EDB_DEI_SG.pdf" },
@@ -559,7 +597,8 @@ export const INCENTIVES: Incentive[] = [
 ];
 
 export const FILINGS: Filing[] = [
-  { id: "FL-TH-Q", jurisdiction: "Thailand", requirement: "QDMTT return", deadline: "30 Jun 2028", status: "Preparing", preparer: "N. Chai", reviewer: "M. Sato" },
+  { id: "FL-TH-54", jurisdiction: "Thailand", requirement: "s 54 UPE / GIR-filer notification", deadline: "2028-03-31", status: "Preparing", preparer: "N. Chai", reviewer: "M. Sato" },
+  { id: "FL-TH-Q", jurisdiction: "Thailand", requirement: "s 57 Thai return and QDMTT payment", deadline: "2028-03-31", status: "Preparing", preparer: "N. Chai", reviewer: "M. Sato" },
   { id: "FL-SG-N", jurisdiction: "Singapore", requirement: "GIR notification", deadline: "31 Dec 2027", status: "Completed", preparer: "L. Tan", reviewer: "M. Sato", filed: "04 Aug 2026" },
   { id: "FL-DE-G", jurisdiction: "Germany", requirement: "GIR", deadline: "30 Jun 2028", status: "Covered — central filing", preparer: "—", reviewer: "—", central: true },
   { id: "FL-JP-I", jurisdiction: "Japan", requirement: "IIR return", deadline: "31 Dec 2027", status: "Pending", preparer: "M. Sato", reviewer: "A. Rivera" },
@@ -571,7 +610,7 @@ export const FILINGS: Filing[] = [
 
 export const JURISDICTION_PACKS = [
   { iso: "JP", name: "Japan", iir: true, qdmtt: false, qdmttSH: false, utpr: true, from: "2024-04-01", qualified: "Transitional qualified IIR", filing: "IIR return + central GIR", fx: "JPY", notes: "UPE jurisdiction. IIR collects residual after foreign QDMTT." },
-  { iso: "TH", name: "Thailand", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT return", fx: "THB", notes: "QDMTT Safe Harbour available once qualified status holds." },
+  { iso: "TH", name: "Thailand", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT return · pack TH-PACK-2567", fx: "THB", notes: "Thai Jurisdiction Pack overlays GloBE Core (situs, SBIE No. 4, BOT FX, liability ordering). Filing schema pending. Open /thailand." },
   { iso: "SG", name: "Singapore", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "GIR notification + MTT", fx: "SGD", notes: "HoldCo jurisdiction. DEI incentive in force." },
   { iso: "VN", name: "Vietnam", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "VND", notes: "No QDMTT in demo pack — residual to JP IIR." },
   { iso: "IE", name: "Ireland", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2024-01-01", qualified: "Transitional qualified QDMTT/IIR", filing: "QDMTT + GIR", fx: "EUR", notes: "KDB is not SBTISH-eligible in this pack." },

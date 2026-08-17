@@ -139,6 +139,7 @@ export default function OverviewPage() {
                 <div className="wf-row"><span>Data confidence</span><span>{th.completeness}%</span></div>
                 <div className="stack-actions" style={{ marginTop: 16 }}>
                   <button className="btn btn-primary" onClick={() => ask("Why is Thailand's ETR 10.8%?")}>Ask GMT24</button>
+                  <Link href="/thailand/liability" className="btn btn-secondary">Thai liability</Link>
                   <Link href="/top-up" className="btn btn-secondary">Open calculation</Link>
                 </div>
               </>

@@ -11,6 +11,7 @@ import {
   FileText,
   GitBranch,
   Globe,
+  Landmark,
   LayoutGrid,
   LogOut,
   Map,
@@ -68,8 +69,18 @@ const NAV = [
     { href: "/allocation", label: "QDMTT / IIR / UTPR", icon: GitBranch },
     { href: "/playbook/pillar-two", label: "Playbook", icon: ClipboardList },
   ]},
+  { group: "Thailand", items: [
+    { href: "/thailand", label: "Jurisdiction pack", icon: Landmark },
+    { href: "/thailand/liability", label: "Liability dashboard", icon: Shield },
+    { href: "/thailand/filing", label: "Filing command", icon: Check },
+    { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
+    { href: "/thailand/gap", label: "OECD vs RD gap", icon: GitBranch },
+    { href: "/thailand/audit", label: "Audit defence", icon: FileText },
+    { href: "/playbook/thailand", label: "Playbook", icon: ClipboardList },
+  ]},
   { group: "Incentives", items: [
     { href: "/incentives", label: "Tax incentives", icon: Sparkles },
+    { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
     { href: "/playbook/incentives", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Forecast", items: [
@@ -129,6 +140,16 @@ const TITLES: Record<string, [string, string]> = {
   "/sbie": ["Pillar Two", "Substance-based income exclusion"],
   "/top-up": ["Pillar Two", "Top-up tax"],
   "/allocation": ["Pillar Two", "Who pays · where · why"],
+  "/thailand": ["Killer feature", "Thailand Jurisdiction Pack"],
+  "/thailand/liability": ["Thailand", "Liability & filing orchestrator"],
+  "/thailand/scope": ["Thailand", "Scope determination memorandum"],
+  "/thailand/entities": ["Thailand", "Entity classification & situs"],
+  "/thailand/sbie": ["Thailand", "Thai SBIE engine"],
+  "/thailand/fx": ["Thailand", "BOT foreign-exchange engine"],
+  "/thailand/filing": ["Thailand", "Filing command centre"],
+  "/thailand/boi": ["Killer feature", "BOI–Pillar Two Incentive Optimizer"],
+  "/thailand/audit": ["Thailand", "Audit defence book"],
+  "/thailand/gap": ["Killer feature", "OECD vs Thai RD gap review"],
   "/incentives": ["Incentives", "BOI / tax incentive engine"],
   "/simulator": ["Killer feature", "GMT24 Simulator"],
   "/forecast": ["Forecast", "In-year Pillar Two"],
@@ -147,6 +168,7 @@ const TITLES: Record<string, [string, string]> = {
 };
 
 function isActive(path: string, href: string) {
+  if (href === "/thailand") return path === "/thailand";
   return path === href || path.startsWith(href + "/");
 }
 

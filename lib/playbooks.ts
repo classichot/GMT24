@@ -61,19 +61,19 @@ export const PLAYBOOKS: Playbook[] = [
     steps: [
       { n: "01", title: "Confirm scope & harbours", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out.", href: "/scope", hrefLabel: "Scope" },
       { n: "02", title: "Build the ETR", body: "GloBE income (FANIL engine) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/deferred-tax", hrefLabel: "Deferred tax" },
-      { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR.", href: "/top-up", hrefLabel: "Top-up tax" },
+      { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR. For Thailand open the Thai Liability Dashboard; do not stop at the global allocation screen.", href: "/thailand/liability", hrefLabel: "Thai liability" },
     ],
   },
   {
     slug: "incentives",
     menu: "Incentives",
     title: "Tax incentive playbook",
-    summary: "Extract the certificate, decide SBTISH, then simulate expiry in the engine — not in the copilot.",
+    summary: "Extract the certificate, decide SBTISH, then run the BOI–Pillar Two Optimizer — not a copilot guess at 0% CIT.",
     owner: "Local tax + Group Tax",
     steps: [
-      { n: "01", title: "Inventory incentives", body: "BOI, DEI, KDB, development allowances. Record rate, dates, conditions and source PDF.", href: "/incentives", hrefLabel: "Tax incentives" },
-      { n: "02", title: "SBTISH screen", body: "IP boxes (e.g. Irish KDB) are not substance-based. Only substance-conditioned holidays go to SBTISH review.", href: "/safe-harbours", hrefLabel: "Safe harbours" },
-      { n: "03", title: "Simulate expiry", body: "Open the simulator with BOI extended / expired and read the live group top-up.", href: "/simulator", hrefLabel: "Simulator" },
+      { n: "01", title: "Inventory incentives", body: "BOI, DEI, KDB, development allowances. Record rate, dates, remaining cap and source PDF. Thai BOI needs a project ledger and a jurisdictional GloBE ledger.", href: "/incentives", hrefLabel: "Tax incentives" },
+      { n: "02", title: "SBTISH screen", body: "IP boxes (e.g. Irish KDB) are not substance-based. Only substance-conditioned holidays go to SBTISH review. Thai QRTC is not enacted — do not book it.", href: "/safe-harbours", hrefLabel: "Safe harbours" },
+      { n: "03", title: "Optimise net BOI value", body: "Four scenarios: keep 0%, convert to 10% (Announcement 1/2566), future QRTC/SBTISH, 20% baseline. Rank on 10-year NPV. Report net retained, not the face of the certificate.", href: "/thailand/boi", hrefLabel: "BOI Optimizer" },
     ],
   },
   {
@@ -121,7 +121,44 @@ export const PLAYBOOKS: Playbook[] = [
     steps: [
       { n: "01", title: "Ask from the number", body: "Use the docked copilot. Answers cite calc + source + rule + version.", href: "/copilot", hrefLabel: "AI Copilot" },
       { n: "02", title: "Check the rule", body: "Effective-dated OECD and local packs. The DAG selects by jurisdiction, year and entity.", href: "/rulebook", hrefLabel: "OECD rulebook" },
-      { n: "03", title: "Confirm the pack", body: "IIR / QDMTT / UTPR flags and qualified status before you tell a country they collect.", href: "/jurisdictions", hrefLabel: "Jurisdiction rules" },
+      { n: "03", title: "Confirm the pack", body: "IIR / QDMTT / UTPR flags and qualified status before you tell a country they collect. Thailand has its own pack — do not stop at the OECD Central Record row.", href: "/thailand", hrefLabel: "Thailand pack" },
+    ],
+  },
+  {
+    slug: "thailand",
+    menu: "Thailand",
+    title: "Thailand Jurisdiction Pack playbook",
+    summary: "GloBE Core first, then the Thai pack: situs, SBIE, BOT FX, liability ordering, BOI optimizer, filing clocks, defence book. Calculation rules available; filing schema pending.",
+    owner: "Thai tax lead / Group Tax",
+    steps: [
+      { n: "01", title: "Run the OECD vs RD gap review", body: "Do not treat the GloBE Core as the Thai return. Score aligned / overlay / diverge / pending / Core data gap. Lock BOT rates and PE category first.", href: "/thailand/gap", hrefLabel: "OECD vs RD" },
+      { n: "02", title: "Order Thai liability", body: "Waterfall: jurisdictional top-up − foreign QDMTT − IIR already imposed = residual UTPR → designated taxpayer. Then scope memo, situs and Thai SBIE.", href: "/thailand/liability", hrefLabel: "Liability dashboard" },
+      { n: "03", title: "File, optimise BOI, defend", body: "ss 54–58 clocks, then the BOI Optimizer (keep vs 10% vs QRTC pending vs 20%). Assemble the Audit Defence Book. Do not tell the board the holiday is 0% CIT.", href: "/thailand/boi", hrefLabel: "BOI Optimizer" },
+    ],
+  },
+  {
+    slug: "oecd-rd-gap",
+    menu: "OECD vs RD",
+    title: "OECD vs Thai RD gap playbook",
+    summary: "Pure OECD rules and the GloBE Core calculation are not the Thai RD return. Close diverge items, overlay Thai procedure, and hold pending instruments as documented exceptions.",
+    owner: "Thai tax lead / reviewer",
+    steps: [
+      { n: "01", title: "Separate the tests", body: "Run the gap review. Scope (USD vs BOT THB), FX methods and PE category are Thai overlays or divergences. Lock BOT rates before anyone copies a GloBE number onto a Thai form.", href: "/thailand/gap", hrefLabel: "Gap review" },
+      { n: "02", title: "Reconcile numbers that diverge", body: "Thai SBIE Notification No. 4 versus OECD SBIE. Covered-tax questionnaire versus Art. 4. FANIL stays on OECD 3.2 until Section 31 exists — the LLM does not fill that gap.", href: "/thailand/sbie", hrefLabel: "Thai SBIE" },
+      { n: "03", title: "Order liability and hold pending items", body: "QDMTT / IIR / UTPR waterfall and designated taxpayer. Document ss 31, 33 and 53–57 as coverage exceptions. Do not tell the RD that the GIR XML is the Thai return.", href: "/thailand/liability", hrefLabel: "Liability" },
+    ],
+  },
+  {
+    slug: "boi-optimizer",
+    menu: "BOI Optimizer",
+    title: "BOI–Pillar Two Incentive Optimizer playbook",
+    summary: "Pillar Two does not cancel BOI. It claws back part of the advertised CIT holiday. Rank keep / 10% conversion / QRTC pending / 20% baseline on 10-year NPV. Do not book Thai QRTC.",
+    owner: "Thai tax lead / Group Tax / CFO briefing",
+    steps: [
+      { n: "01", title: "Inventory every certificate", body: "Remaining exemption years, reduced-rate years, unused cap, promoted vs non-promoted accounts. Project BOI accounting is not the Thai GloBE jurisdiction.", href: "/incentives", hrefLabel: "Certificates" },
+      { n: "02", title: "Run the four scenarios", body: "Keep 0%. Convert under Announcement 1/2566 (10% for twice remaining full years, cap 10). Future QRTC/SBTISH — do not book. 20% CIT plus non-tax privileges.", href: "/thailand/boi", hrefLabel: "Optimizer" },
+      { n: "03", title: "Stress blending, SBIE and harbours", body: "A high-tax Thai CE can shelter a BOI entity. Asset-light projects keep less SBIE. Fail transitional harbours before you assert a clawback.", href: "/safe-harbours", hrefLabel: "Harbours" },
+      { n: "04", title: "Brief the board on net value", body: "Rank only bookable scenarios. 10% is not automatically cheaper. Report net retained incentive, not the 0% printed on the certificate.", href: "/thailand/boi", hrefLabel: "NPV" },
     ],
   },
 ];
