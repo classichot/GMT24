@@ -12,6 +12,7 @@ import {
 import { THEMES, normalizeTheme, type ThemeKey } from "./format";
 import type { ProductMode } from "./model";
 import type { AuditNode } from "./engine";
+import type { SbieMode } from "./electionEngine";
 
 type Store = {
   ready: boolean;
@@ -49,6 +50,11 @@ type Store = {
     reviewerRan: boolean;
   };
   patchWorkflow: (p: Partial<Store["workflow"]>) => void;
+  electionsOn: Record<string, boolean>;
+  setElection: (key: string, on: boolean) => void;
+  resetElections: () => void;
+  sbieClaim: Record<string, SbieMode>;
+  setSbieClaim: (iso: string, mode: SbieMode) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -73,6 +79,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     sentRequests: {} as Record<string, boolean>,
     reviewerRan: false,
   });
+  const [electionsOn, setElectionsOn] = useState<Record<string, boolean>>({});
+  const [sbieClaim, setSbieClaimState] = useState<Record<string, SbieMode>>({});
 
   useEffect(() => {
     setAuthed(localStorage.getItem("gmt24_auth") === "1");
@@ -143,6 +151,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
   }, []);
 
+  const setElection = useCallback((key: string, on: boolean) => {
+    setElectionsOn((p) => {
+      if (!on) {
+        const next = { ...p };
+        delete next[key];
+        return next;
+      }
+      return { ...p, [key]: true };
+    });
+  }, []);
+
+  const resetElections = useCallback(() => {
+    setElectionsOn({});
+    setSbieClaimState({});
+  }, []);
+
+  const setSbieClaim = useCallback((iso: string, mode: SbieMode) => {
+    setSbieClaimState((p) => {
+      if (mode === "max") {
+        const next = { ...p };
+        delete next[iso];
+        return next;
+      }
+      return { ...p, [iso]: mode };
+    });
+    const key = `OECD_5.3.1@${iso}`;
+    setElectionsOn((p) => {
+      if (mode === "max") {
+        const next = { ...p };
+        delete next[key];
+        return next;
+      }
+      return { ...p, [key]: true };
+    });
+  }, []);
+
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
   const value = useMemo(
@@ -176,8 +220,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setScenario,
       workflow,
       patchWorkflow,
+      electionsOn,
+      setElection,
+      resetElections,
+      sbieClaim,
+      setSbieClaim,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

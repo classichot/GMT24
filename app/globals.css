@@ -132,6 +132,20 @@ img { display: block; max-width: 100%; }
 .btn-block { width: 100%; margin-top: var(--space-2); justify-content: space-between; }
 .btn-hot { background: var(--color-hot); color: var(--color-on-accent); }
 
+.elec-switch {
+  width: 40px; height: 22px; padding: 0; flex: none;
+  border: 2px solid var(--color-divider); background: transparent;
+  position: relative; cursor: pointer; vertical-align: middle;
+}
+.elec-switch::after {
+  content: ""; position: absolute; width: 10px; height: 10px; top: 4px; left: 4px;
+  background: var(--color-text);
+}
+.elec-switch[aria-checked="true"] { background: var(--color-accent); border-color: var(--color-accent); }
+.elec-switch[aria-checked="true"]::after { left: 22px; background: var(--color-on-accent); }
+.elec-switch:disabled { opacity: 0.38; cursor: not-allowed; }
+.elec-switch-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 .field > label {
   display: block; font-size: 12px; margin-bottom: 5px;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);

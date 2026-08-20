@@ -5,6 +5,7 @@ import {
   ELECTIONS,
   REALISATION_FV,
   STOCK_COMP,
+  electionById,
   type ElectionDef,
   type ElectionFamily,
 } from "./elections";
@@ -57,6 +58,26 @@ export type OptScenario = {
 
 export type OptRec = { id: string; label: string; scenario: OptScenario };
 
+export type SbieMode = "max" | "partial" | "none";
+
+const HARBOUR_ZERO = new Set([
+  "SH_TCSH", "SH_TCSH_DM", "SH_TCSH_ETR", "SH_TCSH_RP",
+  "SH_QDMTT", "SH_SBS", "SH_UTPR", "SH_UPE", "SH_SCSH", "OECD_5.5",
+]);
+
+export function switchKey(id: string, iso: string) {
+  return `${id}@${iso}`;
+}
+
+export function splitSwitch(key: string): [string, string] {
+  const at = key.lastIndexOf("@");
+  return [key.slice(0, at), key.slice(at + 1)];
+}
+
+export function canElect(status: EligStatus) {
+  return status === "available" || status === "review";
+}
+
 const MIN = 0.15;
 
 function collect(c: JurCalc, topUp: number, harbour: boolean) {
@@ -66,7 +87,7 @@ function collect(c: JurCalc, topUp: number, harbour: boolean) {
   return { qdmtt: 0, iir: 0, utpr: topUp };
 }
 
-function restated(c: JurCalc, globeAdj: number, sbieMode: "max" | "partial" | "none", forceZero: boolean, note: string): Restate {
+function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: boolean, note: string): Restate {
   const keepHarbour = c.exposure === "Safe harbour";
   const harbour = forceZero || keepHarbour;
   const globe = money(Math.max(1, c.globeIncome + globeAdj));
@@ -243,10 +264,9 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
 export function applyPackage(calcs: JurCalc[], flags: {
   stock?: string[];
   realisation?: string[];
-  sbie?: "max" | "partial" | "none";
+  sbie?: SbieMode | Record<string, SbieMode>;
   harbourIso?: string[];
 }): Restate[] {
-  const sbie = flags.sbie ?? "max";
   return calcs.map((c) => {
     let globeAdj = 0;
     const notes: string[] = [];
@@ -258,11 +278,64 @@ export function applyPackage(calcs: JurCalc[], flags: {
       globeAdj += realisationDelta(c.iso);
       notes.push("Art. 3.2.5 realisation");
     }
+    const sbie: SbieMode = typeof flags.sbie === "object" && flags.sbie ? (flags.sbie[c.iso] ?? "max") : (flags.sbie ?? "max");
     if (sbie === "none") notes.push("SBIE none");
     if (sbie === "partial") notes.push("SBIE partial");
     const zero = flags.harbourIso?.includes(c.iso) ?? false;
     if (zero) notes.push("Safe harbour deemed zero");
     return restated(c, globeAdj, sbie, zero, notes.join(" · ") || "Default");
+  });
+}
+
+export function flagsFromOn(
+  elig: EligibilityRow[],
+  on: Record<string, boolean>,
+  sbieClaim: Record<string, SbieMode> = {},
+): Parameters<typeof applyPackage>[1] {
+  const stock: string[] = [];
+  const realisation: string[] = [];
+  const harbourIso: string[] = [];
+  const sbie: Record<string, SbieMode> = { ...sbieClaim };
+  for (const [key, isOn] of Object.entries(on)) {
+    if (!isOn) continue;
+    const [id, iso] = splitSwitch(key);
+    const row = elig.find((r) => r.election.id === id && r.iso === iso);
+    if (!row || !canElect(row.status)) continue;
+    if (id === "OECD_3.2.2") stock.push(iso);
+    else if (id === "OECD_3.2.5") realisation.push(iso);
+    else if (id === "OECD_5.3.1") {
+      if (!sbie[iso]) sbie[iso] = "none";
+    } else if (HARBOUR_ZERO.has(id) && row.status === "available") {
+      if (iso === "GROUP") {
+        for (const r of elig) if (r.election.id === id && r.status === "available" && r.iso !== "GROUP") harbourIso.push(r.iso);
+      } else harbourIso.push(iso);
+    }
+  }
+  return { stock, realisation, sbie, harbourIso };
+}
+
+export function scoreWorking(
+  calcs: JurCalc[],
+  elig: EligibilityRow[],
+  on: Record<string, boolean>,
+  sbieClaim: Record<string, SbieMode> = {},
+): OptScenario {
+  const flags = flagsFromOn(elig, on, sbieClaim);
+  const keys = Object.entries(on).filter(([, v]) => v).map(([k]) => k);
+  const lockYears = keys.some((k) => electionById(splitSwitch(k)[0])?.duration === "five-year") ? 5 : 0;
+  const reviewOn = keys.some((k) => {
+    const [id, iso] = splitSwitch(k);
+    return elig.some((r) => r.election.id === id && r.iso === iso && r.status === "review");
+  });
+  return pack("WORK", "Working election package", keys, calcs, flags, {
+    family: "mixed",
+    compliance: (flags.harbourIso?.length ?? 0) > 0 ? "mixed" : "full",
+    audit: reviewOn ? "high" : lockYears ? "medium" : "low",
+    lockYears,
+    bookable: !reviewOn,
+    why: keys.length
+      ? "Toggles from the Election Engine at OECD scope. A jurisdiction election binds every CE in that country. Review-status harbours are recorded, not booked as $0."
+      : "Core default. No elections toggled on.",
   });
 }
 

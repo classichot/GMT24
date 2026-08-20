@@ -8,7 +8,7 @@ import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { eur, pct } from "@/lib/format";
 import { OECD_ELEC_URLS } from "@/lib/elections";
-import { optimizeGlobe, type OptScenario } from "@/lib/electionEngine";
+import { optimizeGlobe, scoreWorking, type OptScenario } from "@/lib/electionEngine";
 
 const AUDIT_TAG: Record<OptScenario["audit"], string> = {
   low: "tag-ok",
@@ -17,11 +17,13 @@ const AUDIT_TAG: Record<OptScenario["audit"], string> = {
 };
 
 export default function OptimizePage() {
-  const { ask } = useStore();
+  const { ask, electionsOn, sbieClaim } = useStore();
   const { calcs } = useCalc();
   const O = optimizeGlobe(calcs);
+  const work = scoreWorking(calcs, O.elig, electionsOn, sbieClaim);
   const [sel, setSel] = useState(O.recs[4]?.scenario.id ?? "B");
-  const pick = O.scenarios.find((s) => s.id === sel) ?? O.recs[4].scenario;
+  const scenarios = work.elections.length ? [work, ...O.scenarios] : O.scenarios;
+  const pick = scenarios.find((s) => s.id === sel) ?? O.recs[4].scenario;
   const rec = O.recs.find((r) => r.scenario.id === pick.id);
   const delta = pick.fyTopUp - O.groupBase;
 
@@ -33,7 +35,7 @@ export default function OptimizePage() {
           <strong>GMT24 Pillar Two Scenario Optimizer.</strong> Default treatment → eligible elections → safe harbours → five-year lock-ins → QDMTT / IIR / UTPR → GIR disclosure. Ranked on bookable packages only. Review-status harbours (Simplified ETR, SBTI) are modelled but not booked as $0. The LLM does not post the overlay.
         </div>
         <div className="stack-actions">
-          <Link href="/elections" className="btn btn-secondary">Election register</Link>
+          <Link href="/elections" className="btn btn-secondary">Election toggles</Link>
           <Link href="/gir" className="btn btn-secondary">GIR section D</Link>
           <a className="btn btn-secondary" href={OECD_ELEC_URLS.sbs} target="_blank" rel="noreferrer">Side-by-Side 2026</a>
           <button className="btn btn-primary" onClick={() => ask("Optimize my GloBE position")}>Ask GMT24</button>
@@ -97,7 +99,7 @@ export default function OptimizePage() {
               </tr>
             </thead>
             <tbody>
-              {O.scenarios.map((s) => (
+              {scenarios.map((s) => (
                 <tr key={s.id} className="clickable" onClick={() => setSel(s.id)}>
                   <td>
                     <div style={{ fontWeight: 700 }}>{s.title}</div>
@@ -106,6 +108,7 @@ export default function OptimizePage() {
                   <td style={{ fontSize: 12 }}>{s.elections.length ? s.elections.join(" · ") : "None (Core default)"}</td>
                   <td>
                     <span className={`tag ${s.bookable ? "tag-ok" : "tag-warn"}`}>{s.bookable ? "Bookable" : "Do not book"}</span>
+                    {s.id === "WORK" && <span className="tag tag-accent" style={{ marginLeft: 6 }}>Your toggles</span>}
                     {s.id === O.recs[4].scenario.id && <span className="tag tag-accent" style={{ marginLeft: 6 }}>Recommended</span>}
                   </td>
                   <td>{s.lockYears ? `${s.lockYears}y` : "—"}</td>
