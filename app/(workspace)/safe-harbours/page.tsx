@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { calculateGroup } from "@/lib/engine";
 import { useStore } from "@/lib/store";
 import { pct } from "@/lib/format";
@@ -19,8 +20,14 @@ export default function SafeHarbourPage() {
   const calcs = calculateGroup(groupId);
   return (
     <div>
-      <div className="callout" style={{ marginBottom: 20 }}>
-        <strong>Safe Harbour Navigator</strong> is a generic framework, not a hard-coded Transitional CbCR screen. Tests are selected from the effective-dated rulebook (OECD-TCSH-2026 v2026.2 extended to FY beginning on or before 31 Dec 2027; Simplified ETR SH for later years; SBTISH; QDMTT SH; UTPR SH; SbS).
+      <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <strong>Safe Harbour Navigator</strong> is a generic framework, not a hard-coded Transitional CbCR screen. Tests are selected from the effective-dated rulebook (OECD-TCSH-2026 v2026.2 extended to FY beginning on or before 31 Dec 2027; Simplified ETR SH for later years; SBTISH; QDMTT SH; UTPR SH; SbS). If more than one qualifying test exists, GIR requires the MNE to identify the test elected. Simplified ETR itself contains inner elections (FX, pension, PE, group timing).
+        </div>
+        <div className="stack-actions">
+          <Link href="/elections" className="btn btn-secondary">SETR inner elections</Link>
+          <Link href="/optimize" className="btn btn-primary">Optimize GloBE</Link>
+        </div>
       </div>
       <div className="table-wrap panel">
         <table className="table">

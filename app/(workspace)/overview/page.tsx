@@ -33,6 +33,7 @@ export default function OverviewPage() {
           AI mapped the trial balances. The deterministic engine produced <Amount n={t.topUp} audit={t.audit} /> of jurisdictional top-up tax across {t.tu} countries. {t.blocks} data issues still block a lock.
         </div>
         <div className="stack-actions">
+          <Link href="/optimize" className="btn btn-primary">Optimize GloBE</Link>
           <Link href="/audit" className="btn btn-secondary">Explain calculation</Link>
           <Link href="/data" className="btn btn-secondary">View source</Link>
           <Link href="/simulator" className="btn btn-secondary">Run scenario</Link>
@@ -139,6 +140,7 @@ export default function OverviewPage() {
                 <div className="wf-row"><span>Data confidence</span><span>{th.completeness}%</span></div>
                 <div className="stack-actions" style={{ marginTop: 16 }}>
                   <button className="btn btn-primary" onClick={() => ask("Why is Thailand's ETR 10.8%?")}>Ask GMT24</button>
+                  <Link href="/optimize" className="btn btn-secondary">Optimize GloBE</Link>
                   <Link href="/thailand/liability" className="btn btn-secondary">Thai liability</Link>
                   <Link href="/top-up" className="btn btn-secondary">Open calculation</Link>
                 </div>

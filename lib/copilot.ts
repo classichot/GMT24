@@ -1,8 +1,10 @@
 import { ACCOUNTS, ENTITIES, INCENTIVES, ISSUES, RULES } from "./model";
 import { calculateGroup, calcForIso, type JurCalc } from "./engine";
-import { eur, pct } from "./format";
+import { eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
 import { optimizeBoi } from "./boiOptimizer";
+import { optimizeGlobe } from "./electionEngine";
+import { WORKED_SBC_THB } from "./elections";
 
 export type CopilotMsg = {
   role: "user" | "assistant";
@@ -15,6 +17,55 @@ function th() {
 }
 
 const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
+  {
+    match: /optimize (my )?globe|scenario optimizer|election package|lowest (fy|5-year|compliance)|pillar two scenario/i,
+    answer: () => {
+      const O = optimizeGlobe(calculateGroup());
+      const rec = O.recs[4].scenario;
+      const fy = O.recs[0].scenario;
+      return {
+        role: "assistant",
+        text: `GMT24 Pillar Two Scenario Optimizer — engine overlay on GloBE Core, not a copilot guess.\n\nRegister: ${O.counts.total} elections/harbours · ${O.counts.available} available · ${O.counts.review} review · ${O.counts.unavailable} unavailable · ${O.counts.fiveYear} five-year locks.\n\nBaseline group top-up ${eur(O.groupBase)}.\nLowest FY2026 tax: ${fy.title} → ${eur(fy.fyTopUp)}.\nRecommended balanced position: ${rec.title} → ${eur(rec.fyTopUp)} (QDMTT ${eur(rec.fyQdmtt)}, IIR ${eur(rec.fyIir)}, UTPR ${eur(rec.fyUtpr)}).\n\nThailand fails Transitional CbCR — that harbour cannot be elected. Simplified ETR / SBTI are Review, not a $0 booking. Ireland Art. 3.2.2 is available but tax deduction is below book, so it is rejected.\n\nOpen Optimize my GloBE position.`,
+        cites: [
+          { label: "Optimize GloBE", href: "/optimize" },
+          { label: "Election engine", href: "/elections" },
+          { label: "OECD-ELEC-2026", href: "/rulebook" },
+          { label: "Commentary 2026", href: "https://www.oecd.org/en/publications/tax-challenges-arising-from-the-digitalisation-of-the-economy-consolidated-commentary-to-the-global-anti-base-erosion-model-rules-2026_4377e89f-en.html" },
+        ],
+      };
+    },
+  },
+  {
+    match: /3\.2\.2|stock.?comp|stock.?option|equity compensation|sbc election/i,
+    answer: () => {
+      const O = optimizeGlobe(calculateGroup());
+      const W = WORKED_SBC_THB;
+      return {
+        role: "assistant",
+        text: `Article 3.2.2 is a five-year jurisdiction election. It is not entity-by-entity. It binds every Constituent Entity located in that country — on this snapshot TH001 and the Rayong PE together.\n\nDefault: financial-accounting stock-comp expense stays in GloBE Income.\nElection: local tax deduction is substituted into GloBE Income.\n\nTeaching illustration (THB):\nABC Thailand tax ${thb(W.entities[0].tax, true)} / book ${thb(W.entities[0].book, true)}\nXYZ Thailand tax ${thb(W.entities[1].tax, true)} / book ${thb(W.entities[1].book, true)}\nWithout election → ETR ${pct(W.without.etr, 1)} → top-up ${thb(W.without.topUp, true)}\nWith election → ETR ${pct(W.with.etr, 1)} → top-up ${thb(W.with.topUp, true)}\n\nLive Aetherion overlay: Core Thai ETR ${pct(O.thBase.etr, 1)} / top-up ${eur(O.thBase.jurisdictionalTopUp)}. With Art. 3.2.2 → Thai ETR ${pct(O.thA.etr, 1)} / top-up ${eur(O.thA.topUp)}.\nIreland is legally available but tax deduction is below book — optimizer will not recommend it.\n\nOpen the Election Engine.`,
+        cites: [
+          { label: "Art. 3.2.2 register", href: "/elections" },
+          { label: "Optimize GloBE", href: "/optimize" },
+          { label: "OECD-ELEC-2026", href: "/rulebook" },
+        ],
+      };
+    },
+  },
+  {
+    match: /election engine|globe election|simplified etr (inner|election)|unclaimed accrual|realisation principle|sbie opt.?out/i,
+    answer: () => {
+      const O = optimizeGlobe(calculateGroup());
+      return {
+        role: "assistant",
+        text: `The Election & Scenario Engine tracks OECD GloBE elections, 2026 safe harbours, and Simplified ETR inner options at the legal scope (group / jurisdiction / CE / transaction / asset class / DTL item / GL account).\n\nThis snapshot: ${O.counts.available} available, ${O.counts.review} review, ${O.counts.unavailable} unavailable, of ${O.counts.total} on the register.\n\nSBIE is modelled as maximum / partial / none — not a silent YES. Unclaimed accruals are DTL-item (annual) or GL-category (five-year). Art. 4.5 GloBE Loss: first GIR, revocable YES, re-elect after revocation NO.\n\nOpen the register, then Optimize my GloBE position.`,
+        cites: [
+          { label: "Election engine", href: "/elections" },
+          { label: "Optimize GloBE", href: "/optimize" },
+          { label: "GIR section D", href: "/gir" },
+        ],
+      };
+    },
+  },
   {
     match: /oecd vs|rd gap|diverge|thai rd|pillar ?2 rd|rd requirement|pure oecd/i,
     answer: () => {
@@ -202,7 +253,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /oecd|basis|rule/i,
     answer: () => ({
       role: "assistant",
-      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — $750m / 2-of-4 (group presentation USD)\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
+      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — $750m / 2-of-4 (group presentation USD)\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• OECD-ELEC-2026 — Election & Scenario Engine (scope, 5-year locks, GIR section D)\n• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
       cites: RULES.slice(0, 6).map((r) => ({ label: `${r.id} ${r.version}` })),
     }),
   },
@@ -229,6 +280,8 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
 }
 
 export const SUGGESTIONS = [
+  "Optimize my GloBE position",
+  "Should Thailand elect Art. 3.2.2 stock compensation?",
   "Where does the OECD calculation diverge from Thai RD Pillar Two requirements?",
   "Who pays the Thai QDMTT and is there residual UTPR?",
   "Should we keep the BOI holiday, convert to 10%, or wait for QRTC?",

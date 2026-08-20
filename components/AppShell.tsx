@@ -20,6 +20,7 @@ import {
   Scale,
   Settings,
   Shield,
+  SlidersHorizontal,
   Sparkles,
   Timer,
   Upload,
@@ -68,6 +69,11 @@ const NAV = [
     { href: "/top-up", label: "Top-up tax", icon: Shield },
     { href: "/allocation", label: "QDMTT / IIR / UTPR", icon: GitBranch },
     { href: "/playbook/pillar-two", label: "Playbook", icon: ClipboardList },
+  ]},
+  { group: "Elections & Optimizer", items: [
+    { href: "/elections", label: "Election engine", icon: SlidersHorizontal },
+    { href: "/optimize", label: "Optimize GloBE", icon: Sparkles },
+    { href: "/playbook/elections", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Thailand", items: [
     { href: "/thailand", label: "Jurisdiction pack", icon: Landmark },
@@ -140,6 +146,8 @@ const TITLES: Record<string, [string, string]> = {
   "/sbie": ["Pillar Two", "Substance-based income exclusion"],
   "/top-up": ["Pillar Two", "Top-up tax"],
   "/allocation": ["Pillar Two", "Who pays · where · why"],
+  "/elections": ["Killer feature", "Election & Scenario Engine"],
+  "/optimize": ["Killer feature", "Pillar Two Scenario Optimizer"],
   "/thailand": ["Killer feature", "Thailand Jurisdiction Pack"],
   "/thailand/liability": ["Thailand", "Liability & filing orchestrator"],
   "/thailand/scope": ["Thailand", "Scope determination memorandum"],

@@ -59,7 +59,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "FANIL → GloBE income → covered taxes → ETR → SBIE → top-up → QDMTT / IIR / UTPR. Engine only.",
     owner: "Preparer, then reviewer",
     steps: [
-      { n: "01", title: "Confirm scope & harbours", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out.", href: "/scope", hrefLabel: "Scope" },
+      { n: "01", title: "Confirm scope, harbours and elections", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out. Then run the Election Engine — stock compensation, realisation, SBIE max/partial/none and Simplified ETR inner options can change the answer before anyone files GIR section D.", href: "/elections", hrefLabel: "Elections" },
       { n: "02", title: "Build the ETR", body: "GloBE income (FANIL engine) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/deferred-tax", hrefLabel: "Deferred tax" },
       { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR. For Thailand open the Thai Liability Dashboard; do not stop at the global allocation screen.", href: "/thailand/liability", hrefLabel: "Thai liability" },
     ],
@@ -159,6 +159,18 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "02", title: "Run the four scenarios", body: "Keep 0%. Convert under Announcement 1/2566 (10% for twice remaining full years, cap 10). Future QRTC/SBTISH — do not book. 20% CIT plus non-tax privileges.", href: "/thailand/boi", hrefLabel: "Optimizer" },
       { n: "03", title: "Stress blending, SBIE and harbours", body: "A high-tax Thai CE can shelter a BOI entity. Asset-light projects keep less SBIE. Fail transitional harbours before you assert a clawback.", href: "/safe-harbours", hrefLabel: "Harbours" },
       { n: "04", title: "Brief the board on net value", body: "Rank only bookable scenarios. 10% is not automatically cheaper. Report net retained incentive, not the 0% printed on the certificate.", href: "/thailand/boi", hrefLabel: "NPV" },
+    ],
+  },
+  {
+    slug: "elections",
+    menu: "Elections",
+    title: "Election & Scenario Optimizer playbook",
+    summary: "Pillar Two is not one calculation. Detect every legally available election and harbour at the correct OECD scope, generate bookable combinations, then rank lowest FY tax, 5-year lock-in, compliance burden and audit risk.",
+    owner: "Group Tax / preparer / reviewer",
+    steps: [
+      { n: "01", title: "Read the baseline", body: "Default GloBE is Core with no elective overlays. Do not start from a copilot guess.", href: "/etr", hrefLabel: "ETR" },
+      { n: "02", title: "Run the eligibility engine", body: "Only legally available elections are offered. A JURISDICTION election binds every CE in that country. QDMTT / SbS status comes from the OECD Central Record.", href: "/elections", hrefLabel: "Election engine" },
+      { n: "03", title: "Generate scenarios, then optimise", body: "GMT24 models eligible combinations — not 2^40 switches. Rank lowest FY tax, 5-year lock-in, compliance burden and audit risk. Then file the GIR election fields.", href: "/optimize", hrefLabel: "Optimize GloBE" },
     ],
   },
 ];

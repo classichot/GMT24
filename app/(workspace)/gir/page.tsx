@@ -35,6 +35,7 @@ export default function GirPage() {
         <div className="stack-actions">
           <button className="btn btn-secondary" onClick={() => { patchWorkflow({ girValidated: true }); flash("Schema validation passed · 0 errors, 2 warnings (VN DTA)"); }}>Validate XML</button>
           <button className="btn btn-primary" onClick={() => { patchWorkflow({ girExported: true }); flash("GIR pack exported (XML + PDF + evidence zip)"); }}>Export pack</button>
+          <Link href="/elections" className="btn btn-secondary">Elections</Link>
           <Link href="/filings" className="btn btn-secondary">Filing matrix</Link>
           <Link href="/approvals" className="btn btn-secondary">Approvals</Link>
         </div>
@@ -44,8 +45,14 @@ export default function GirPage() {
           <div className="panel-head"><h4>Sections</h4></div>
           {GIR_SECTIONS.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-divider)" }}>
-              <div><strong>{s.id}. {s.title}</strong><div className="text-muted" style={{ fontSize: 12 }}>{s.fields} fields · {s.missing} missing</div></div>
-              <span className="status-prep">{s.id === "C" ? `Top-up ${eur(t.topUp, true)}` : s.status}</span>
+              <div>
+                <strong>{s.id}. {s.title}</strong>
+                <div className="text-muted" style={{ fontSize: 12 }}>{s.fields} fields · {s.missing} missing</div>
+              </div>
+              <div className="stack-actions">
+                {s.id === "D" && <Link href="/elections" className="btn btn-ghost">Election engine</Link>}
+                <span className="status-prep">{s.id === "C" ? `Top-up ${eur(t.topUp, true)}` : s.status}</span>
+              </div>
             </div>
           ))}
         </div>
