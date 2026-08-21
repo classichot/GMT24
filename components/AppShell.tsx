@@ -13,6 +13,7 @@ import {
   Globe,
   Landmark,
   LayoutGrid,
+  Link2,
   LogOut,
   Map,
   Menu,
@@ -34,8 +35,9 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { useCalc } from "@/lib/useCalc";
 import { PLAYBOOKS } from "@/lib/playbooks";
+import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const NAV = [
   { group: "Overview", items: [
@@ -106,6 +108,7 @@ const NAV = [
     { href: "/audit", label: "Audit trail", icon: GitBranch },
     { href: "/evidence", label: "Evidence", icon: FileText },
     { href: "/approvals", label: "Approvals", icon: Check },
+    { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
     { href: "/playbook/review", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Intelligence", items: [
@@ -187,8 +190,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const { t } = useCalc();
+  const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
+  const inviteHours = invite ? hoursLeft(invite.exp) : 0;
 
   useEffect(() => { setNavOpen(false); }, [path, setNavOpen]);
+  useEffect(() => { setInvite(readInviteSession()); }, [path]);
 
   const book = path.startsWith("/playbook/")
     ? PLAYBOOKS.find((p) => path === `/playbook/${p.slug}`)
@@ -217,7 +223,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
           {NAV.map((g) => {
-            const items = g.items.filter((i) => !("advisor" in i && i.advisor) || mode === "advisor");
+            const items = g.items.filter((i) => {
+              if ("advisor" in i && i.advisor && mode !== "advisor") return false;
+              if ("inviteHide" in i && i.inviteHide && invite) return false;
+              return true;
+            });
             if (!items.length) return null;
             return (
               <div key={g.group}>
@@ -261,9 +271,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
           <ModeToggle compact />
+          {!invite && (
+            <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
+          )}
           <button className="btn btn-secondary header-hide-sm" onClick={() => setCopilotOpen(!copilotOpen)}><MessageSquare size={16} />Ask GMT24</button>
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>
+        {invite && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", fontSize: 12, fontWeight: 700 }}>
+            <Timer size={13} />
+            Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
+          </div>
+        )}
         <div className="workspace">
           <main className="page-main">{children}</main>
           <Copilot />

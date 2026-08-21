@@ -110,6 +110,7 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "01", title: "Work the issue list", body: "Blocks must clear before lock. Send Gap Hunter requests; do not close on estimates.", href: "/issues", hrefLabel: "Issues" },
       { n: "02", title: "Trace every number", body: "Open the audit trail from any amount. Rule IDs go to the rulebook; source files go to Data Hub.", href: "/audit", hrefLabel: "Audit trail" },
       { n: "03", title: "Approve the snapshot", body: "Return or approve. Approval is remembered on the filing matrix.", href: "/approvals", hrefLabel: "Approvals" },
+      { n: "04", title: "Mint a host desk link", body: "7L only. Generate a signed demo URL with 1–14 day life. Recipients open /review/{token} on another device until expiry. Do not put the host key on public login.", href: "/host", hrefLabel: "Host desk" },
     ],
   },
   {

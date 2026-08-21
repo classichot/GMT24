@@ -1,0 +1,14 @@
+---
+description: Host desk naming — BHD means build the host desk feature
+alwaysApply: true
+---
+
+# Host desk (BHD)
+
+The time-limited demo-invite feature is **host desk**, not “hosted review” or a generic share page.
+
+- **BHD** / **build BHD** / **build host desk** = implement or extend the host desk (same pattern as CIT24 / TP24).
+- Desk lives at public `/host`. It mints a signed `/review/{token}` URL. Expiry days are adjustable (default 3, range 1–14). The token works on another device until it expires.
+- Engine: `lib/invite.ts`. Do not put the host PIN on the public login page.
+- In UI and copy, call it **Host desk**. Keep 7L-only minting vs guest review-link entry distinct.
+- Default demo door is **in-house** (Aetherion). Advisor is optional.

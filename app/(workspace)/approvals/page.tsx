@@ -294,6 +294,8 @@ export default function ApprovalsPage() {
         <Link href="/audit">Audit trail</Link>
         {" · "}
         <Link href="/filings">Filings</Link>
+        {" · "}
+        <Link href="/host">Host desk</Link>
       </p>
     </div>
   );

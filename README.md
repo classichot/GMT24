@@ -28,6 +28,7 @@ An LLM never calculates Pillar Two. Every number is reproducible, rule-versioned
 
 - **In-house** — single MNE tax team workspace (Group Tax Director / Local Tax / Finance)
 - **Advisor** — multi-client advisory portfolio with engagement control
+- **Host desk** (`/host`) — 7L mints a signed `/review/{token}` demo URL (1–14 days, default 3). Recipients open it on another device until expiry.
 
 ## Prototype
 

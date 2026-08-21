@@ -13,11 +13,12 @@ import { THEMES, normalizeTheme, type ThemeKey } from "./format";
 import type { ProductMode } from "./model";
 import type { AuditNode } from "./engine";
 import type { SbieMode } from "./electionEngine";
+import { clearInviteSession } from "./invite";
 
 type Store = {
   ready: boolean;
   authed: boolean;
-  login: (mode: ProductMode) => void;
+  login: (mode: ProductMode, opts?: { invite?: boolean }) => void;
   logout: () => void;
   theme: ThemeKey;
   setTheme: (k: ThemeKey) => void;
@@ -92,7 +93,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const login = useCallback((m: ProductMode) => {
+  const login = useCallback((m: ProductMode, opts?: { invite?: boolean }) => {
+    if (!opts?.invite) clearInviteSession();
     setModeState(m);
     setAuthed(true);
     localStorage.setItem("gmt24_auth", "1");
@@ -106,6 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setAuthed(false);
     localStorage.removeItem("gmt24_auth");
+    clearInviteSession();
   }, []);
 
   const setTheme = useCallback((k: ThemeKey) => {
