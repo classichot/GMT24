@@ -38,7 +38,7 @@ const FILTERS: { id: "all" | ElectionFamily; label: string }[] = [
 ];
 
 export default function ElectionsPage() {
-  const { ask, flash, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim } = useStore();
+  const { ask, flash, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearLocked } = useStore();
   const { calcs } = useCalc();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const [sel, setSel] = useState("OECD_3.2.2");
@@ -59,7 +59,11 @@ export default function ElectionsPage() {
       flash("Not available at this OECD scope — a jurisdiction election cannot be flipped for one entity, and unavailable harbours cannot be elected.");
       return;
     }
-    setElection(switchKey(row.election.id, row.iso), next);
+    const blocked = setElection(switchKey(row.election.id, row.iso), next);
+    if (blocked) {
+      flash(blocked);
+      return;
+    }
     if (row.election.id === "OECD_5.3.1") setSbieClaim(row.iso === "GROUP" ? "TH" : row.iso, next ? "none" : "max");
     if (next && row.election.duration === "five-year") {
       flash(`${row.election.article} is a five-year lock. Scope: ${SCOPE_LABEL[row.election.scope]}.`);
@@ -74,9 +78,11 @@ export default function ElectionsPage() {
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <strong>Yes — toggles are how a GIR is actually filed.</strong> Each election is a real OECD choice. They are not 40 independent entity switches. A jurisdiction election (Art. 3.2.2 stock-comp) binds every CE in that country. Unavailable tests stay off. Review-status harbours can be marked but are not booked as $0. SBIE is max / partial / none, not a silent yes.
+          {" "}Active year <strong>{activeFy}</strong>{yearLocked ? " has a locked close on the year ledger. Re-lock after any toggle you want to carry." : ". Lock the final calc and elections on the year record before opening the next Fiscal Year."}
         </div>
         <div className="stack-actions">
           <Link href="/optimize" className="btn btn-primary">Optimize my GloBE position</Link>
+          <Link href="/years" className="btn btn-secondary">Year record</Link>
           <button type="button" className="btn btn-secondary" onClick={resetElections}>Reset to Core</button>
           <a className="btn btn-secondary" href={OECD_ELEC_URLS.gir} target="_blank" rel="noreferrer">GIR</a>
           <button className="btn btn-secondary" onClick={() => ask("Should Thailand elect Art. 3.2.2 stock compensation?")}>Ask GMT24</button>

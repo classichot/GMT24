@@ -75,6 +75,7 @@ const NAV = [
   { group: "Elections & Optimizer", items: [
     { href: "/elections", label: "Election engine", icon: SlidersHorizontal },
     { href: "/optimize", label: "Optimize GloBE", icon: Sparkles },
+    { href: "/years", label: "Year record", icon: Timer },
     { href: "/playbook/elections", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Thailand", items: [
@@ -151,6 +152,7 @@ const TITLES: Record<string, [string, string]> = {
   "/allocation": ["Pillar Two", "Who pays · where · why"],
   "/elections": ["Killer feature", "Election & Scenario Engine"],
   "/optimize": ["Killer feature", "Pillar Two Scenario Optimizer"],
+  "/years": ["In-house close", "Year record & consistency"],
   "/thailand": ["Killer feature", "Thailand Jurisdiction Pack"],
   "/thailand/liability": ["Thailand", "Liability & filing orchestrator"],
   "/thailand/scope": ["Thailand", "Scope determination memorandum"],
@@ -186,7 +188,7 @@ function isActive(path: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, toast, navOpen, setNavOpen, mode, groupId, setCopilotOpen, copilotOpen } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, groupId, setCopilotOpen, copilotOpen, activeFy } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const { t } = useCalc();
@@ -270,6 +272,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <h3 style={{ margin: "2px 0 0" }}>{title}</h3>
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
+          <span className="tag tag-outline header-hide-sm">{activeFy}</span>
           <ModeToggle compact />
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>

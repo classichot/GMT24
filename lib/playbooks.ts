@@ -172,6 +172,7 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "01", title: "Read the baseline", body: "Default GloBE is Core with no elective overlays. Do not start from a copilot guess.", href: "/etr", hrefLabel: "ETR" },
       { n: "02", title: "Run the eligibility engine", body: "Only legally available elections are offered. A JURISDICTION election binds every CE in that country. QDMTT / SbS status comes from the OECD Central Record.", href: "/elections", hrefLabel: "Election engine" },
       { n: "03", title: "Generate scenarios, then optimise", body: "GMT24 models eligible combinations — not 2^40 switches. Rank lowest FY tax, 5-year lock-in, compliance burden and audit risk. Then file the GIR election fields.", href: "/optimize", hrefLabel: "Optimize GloBE" },
+      { n: "04", title: "Lock the year, then open the next", body: "In-house keeps the final calc and elections for each Fiscal Year. The next year factors that record: five-year locks carry, Art. 4.5 cannot be re-elected after revocation, and GMT24 compares both elections and amounts.", href: "/years", hrefLabel: "Year record" },
     ],
   },
 ];

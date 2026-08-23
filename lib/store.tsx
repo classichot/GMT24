@@ -12,8 +12,19 @@ import {
 import { THEMES, normalizeTheme, type ThemeKey } from "./format";
 import type { ProductMode } from "./model";
 import type { AuditNode } from "./engine";
-import type { SbieMode } from "./electionEngine";
+import type { Restate, SbieMode } from "./electionEngine";
 import { clearInviteSession } from "./invite";
+import {
+  buildTracks,
+  carryForwardElections,
+  electionConstraint,
+  lastLocked,
+  lockedFor,
+  makeYearRecord,
+  nextFy,
+  parseRecords,
+  type YearRecord,
+} from "./yearLedger";
 
 type Store = {
   ready: boolean;
@@ -52,10 +63,16 @@ type Store = {
   };
   patchWorkflow: (p: Partial<Store["workflow"]>) => void;
   electionsOn: Record<string, boolean>;
-  setElection: (key: string, on: boolean) => void;
+  setElection: (key: string, on: boolean) => string | null;
   resetElections: () => void;
   sbieClaim: Record<string, SbieMode>;
   setSbieClaim: (iso: string, mode: SbieMode) => void;
+  activeFy: string;
+  yearRecords: YearRecord[];
+  yearLocked: boolean;
+  lockCurrentYear: (restates: Restate[], note?: string) => YearRecord;
+  openNextYear: () => string;
+  setActiveFy: (fy: string) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -82,6 +99,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
   const [electionsOn, setElectionsOn] = useState<Record<string, boolean>>({});
   const [sbieClaim, setSbieClaimState] = useState<Record<string, SbieMode>>({});
+  const [activeFy, setActiveFyState] = useState("FY2026");
+  const [yearRecords, setYearRecords] = useState<YearRecord[]>([]);
 
   useEffect(() => {
     setAuthed(localStorage.getItem("gmt24_auth") === "1");
@@ -90,6 +109,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (m === "advisor" || m === "inhouse") setModeState(m);
     const g = localStorage.getItem("gmt24_group");
     if (g) setGroupIdState(g);
+    const fy = localStorage.getItem("gmt24_fy");
+    if (fy && /^FY20\d{2}$/.test(fy)) setActiveFyState(fy);
+    setYearRecords(parseRecords(localStorage.getItem("gmt24_year_records")));
+    try {
+      const el = JSON.parse(localStorage.getItem("gmt24_elections") || "{}") as Record<string, boolean>;
+      if (el && typeof el === "object") setElectionsOn(el);
+    } catch { /* ignore */ }
+    try {
+      const sb = JSON.parse(localStorage.getItem("gmt24_sbie") || "{}") as Record<string, SbieMode>;
+      if (sb && typeof sb === "object") setSbieClaimState(sb);
+    } catch { /* ignore */ }
     setReady(true);
   }, []);
 
@@ -154,41 +184,96 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
   }, []);
 
-  const setElection = useCallback((key: string, on: boolean) => {
-    setElectionsOn((p) => {
-      if (!on) {
-        const next = { ...p };
-        delete next[key];
-        return next;
-      }
-      return { ...p, [key]: true };
-    });
+  const persistYears = useCallback((rows: YearRecord[]) => {
+    setYearRecords(rows);
+    localStorage.setItem("gmt24_year_records", JSON.stringify(rows));
   }, []);
 
-  const resetElections = useCallback(() => {
-    setElectionsOn({});
-    setSbieClaimState({});
+  const persistElections = useCallback((on: Record<string, boolean>, sbie: Record<string, SbieMode>) => {
+    localStorage.setItem("gmt24_elections", JSON.stringify(on));
+    localStorage.setItem("gmt24_sbie", JSON.stringify(sbie));
   }, []);
+
+  const yearLocked = !!lockedFor(yearRecords, activeFy);
+
+  const setElection = useCallback((key: string, on: boolean) => {
+    const tracks = buildTracks(yearRecords, { fy: activeFy, electionsOn });
+    const gate = electionConstraint(key, on, !!electionsOn[key], activeFy, tracks, false);
+    if (!gate.ok) return gate.reason;
+    setElectionsOn((p) => {
+      const next = { ...p };
+      if (!on) delete next[key];
+      else next[key] = true;
+      persistElections(next, sbieClaim);
+      return next;
+    });
+    return null;
+  }, [yearRecords, activeFy, electionsOn, persistElections, sbieClaim]);
+
+  const resetElections = useCallback(() => {
+    const prior = lastLocked(yearRecords, activeFy);
+    const carry = prior
+      ? carryForwardElections(prior, activeFy, buildTracks(yearRecords))
+      : { electionsOn: {}, sbieClaim: {} as Record<string, SbieMode> };
+    setElectionsOn(carry.electionsOn);
+    setSbieClaimState(carry.sbieClaim);
+    persistElections(carry.electionsOn, carry.sbieClaim);
+  }, [yearRecords, activeFy, persistElections]);
 
   const setSbieClaim = useCallback((iso: string, mode: SbieMode) => {
     setSbieClaimState((p) => {
-      if (mode === "max") {
-        const next = { ...p };
-        delete next[iso];
+      const sbie = { ...p };
+      if (mode === "max") delete sbie[iso];
+      else sbie[iso] = mode;
+      const key = `OECD_5.3.1@${iso}`;
+      setElectionsOn((el) => {
+        const next = { ...el };
+        if (mode === "max") delete next[key];
+        else next[key] = true;
+        persistElections(next, sbie);
         return next;
-      }
-      return { ...p, [iso]: mode };
+      });
+      return sbie;
     });
-    const key = `OECD_5.3.1@${iso}`;
-    setElectionsOn((p) => {
-      if (mode === "max") {
-        const next = { ...p };
-        delete next[key];
-        return next;
-      }
-      return { ...p, [key]: true };
+  }, [persistElections]);
+
+  const lockCurrentYear = useCallback((restates: Restate[], note = "") => {
+    const rec = makeYearRecord({
+      fy: activeFy,
+      locked: true,
+      electionsOn,
+      sbieClaim,
+      restates,
+      note: note || `${activeFy} final in-house close — calc + elections`,
     });
-  }, []);
+    persistYears([...yearRecords.filter((r) => r.fy !== activeFy), rec]);
+    return rec;
+  }, [activeFy, electionsOn, sbieClaim, yearRecords, persistYears]);
+
+  const openNextYear = useCallback(() => {
+    const lock = lockedFor(yearRecords, activeFy);
+    if (!lock) return "";
+    const fy = nextFy(activeFy);
+    const tracks = buildTracks(yearRecords);
+    const carry = carryForwardElections(lock, fy, tracks);
+    setActiveFyState(fy);
+    localStorage.setItem("gmt24_fy", fy);
+    setElectionsOn(carry.electionsOn);
+    setSbieClaimState(carry.sbieClaim);
+    persistElections(carry.electionsOn, carry.sbieClaim);
+    return fy;
+  }, [yearRecords, activeFy, persistElections]);
+
+  const setActiveFy = useCallback((fy: string) => {
+    setActiveFyState(fy);
+    localStorage.setItem("gmt24_fy", fy);
+    const lock = lockedFor(yearRecords, fy);
+    if (lock) {
+      setElectionsOn(lock.electionsOn);
+      setSbieClaimState(lock.sbieClaim);
+      persistElections(lock.electionsOn, lock.sbieClaim);
+    }
+  }, [yearRecords, persistElections]);
 
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
@@ -228,8 +313,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetElections,
       sbieClaim,
       setSbieClaim,
+      activeFy,
+      yearRecords,
+      yearLocked,
+      lockCurrentYear,
+      openNextYear,
+      setActiveFy,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

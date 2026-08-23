@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
 
 export default function SettingsPage() {
-  const { mode, setMode, flash } = useStore();
+  const { mode, setMode, flash, activeFy, yearLocked } = useStore();
   const router = useRouter();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   return (
@@ -41,6 +41,7 @@ export default function SettingsPage() {
           <div className="wf-row"><span>Role</span><span>{user.role}</span></div>
           <div className="wf-row"><span>Org</span><span>{user.org}</span></div>
           <div className="wf-row"><span>Controls</span><span>SSO · MFA · entity ACL · immutable logs (prototype flags)</span></div>
+          <div className="wf-row"><span>Active Fiscal Year</span><span>{activeFy} · {yearLocked ? "locked final" : "working"}</span></div>
         </div>
       </div>
     </div>

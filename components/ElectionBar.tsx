@@ -7,6 +7,7 @@ import { OECD_ELEC_URLS } from "@/lib/elections";
 const ITEMS = [
   { href: "/elections", label: "Election engine" },
   { href: "/optimize", label: "Optimize GloBE" },
+  { href: "/years", label: "Year record" },
   { href: "/playbook/elections", label: "Playbook" },
 ];
 
