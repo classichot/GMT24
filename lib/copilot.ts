@@ -21,11 +21,11 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /year record|prior year|previous year|next year|fy2027|election compare|consistenc|carried lock|lock (the )?year/i,
     answer: () => ({
       role: "assistant",
-      text: "In-house year record keeps the final calculation and the GIR elections for each Fiscal Year.\n\n1. Lock the working package — engine restatement + election toggles.\n2. Open the next year. Five-year locks and Art. 4.5 (first GIR) carry forward. Annual elections do not auto-carry.\n3. GMT24 compares prior vs current elections (carried / added / dropped) and calculation movement (GloBE, covered taxes, ETR, top-up).\n4. Consistency blocks: dropping a five-year lock early, or re-electing Art. 4.5 after revocation.\n\nWorking years still run on the Aetherion FY2026 data model until later-year books are loaded. Opening DTA/DTL and Art. 4.4.4 recapture are already in those books.\n\nOpen Year record.",
+      text: "Year record works in In-house and Advisor. Advisor keeps a separate ledger per client.\n\n1. Working package = live calc + election toggles. Not final until Lock.\n2. Lock writes engine amounts and GIR elections for that Fiscal Year.\n3. Open next year — five-year locks and Art. 4.5 carry. Annual elections do not.\n4. Compare prior vs current: carried / added / dropped elections, and GloBE / covered taxes / ETR / top-up movement.\n5. Blocks: dropping a five-year lock early, or re-electing Art. 4.5 after revocation.\n\nLater years still run on this snapshot’s data model until new books are loaded.\n\nOpen Year record — the How this works table is on that page.",
       cites: [
         { label: "Year record", href: "/years" },
         { label: "Election engine", href: "/elections" },
-        { label: "Art. 4.5 / 3.2.2 locks", href: "/elections" },
+        { label: "Clients", href: "/clients" },
       ],
     }),
   },

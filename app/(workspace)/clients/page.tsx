@@ -4,6 +4,7 @@ import { GROUPS } from "@/lib/model";
 import { calculateGroup, scopeTest, totals } from "@/lib/engine";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
+import { peekGroupLocks } from "@/lib/yearLedger";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -20,11 +21,12 @@ export default function ClientsPage() {
   }
   return (
     <div>
-      <p className="text-muted" style={{ marginBottom: 16 }}>7-L Advisory · Pillar Two portfolio. Each client is an isolated tenant with its own calculation snapshot, rule pack and GIR pack.</p>
+      <p className="text-muted" style={{ marginBottom: 16 }}>7-L Advisory · Pillar Two portfolio. Each client is an isolated tenant with its own calculation snapshot, year ledger, rule pack and GIR pack. Lock and compare Fiscal Years on <Link href="/years">Year record</Link>.</p>
       <div className="grid-2">
         {GROUPS.map((g) => {
           const t = totals(calculateGroup(g.id));
           const s = scopeTest(g.id);
+          const yr = peekGroupLocks(g.id);
           return (
             <button
               key={g.id}
@@ -44,6 +46,7 @@ export default function ClientsPage() {
                 <div className="wf-row"><span>Entities / jur.</span><span>{g.entities} / {g.jurisdictions}</span></div>
                 <div className="wf-row"><span>Workflow</span><span>{g.workflow}</span></div>
                 <div className="wf-row"><span>Advisor</span><span>{g.advisor}</span></div>
+                <div className="wf-row"><span>Year record</span><span>{yr.fy} · {yr.locked ? `${yr.locked} locked` : "no lock yet"}</span></div>
               </div>
             </button>
           );

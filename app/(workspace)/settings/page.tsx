@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
 
 export default function SettingsPage() {
-  const { mode, setMode, flash, activeFy, yearLocked } = useStore();
+  const { mode, setMode, flash, activeFy, yearLocked, groupId } = useStore();
   const router = useRouter();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   return (
@@ -25,8 +25,8 @@ export default function SettingsPage() {
             </label>
           </div>
           <p className="text-muted" style={{ fontSize: 13 }}>
-            In-house: single MNE, internal data requests, Group Tax Director as reviewer.<br />
-            Advisor: multi-client portfolio, engagement letters, client PBC, partner sign-off.
+            In-house: single MNE, internal data requests, Group Tax Director as reviewer, one year ledger.<br />
+            Advisor: multi-client portfolio, engagement letters, client PBC, partner sign-off, one year ledger per client.
           </p>
         </div>
       </div>
@@ -41,7 +41,8 @@ export default function SettingsPage() {
           <div className="wf-row"><span>Role</span><span>{user.role}</span></div>
           <div className="wf-row"><span>Org</span><span>{user.org}</span></div>
           <div className="wf-row"><span>Controls</span><span>SSO · MFA · entity ACL · immutable logs (prototype flags)</span></div>
-          <div className="wf-row"><span>Active Fiscal Year</span><span>{activeFy} · {yearLocked ? "locked final" : "working"}</span></div>
+          <div className="wf-row"><span>Active Fiscal Year</span><span>{activeFy} · {yearLocked ? "lock on file" : "working"}</span></div>
+          <div className="wf-row"><span>Year ledger</span><span>{mode === "advisor" ? `Per client · ${groupId}` : `In-house · ${groupId}`}</span></div>
         </div>
       </div>
     </div>

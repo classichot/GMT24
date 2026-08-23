@@ -19,10 +19,11 @@ import {
   carryForwardElections,
   electionConstraint,
   lastLocked,
+  loadGroupLedger,
   lockedFor,
   makeYearRecord,
   nextFy,
-  parseRecords,
+  storageKeys,
   type YearRecord,
 } from "./yearLedger";
 
@@ -108,18 +109,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const m = localStorage.getItem("gmt24_mode");
     if (m === "advisor" || m === "inhouse") setModeState(m);
     const g = localStorage.getItem("gmt24_group");
+    const startGroup = g || "aetherion";
     if (g) setGroupIdState(g);
-    const fy = localStorage.getItem("gmt24_fy");
-    if (fy && /^FY20\d{2}$/.test(fy)) setActiveFyState(fy);
-    setYearRecords(parseRecords(localStorage.getItem("gmt24_year_records")));
-    try {
-      const el = JSON.parse(localStorage.getItem("gmt24_elections") || "{}") as Record<string, boolean>;
-      if (el && typeof el === "object") setElectionsOn(el);
-    } catch { /* ignore */ }
-    try {
-      const sb = JSON.parse(localStorage.getItem("gmt24_sbie") || "{}") as Record<string, SbieMode>;
-      if (sb && typeof sb === "object") setSbieClaimState(sb);
-    } catch { /* ignore */ }
+    const loaded = loadGroupLedger(startGroup);
+    setActiveFyState(loaded.fy);
+    setYearRecords(loaded.records);
+    setElectionsOn(loaded.elections);
+    setSbieClaimState(loaded.sbie);
     setReady(true);
   }, []);
 
@@ -132,6 +128,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (m === "inhouse") {
       setGroupIdState("aetherion");
       localStorage.setItem("gmt24_group", "aetherion");
+      const loaded = loadGroupLedger("aetherion");
+      setActiveFyState(loaded.fy);
+      setYearRecords(loaded.records);
+      setElectionsOn(loaded.elections);
+      setSbieClaimState(loaded.sbie);
     }
   }, []);
 
@@ -154,6 +155,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setGroupId = useCallback((id: string) => {
     setGroupIdState(id);
     localStorage.setItem("gmt24_group", id);
+    const loaded = loadGroupLedger(id);
+    setActiveFyState(loaded.fy);
+    setYearRecords(loaded.records);
+    setElectionsOn(loaded.elections);
+    setSbieClaimState(loaded.sbie);
   }, []);
 
   const flash = useCallback((m: string) => {
@@ -184,15 +190,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
   }, []);
 
-  const persistYears = useCallback((rows: YearRecord[]) => {
+  const persistYears = useCallback((rows: YearRecord[], gid = groupId) => {
     setYearRecords(rows);
-    localStorage.setItem("gmt24_year_records", JSON.stringify(rows));
-  }, []);
+    localStorage.setItem(storageKeys(gid).records, JSON.stringify(rows));
+  }, [groupId]);
 
-  const persistElections = useCallback((on: Record<string, boolean>, sbie: Record<string, SbieMode>) => {
-    localStorage.setItem("gmt24_elections", JSON.stringify(on));
-    localStorage.setItem("gmt24_sbie", JSON.stringify(sbie));
-  }, []);
+  const persistElections = useCallback((on: Record<string, boolean>, sbie: Record<string, SbieMode>, gid = groupId) => {
+    localStorage.setItem(storageKeys(gid).elections, JSON.stringify(on));
+    localStorage.setItem(storageKeys(gid).sbie, JSON.stringify(sbie));
+  }, [groupId]);
 
   const yearLocked = !!lockedFor(yearRecords, activeFy);
 
@@ -244,11 +250,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       electionsOn,
       sbieClaim,
       restates,
-      note: note || `${activeFy} final in-house close — calc + elections`,
+      groupId,
+      note: note || `${activeFy} final close — ${groupId} · calc + elections`,
     });
     persistYears([...yearRecords.filter((r) => r.fy !== activeFy), rec]);
     return rec;
-  }, [activeFy, electionsOn, sbieClaim, yearRecords, persistYears]);
+  }, [activeFy, electionsOn, sbieClaim, yearRecords, persistYears, groupId]);
 
   const openNextYear = useCallback(() => {
     const lock = lockedFor(yearRecords, activeFy);
@@ -257,23 +264,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const tracks = buildTracks(yearRecords);
     const carry = carryForwardElections(lock, fy, tracks);
     setActiveFyState(fy);
-    localStorage.setItem("gmt24_fy", fy);
+    localStorage.setItem(storageKeys(groupId).fy, fy);
     setElectionsOn(carry.electionsOn);
     setSbieClaimState(carry.sbieClaim);
     persistElections(carry.electionsOn, carry.sbieClaim);
     return fy;
-  }, [yearRecords, activeFy, persistElections]);
+  }, [yearRecords, activeFy, persistElections, groupId]);
 
   const setActiveFy = useCallback((fy: string) => {
     setActiveFyState(fy);
-    localStorage.setItem("gmt24_fy", fy);
+    localStorage.setItem(storageKeys(groupId).fy, fy);
     const lock = lockedFor(yearRecords, fy);
     if (lock) {
       setElectionsOn(lock.electionsOn);
       setSbieClaimState(lock.sbieClaim);
       persistElections(lock.electionsOn, lock.sbieClaim);
     }
-  }, [yearRecords, persistElections]);
+  }, [yearRecords, persistElections, groupId]);
 
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 

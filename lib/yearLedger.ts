@@ -23,6 +23,7 @@ export type YearRecord = {
   fy: string;
   locked: boolean;
   lockedAt: string | null;
+  groupId?: string;
   electionsOn: Record<string, boolean>;
   sbieClaim: Record<string, SbieMode>;
   rows: YearJurRow[];
@@ -31,6 +32,66 @@ export type YearRecord = {
   groupGlobe: number;
   note: string;
 };
+
+/** Plain-language note of the year-record logic — shown in In-house and Advisor. */
+export const YEAR_LOGIC = [
+  { n: "01", title: "Working package", body: "The active Fiscal Year is a live working package: engine calculation + election toggles. Nothing is final until you Lock." },
+  { n: "02", title: "Lock = final for that year", body: "Lock writes the engine restatement (GloBE, covered taxes, ETR, top-up) and the GIR elections onto the year ledger. You can Re-lock if you change a toggle before opening the next year." },
+  { n: "03", title: "Open next year", body: "The next Fiscal Year starts from that lock. GMT24 factors the prior close — it does not start from a blank Core unless the prior year had no lasting elections." },
+  { n: "04", title: "What carries", body: "Five-year elections (e.g. Art. 3.2.2) stay on for the rest of the lock (five inclusive years). Art. 4.5 GloBE Loss stays on until you revoke it. Opening DTA/DTL and Art. 4.4.4 recapture already sit in the books." },
+  { n: "05", title: "What does not carry", body: "Annual elections (SBIE claim, most harbours, Art. 4.1.5) must be made again. Reset to Core on a later year restores only the carried locks, not last year’s annual choices." },
+  { n: "06", title: "Consistency blocks", body: "Dropping a five-year lock before it expires is a block (early revocation). Re-electing Art. 4.5 after a revocation is a block (GIR: re-elect = NO). Same-year on/off of a new five-year election is allowed until you open the next year." },
+  { n: "07", title: "Compare", body: "GMT24 lines up prior lock vs current working package: elections carried / added / dropped, and calculation movement (GloBE, covered taxes, ETR, top-up). The engine posted the amounts — not the copilot." },
+  { n: "08", title: "Advisor vs In-house", body: "The logic is the same. In-house: one MNE ledger. Advisor: one ledger per client engagement. Switching clients does not mix locks or elections. The lock is the group close the firm can review." },
+];
+
+export function storageKeys(groupId: string) {
+  return {
+    fy: `gmt24_fy_${groupId}`,
+    records: `gmt24_year_records_${groupId}`,
+    elections: `gmt24_elections_${groupId}`,
+    sbie: `gmt24_sbie_${groupId}`,
+  };
+}
+
+function parseOn(raw: string | null): Record<string, boolean> {
+  try {
+    const el = JSON.parse(raw || "{}") as Record<string, boolean>;
+    return el && typeof el === "object" ? el : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseSbie(raw: string | null): Record<string, SbieMode> {
+  try {
+    const sb = JSON.parse(raw || "{}") as Record<string, SbieMode>;
+    return sb && typeof sb === "object" ? sb : {};
+  } catch {
+    return {};
+  }
+}
+
+export function loadGroupLedger(groupId: string) {
+  const k = storageKeys(groupId);
+  let records = parseRecords(typeof localStorage === "undefined" ? null : localStorage.getItem(k.records));
+  let fy = typeof localStorage === "undefined" ? "FY2026" : localStorage.getItem(k.fy) || "";
+  let elections = parseOn(typeof localStorage === "undefined" ? null : localStorage.getItem(k.elections));
+  let sbie = parseSbie(typeof localStorage === "undefined" ? null : localStorage.getItem(k.sbie));
+  if (groupId === "aetherion" && records.length === 0 && typeof localStorage !== "undefined") {
+    records = parseRecords(localStorage.getItem("gmt24_year_records"));
+    if (!fy) fy = localStorage.getItem("gmt24_fy") || "";
+    if (!Object.keys(elections).length) elections = parseOn(localStorage.getItem("gmt24_elections"));
+    if (!Object.keys(sbie).length) sbie = parseSbie(localStorage.getItem("gmt24_sbie"));
+  }
+  if (!/^FY20\d{2}$/.test(fy)) fy = "FY2026";
+  return { fy, records, elections, sbie };
+}
+
+export function peekGroupLocks(groupId: string) {
+  const { fy, records } = loadGroupLedger(groupId);
+  return { fy, locked: records.filter((r) => r.locked).length, last: lastLocked(records) };
+}
 
 export type ElectionTrack = {
   key: string;
@@ -132,6 +193,7 @@ export function makeYearRecord({
   sbieClaim,
   restates,
   note = "",
+  groupId,
 }: {
   fy: string;
   locked: boolean;
@@ -139,12 +201,14 @@ export function makeYearRecord({
   sbieClaim: Record<string, SbieMode>;
   restates: Restate[];
   note?: string;
+  groupId?: string;
 }): YearRecord {
   const rows = rowsFromRestate(restates);
   return {
     fy,
     locked,
     lockedAt: locked ? new Date().toISOString() : null,
+    groupId,
     electionsOn: { ...electionsOn },
     sbieClaim: { ...sbieClaim },
     rows,

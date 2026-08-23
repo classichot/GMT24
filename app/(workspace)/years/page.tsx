@@ -10,7 +10,9 @@ import {
   eligibilityEngine,
   scoreWorking,
 } from "@/lib/electionEngine";
+import { GROUPS } from "@/lib/model";
 import {
+  YEAR_LOGIC,
   buildTracks,
   compareYears,
   lastLocked,
@@ -23,6 +25,7 @@ import {
 export default function YearsPage() {
   const {
     mode,
+    groupId,
     ask,
     flash,
     electionsOn,
@@ -48,8 +51,10 @@ export default function YearsPage() {
     : null;
   const carried = tracks.filter((t) => (t.duration === "five-year" || t.duration === "first-gir") && electionsOn[t.key] && t.firstFy !== activeFy);
   const blocks = compare?.hits.filter((h) => h.severity === "block") ?? [];
-  const dirty = !!(sameLock && workingDiffers(sameLock, electionsOn, sbieClaim) && !yearLocked);
+  const dirty = !!(sameLock && workingDiffers(sameLock, electionsOn, sbieClaim));
   const next = nextFy(activeFy);
+  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
+  const desk = mode === "advisor" ? "Advisor engagement" : "In-house close";
 
   function lock() {
     const rec = lockCurrentYear(work.rows);
@@ -75,10 +80,9 @@ export default function YearsPage() {
       <ElectionBar />
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Year record.</strong> In-house keeps the final calculation and the GIR elections for each Fiscal Year.
-          The next year starts from that record: five-year locks carry, Art. 4.5 cannot be re-elected after revocation, and GMT24 compares both elections and amounts.
-          {mode !== "inhouse" ? " Advisor can inspect the same ledger; the lock is the group close." : ""}
-          {" "}Working years still run on the Aetherion FY2026 data model until later-year books are loaded — election overlays are what move the numbers.
+          <strong>Year record · {desk}.</strong> {mode === "advisor" ? `${group.name} has its own ledger.` : `${group.name} is the in-house MNE ledger.`}
+          {" "}Lock the final calculation and GIR elections for the Fiscal Year. Open the next year and GMT24 factors that close: five-year locks carry, Art. 4.5 cannot be re-elected after revocation, and both elections and amounts are compared.
+          {" "}Working years still run on this snapshot’s data model until later-year books are loaded — election overlays are what move the numbers.
         </div>
         <div className="stack-actions">
           <Link href="/elections" className="btn btn-secondary">Election engine</Link>
@@ -86,11 +90,40 @@ export default function YearsPage() {
         </div>
       </div>
 
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head"><h4>How this works</h4></div>
+        <div className="panel-body">
+          <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
+            Same logic in In-house and Advisor. Advisor keeps a separate ledger per client — switching engagements does not mix locks.
+          </p>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Step</th>
+                  <th>What GMT24 does</th>
+                </tr>
+              </thead>
+              <tbody>
+                {YEAR_LOGIC.map((s) => (
+                  <tr key={s.n}>
+                    <td className="mono">{s.n}</td>
+                    <td style={{ fontWeight: 700 }}>{s.title}</td>
+                    <td style={{ fontSize: 13 }}>{s.body}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div className="kpi-grid cols-4" style={{ marginBottom: 20 }}>
         <div className="kpi">
           <div className="kpi-label">Active year</div>
           <div className="kpi-val" style={{ fontSize: 22 }}>{activeFy}</div>
-          <div className="kpi-sub">{yearLocked ? "Locked final" : "Working"}</div>
+          <div className="kpi-sub">{group.name} · {yearLocked ? "has a lock on file" : "working"}</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Locked years</div>
@@ -121,7 +154,7 @@ export default function YearsPage() {
         </div>
         <div className="panel-body">
           <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
-            Lock writes the live engine restatement and the election package to the year ledger. Open next year only after that lock — GMT24 then factors the prior close (carried elections, Art. 4.5 bar, compare baseline).
+            Lock writes the live engine restatement and the election package to this {mode === "advisor" ? "client" : "group"} ledger. Open next year only after that lock — GMT24 then factors the prior close (carried elections, Art. 4.5 bar, compare baseline).
           </p>
           {dirty && (
             <p style={{ color: "var(--color-signal)", fontSize: 13 }}>Working elections differ from the locked {activeFy} record. Re-lock before opening {next} if those toggles should carry.</p>
