@@ -158,7 +158,7 @@ export const THAI_CLASSIFICATIONS = [
     id: "TH-CE",
     result: "Thai Constituent Entity",
     period: "FY2012–FY2026",
-    facts: "Incorporated in Thailand. TFRS. 100% owned by SG-HC. Not dual-resident. Not an Excluded Entity. Not MOCE (UPE ownership 100%). BOI-promoted manufacturing at Rayong.",
+    facts: "Incorporated in Thailand. TFRS. 100% owned by SG-HC. UPE look-through 100%. Not dual-resident. Not an Excluded Entity. Entity test: not MOCE (UPE ownership 100% > 30%). Not a POPE (not a Parent of an LTCE with outsiders > 20% — TH-CE owns only the Rayong PE and is 100% group-owned). BOI-promoted manufacturing at Rayong.",
     evidence: "Aetherion_Legal_Entity_List_FY2026.xlsx · BOI_Certificate_TH001.pdf",
     thai: "Emergency Decree ss 6–8 · DG Notification No. 3",
     oecd: "Art. 1.3 / 10.1 Constituent Entity",
@@ -293,7 +293,7 @@ export function thaiLiability(th: JurCalc) {
     ],
     statutory,
     audit,
-    iirNote: "Thai IIR applies to a Thai UPE, intermediate parent or POPE. Nippon Aether Holdings K.K. is the UPE — Thai IIR is N/A for this group.",
+    iirNote: "Thai IIR applies to a Thai UPE, intermediate parent or POPE. Nippon Aether Holdings K.K. is the UPE. Aetherion UK Ltd. is a POPE (22% outside the group) — that IIR sits in the UK, not Thailand. Thai IIR is N/A for this group.",
     utprNote: "Thai UTPR allocation dataset (Notification No. 5) is maintained. Collection flag is off for FY2026 pending Central Record UTPR status.",
   };
 }

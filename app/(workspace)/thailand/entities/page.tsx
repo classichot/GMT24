@@ -13,7 +13,7 @@ const TREE = [
   { n: "04", title: "Dual residence?", body: "Treaty tie-breaker. If the treaty does not resolve, covered-tax-paid test, then SBIE-based tie-breaker." },
   { n: "05", title: "Flow-through / tax-transparent?", body: "Allocate to owners unless the entity is treated as a CE in its location." },
   { n: "06", title: "Excluded Entity? (No. 7)", body: "Government, international organisation, non-profit, pension, investment entity / insurance IE." },
-  { n: "07", title: "Special (No. 8)", body: "MOCE (UPE ownership ≤ 30%), investment entity, stateless CE, JV and JV subsidiaries, multi-parent, POPE." },
+  { n: "07", title: "Special (No. 8)", body: "MOCE (UPE ownership ≤ 30%, separate ETR), investment entity, stateless CE, JV and JV subsidiaries (Art. 6.4), multi-parent, POPE (IIR first × Inclusion Ratio)." },
 ];
 
 export default function ThaiEntitiesPage() {

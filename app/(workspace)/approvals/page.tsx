@@ -9,7 +9,6 @@ import {
   ADJUSTMENTS,
   ADVISOR_USER,
   FILINGS,
-  GROUPS,
   INHOUSE_USER,
   ISSUES,
 } from "@/lib/model";
@@ -18,14 +17,14 @@ import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { Amount } from "@/components/Amount";
 import { eur } from "@/lib/format";
+import { etrHref } from "@/lib/engine";
 
 const STEPS = ["Imported", "Mapped", "Validated", "Calculated", "Prepared", "Reviewed", "Approved", "Filed", "Locked"];
 
 export default function ApprovalsPage() {
-  const { mode, flash, workflow, patchWorkflow, approvedMaps, ask } = useStore();
-  const { calcs, t, groupId } = useCalc();
+  const { mode, flash, workflow, patchWorkflow, approvedMaps, ask, group } = useStore();
+  const { calcs, t } = useCalc();
   const router = useRouter();
-  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const reviewer = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const current = workflow.snapshotApproved ? 6 : workflow.girValidated ? 5 : 4;
   const [rowOk, setRowOk] = useState<Record<string, boolean>>({});
@@ -62,15 +61,15 @@ export default function ApprovalsPage() {
       .map((c) => {
         const blocked = ISSUES.some((i) => i.severity === "block" && i.jurisdiction === c.name);
         return {
-          id: `jur-${c.iso}`,
+          id: `jur-${c.blendKey}`,
           item: `${c.name} jurisdictional calculation`,
           note: blocked ? "Blocked by data gap — do not approve on estimates" : `Top-up ${eur(c.jurisdictionalTopUp)} · ETR trail on the amount`,
           jur: c.name,
-          prep: prepFor(c.name),
+          prep: prepFor(c.entities[0]?.jurisdiction ?? c.name),
           rev: blocked ? "—" : revName,
           ver: "v14",
           blocked,
-          href: blocked ? "/issues" : `/etr?iso=${c.iso}`,
+          href: blocked ? "/issues" : etrHref(c),
         };
       });
     rows.push({

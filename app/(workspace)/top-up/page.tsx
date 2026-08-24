@@ -6,12 +6,13 @@ import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
+import { pickCalc, etrHref } from "@/lib/engine";
 
 export default function TopUpPage() {
   const { ask } = useStore();
   const { calcs, t } = useCalc();
   const router = useRouter();
-  const th = calcs.find((c) => c.iso === "TH") ?? calcs[0];
+  const th = pickCalc(calcs, "TH") ?? calcs[0];
   return (
     <div>
       <FlowBar iso={th.iso} />
@@ -38,7 +39,7 @@ export default function TopUpPage() {
             </thead>
             <tbody>
               {calcs.map((c) => (
-                <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
+                <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
                   <td>{c.name}</td>
                   <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                   <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>

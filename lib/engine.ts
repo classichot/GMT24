@@ -2,7 +2,6 @@ import {
   ADJUSTMENTS,
   ENTITIES,
   FINANCIALS,
-  GROUPS,
   ISSUES,
   JURISDICTION_PACKS,
   RULES,
@@ -13,8 +12,16 @@ import {
   type ScopeStatus,
   type ShResult,
 } from "./model";
+import { findGroup } from "./onboard";
 import { money } from "./format";
 import { deferredTaxAdjustment, viewsForEntity, type DtView } from "./deferredTax";
+import {
+  classifyAll,
+  inclusionRatio,
+  popeForEntities,
+  upeEntity,
+  type BlendKind,
+} from "./entityClass";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -37,9 +44,23 @@ export type AuditNode = {
   children?: AuditNode[];
 };
 
+export type Collection = {
+  qdmtt: number;
+  iir: number;
+  utpr: number;
+  payer: string;
+  path: string[];
+  popeIir: number;
+  upeIir: number;
+  inclusionRatio: number;
+  popeId: string | null;
+};
+
 export type JurCalc = {
   iso: string;
   name: string;
+  blendKey: string;
+  blendKind: BlendKind;
   entities: Entity[];
   revenue: number;
   fanil: number;
@@ -64,7 +85,7 @@ export type JurCalc = {
     outcome: ShResult;
   };
   exposure: Exposure;
-  collection: { qdmtt: number; iir: number; utpr: number; payer: string; path: string[] };
+  collection: Collection;
   completeness: number;
   pack: (typeof JURISDICTION_PACKS)[number] | undefined;
   audit: AuditNode;
@@ -256,8 +277,94 @@ function shPass(flag: boolean): ShResult {
   return flag ? "Pass" : "Fail";
 }
 
+export function allocateCollection(opts: {
+  topUp: number;
+  pack: (typeof JURISDICTION_PACKS)[number] | undefined;
+  entities: Entity[];
+  iso: string;
+  name: string;
+}): Collection {
+  const empty: Collection = {
+    qdmtt: 0, iir: 0, utpr: 0, payer: "—", path: [], popeIir: 0, upeIir: 0, inclusionRatio: 0, popeId: null,
+  };
+  if (opts.topUp <= 0) return empty;
+
+  const path = [`${opts.name} low-tax profit`];
+  let remaining = opts.topUp;
+  let qdmtt = 0;
+  let popeIir = 0;
+  let upeIir = 0;
+  let payer = "—";
+  const pope = popeForEntities(opts.entities);
+  const upe = upeEntity();
+  const irPope = pope ? inclusionRatio(pope.id, opts.entities) : 0;
+  const irUpe = inclusionRatio(upe.id, opts.entities);
+  const popeEnt = pope ? ENTITIES.find((e) => e.id === pope.id) : undefined;
+  const popePack = popeEnt ? JURISDICTION_PACKS.find((p) => p.iso === popeEnt.iso) : undefined;
+
+  if (opts.pack?.qdmtt) {
+    qdmtt = remaining;
+    remaining = 0;
+    payer = `${opts.entities[0]?.jurisdiction ?? opts.name} QDMTT`;
+    path.push(`${payer} ${qdmtt.toLocaleString("en-GB")}`);
+    if (pope) path.push(`POPE IIR residual $0 — QDMTT collected first (${popeEnt?.name ?? pope.id}, Art. 2.1.4)`);
+    else path.push("POPE test: no POPE on the ownership chain");
+    path.push("Remaining top-up $0");
+    return {
+      qdmtt, iir: 0, utpr: 0, payer, path, popeIir: 0, upeIir: 0,
+      inclusionRatio: irUpe, popeId: pope?.id ?? null,
+    };
+  }
+
+  path.push("No qualified QDMTT");
+
+  if (pope && popePack?.iir && remaining > 0) {
+    const ratio = irPope / 100;
+    popeIir = money(remaining * ratio);
+    remaining = money(Math.max(0, remaining - popeIir));
+    payer = `${popeEnt?.name ?? "POPE"} — POPE IIR`;
+    path.push(`POPE IIR (${popeEnt?.jurisdiction ?? pope.iso}) × Inclusion Ratio ${irPope}% ${popeIir.toLocaleString("en-GB")}`);
+  } else if (pope && !popePack?.iir) {
+    path.push(`POPE ${popeEnt?.name ?? pope.id} is in a jurisdiction without IIR — skip to UPE`);
+  } else {
+    path.push("POPE test: no POPE on the ownership chain");
+  }
+
+  if (remaining > 0) {
+    const upePack = JURISDICTION_PACKS.find((p) => p.iso === upe.iso);
+    if (upePack?.iir) {
+      upeIir = money(remaining * (irUpe / 100));
+      remaining = money(Math.max(0, remaining - upeIir));
+      if (!popeIir) payer = `${upe.name} — UPE IIR`;
+      path.push(`UPE IIR (${upe.jurisdiction}) × Inclusion Ratio ${irUpe}% ${upeIir.toLocaleString("en-GB")}`);
+    } else {
+      path.push("UPE jurisdiction has no IIR");
+    }
+  }
+
+  const utpr = remaining;
+  if (utpr > 0) {
+    if (!popeIir && !upeIir && !qdmtt) payer = "UTPR residual";
+    path.push(`Residual UTPR ${utpr.toLocaleString("en-GB")}`);
+  } else {
+    path.push("Residual UTPR $0");
+  }
+
+  return {
+    qdmtt,
+    iir: money(popeIir + upeIir),
+    utpr,
+    payer,
+    path,
+    popeIir,
+    upeIir,
+    inclusionRatio: popeIir ? irPope : irUpe,
+    popeId: pope?.id ?? null,
+  };
+}
+
 export function groupMeta(groupId = "aetherion") {
-  return GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
+  return findGroup(groupId);
 }
 
 export function scopeTest(groupId = "aetherion") {
@@ -273,6 +380,18 @@ export function scopeTest(groupId = "aetherion") {
       threshold: Number(rule.parameters.thresholdEur),
       rule,
       note: "FY2026 revenue $768m is above $750m but only one prior year is clearly above the threshold. Confirm exchange-rate translation and excluded-entity revenue.",
+    };
+  }
+  if (g.custom) {
+    return {
+      status,
+      hits,
+      window: g.revenueHistory,
+      threshold: Number(rule.parameters.thresholdEur),
+      rule,
+      note: hits >= Number(rule.parameters.hits)
+        ? `${hits} of the last ${g.revenueHistory.length} years meet the $750m test — declared at onboarding. Confirm from the consolidation pack.`
+        : `Onboarding file: ${hits} of the last ${g.revenueHistory.length} years meet the $750m test. Confirm from the close pack.`,
     };
   }
   return {
@@ -292,15 +411,23 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
     exposure: groupId === "helios" ? "Safe harbour" : j.exposure,
   }));
 
-  const byIso = new Map<string, Entity[]>();
+  const classes = classifyAll();
+  const byBlend = new Map<string, Entity[]>();
   for (const e of ENTITIES) {
-    const list = byIso.get(e.iso) ?? [];
+    const cls = classes.find((c) => c.id === e.id);
+    if (!cls || cls.blendKind === "excluded") continue;
+    const list = byBlend.get(cls.blendKey) ?? [];
     list.push(e);
-    byIso.set(e.iso, list);
+    byBlend.set(cls.blendKey, list);
   }
 
   const out: JurCalc[] = [];
-  for (const [iso, entities] of byIso) {
+  for (const [blendKey, entities] of byBlend) {
+    const cls0 = classes.find((c) => c.id === entities[0].id)!;
+    const iso = entities[0].iso;
+    const name = cls0.blendLabel;
+    const blendKind = cls0.blendKind;
+    const aid = blendKey.replace(/:/g, "-");
     const fins = entities.map((e) => FINANCIALS.find((f) => f.entityId === e.id)).filter(Boolean) as Financials[];
     const revenue = money(sum(fins.map((f) => f.revenue)));
     const fanil = money(sum(fins.map((f) => f.fanil)));
@@ -369,42 +496,33 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       // still compute, but flag data gap in completeness
     }
 
-    let qdmtt = 0;
-    let iir = 0;
-    let utpr = 0;
-    let payer = "—";
-    const path: string[] = [];
-    if (jurisdictionalTopUp > 0) {
-      path.push(`${entities[0].jurisdiction} low-tax profit`);
-      if (pack?.qdmtt) {
-        qdmtt = jurisdictionalTopUp;
-        payer = `${entities[0].jurisdiction} QDMTT`;
-        path.push(`${entities[0].jurisdiction} QDMTT ${qdmtt.toLocaleString("en-GB")}`);
-        path.push("Remaining top-up $0");
-      } else {
-        iir = jurisdictionalTopUp;
-        payer = "Japan UPE — IIR";
-        path.push("No qualified QDMTT");
-        path.push(`Parent IIR (JP) ${iir.toLocaleString("en-GB")}`);
-        path.push("Residual UTPR $0");
-      }
-    }
+    const collection = allocateCollection({
+      topUp: jurisdictionalTopUp,
+      pack,
+      entities,
+      iso,
+      name,
+    });
 
     const completeness = Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length);
-    const name = entities[0].jurisdiction;
+    const blendRule =
+      blendKind === "moce" || blendKind === "mosg" ? "OECD-MOCE-513"
+      : blendKind === "jv" ? "OECD-JV-64"
+      : collection.popeId ? "OECD-POPE-214"
+      : "OECD-GloBE-15";
 
     const globeTrace: AuditNode = {
-      id: `${iso}-gi`,
+      id: `${aid}-gi`,
       label: `${name} GloBE income`,
       amount: globeIncome,
       kind: "formula",
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
-      detail: "Σ FANIL ± Art. 3.2 of Constituent Entities in the jurisdiction",
+      detail: `Σ FANIL ± Art. 3.2 of CEs in this blend (${blendKind}) — not mixed with other Art. 5.1.3 / 6.4 groups in ${entities[0].jurisdiction}`,
       children: entities.map((e) => traceGlobeEntity(e.id)).filter(Boolean) as AuditNode[],
     };
     const coveredTrace: AuditNode = {
-      id: `${iso}-ct`,
+      id: `${aid}-ct`,
       label: `${name} Covered taxes`,
       amount: coveredTax,
       kind: "formula",
@@ -414,7 +532,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       children: entities.map((e) => traceCoveredEntity(e.id)).filter(Boolean) as AuditNode[],
     };
     const payrollTrace: AuditNode = {
-      id: `${iso}-payroll`,
+      id: `${aid}-payroll`,
       label: `${name} payroll carve-out`,
       amount: payrollCarve,
       kind: "formula",
@@ -424,7 +542,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       detail: `Art. 5.3.3 / 9.2 · ${PAYROLL_RATE * 100}% × eligible payroll ${payroll.toLocaleString("en-GB")}`,
     };
     const assetTrace: AuditNode = {
-      id: `${iso}-assets`,
+      id: `${aid}-assets`,
       label: `${name} tangible-asset carve-out`,
       amount: assetCarve,
       kind: "formula",
@@ -434,7 +552,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       detail: `Art. 5.3.4 / 9.2 · ${ASSET_RATE * 100}% × eligible tangible assets ${assets.toLocaleString("en-GB")}`,
     };
     const sbieTrace: AuditNode = {
-      id: `${iso}-sbie`,
+      id: `${aid}-sbie`,
       label: `${name} SBIE`,
       amount: sbie,
       kind: "formula",
@@ -444,7 +562,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       children: [payrollTrace, assetTrace],
     };
     const excessTrace: AuditNode = {
-      id: `${iso}-excess`,
+      id: `${aid}-excess`,
       label: `${name} Excess Profit`,
       amount: excess,
       kind: "formula",
@@ -454,27 +572,35 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       children: [globeTrace, sbieTrace],
     };
     const etrTrace: AuditNode = {
-      id: `${iso}-etr`,
+      id: `${aid}-etr`,
       label: `${name} jurisdictional ETR`,
       amount: etr,
       kind: "formula",
-      ruleId: "OECD-GloBE-15",
+      ruleId: blendKind === "main" ? "OECD-GloBE-15" : blendRule,
       ruleVersion: "2026.1",
-      detail: `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1`,
+      detail: `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1${blendKind === "main" ? "" : ` · ${blendKind} separate blend`}`,
       children: [coveredTrace, globeTrace],
     };
 
     const audit: AuditNode = {
-      id: `${iso}-topup`,
+      id: `${aid}-topup`,
       label: `${name} top-up tax`,
       amount: jurisdictionalTopUp,
       kind: "result",
-      detail: `Snapshot FY2026 · engine GMT24-CALC 2026.2 · min rate 15% · Top-up % × Excess Profit`,
+      detail: `Snapshot FY2026 · engine GMT24-CALC 2026.2 · min rate 15% · Top-up % × Excess Profit · blend ${blendKind}`,
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
       children: [
         {
-          id: `${iso}-rate`,
+          id: `${aid}-class`,
+          label: "Entity test / blend",
+          kind: "test",
+          detail: collection.path[1] ? `${blendKind} · ${entities.map((e) => e.code).join(", ")} · ${collection.path.filter((p) => p.includes("POPE") || p.includes("Inclusion")).join(" · ") || "majority CE blend"}` : `${blendKind} · ${entities.map((e) => e.code).join(", ")}`,
+          ruleId: blendRule,
+          ruleVersion: "2026.1",
+        },
+        {
+          id: `${aid}-rate`,
           label: "Top-up tax rate",
           amount: topUpRate,
           kind: "formula",
@@ -486,7 +612,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
         sbieTrace,
         excessTrace,
         {
-          id: `${iso}-sh`,
+          id: `${aid}-sh`,
           label: "Safe harbour navigator",
           kind: "test",
           detail: navigator,
@@ -499,6 +625,8 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
     out.push({
       iso,
       name,
+      blendKey,
+      blendKind,
       entities,
       revenue,
       fanil,
@@ -513,7 +641,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       jurisdictionalTopUp,
       sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome },
       exposure,
-      collection: { qdmtt, iir, utpr, payer, path },
+      collection,
       completeness,
       pack,
       audit,
@@ -595,8 +723,60 @@ export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
   });
 }
 
+export function pickCalc(calcs: JurCalc[], iso?: string | null, blend?: string | null): JurCalc | undefined {
+  if (blend) {
+    const hit = calcs.find((c) => c.blendKey === blend);
+    if (hit) return hit;
+    return iso ? pickCalc(calcs, iso) : calcs[0];
+  }
+  if (!iso) return calcs[0];
+  return calcs.filter((c) => c.iso === iso).find((c) => c.blendKind === "main") ?? calcs.find((c) => c.iso === iso);
+}
+
+export function summarizeByIso(calcs: JurCalc[]) {
+  const m = new Map<string, JurCalc[]>();
+  for (const c of calcs) {
+    const list = m.get(c.iso) ?? [];
+    list.push(c);
+    m.set(c.iso, list);
+  }
+  return [...m.entries()].map(([iso, rows]) => {
+    const main = rows.find((r) => r.blendKind === "main") ?? rows[0];
+    const jurisdictionalTopUp = money(sum(rows.map((r) => r.jurisdictionalTopUp)));
+    const hot = rows.some((r) => r.jurisdictionalTopUp > 0);
+    return {
+      iso,
+      name: main.entities[0]?.jurisdiction ?? main.name,
+      main,
+      rows,
+      jurisdictionalTopUp,
+      exposure: (hot ? "Top-up" : main.exposure) as JurCalc["exposure"],
+    };
+  });
+}
+
+export function uniqueIsoCalcs(calcs: JurCalc[]): JurCalc[] {
+  const seen = new Set<string>();
+  const ordered = [...calcs].sort((a, b) => Number(b.blendKind === "main") - Number(a.blendKind === "main"));
+  const out: JurCalc[] = [];
+  for (const c of ordered) {
+    if (seen.has(c.iso)) continue;
+    seen.add(c.iso);
+    out.push(c);
+  }
+  return out;
+}
+
 export function calcForIso(iso: string, groupId = "aetherion") {
-  return calculateGroup(groupId).find((c) => c.iso === iso);
+  return pickCalc(calculateGroup(groupId), iso);
+}
+
+export function calcForEntity(entityId: string, groupId = "aetherion") {
+  return calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === entityId));
+}
+
+export function etrHref(c: JurCalc) {
+  return c.blendKind === "main" ? `/etr?iso=${c.iso}` : `/etr?iso=${c.iso}&blend=${encodeURIComponent(c.blendKey)}`;
 }
 
 export function entityCalc(entityId: string) {

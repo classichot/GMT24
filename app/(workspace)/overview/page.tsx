@@ -2,19 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ACTIVITY, GROUPS, MAP_COORDS } from "@/lib/model";
+import { ACTIVITY, MAP_COORDS } from "@/lib/model";
 import { eur, pct } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
 import { WorldMap } from "@/components/WorldMap";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
+import { etrHref, summarizeByIso } from "@/lib/engine";
 
 export default function OverviewPage() {
-  const { mode, ask, scenario } = useStore();
+  const { mode, ask, scenario, group } = useStore();
   const router = useRouter();
-  const { calcs, t, groupId } = useCalc();
-  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
+  const { calcs, t } = useCalc();
   const th = calcs.find((c) => c.iso === "TH");
   const scenarioOn = scenario.boiExtend || scenario.payrollTh > 0 || scenario.tpMargin !== 3;
 
@@ -25,6 +25,12 @@ export default function OverviewPage() {
         <div className="callout" style={{ marginBottom: 16 }}>
           <strong>Scenario active.</strong> Dashboard numbers include simulator assumptions.{" "}
           <Link href="/simulator">Open simulator</Link>
+        </div>
+      )}
+      {group.custom && (
+        <div className="callout" style={{ marginBottom: 16 }}>
+          <strong>{group.name} is in onboarding.</strong> Drop the close pack, map the chart, then run the entity test. Numbers below are still the Aetherion teaching snapshot until this pack is posted.{" "}
+          <Link href="/data">Open Data Hub</Link>
         </div>
       )}
       <div className="callout" style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
@@ -82,7 +88,7 @@ export default function OverviewPage() {
           {calcs.map((c) => {
             const fill = c.jurisdictionalTopUp > 0 ? "var(--sig-red)" : c.exposure === "Safe harbour" || c.exposure === "Review" ? "var(--sig-amber)" : "var(--color-accent)";
             return (
-              <button key={c.iso} onClick={() => router.push(`/etr?iso=${c.iso}`)} style={{ border: 0, cursor: "pointer", font: "inherit", textAlign: "left", background: "var(--color-bg)", padding: "11px 12px 10px", display: "flex", flexDirection: "column", gap: 7, color: "inherit" }}>
+              <button key={c.blendKey} onClick={() => router.push(etrHref(c))} style={{ border: 0, cursor: "pointer", font: "inherit", textAlign: "left", background: "var(--color-bg)", padding: "11px 12px 10px", display: "flex", flexDirection: "column", gap: 7, color: "inherit" }}>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                   <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 15 }}>{c.iso}</span>
                   <span style={{ fontSize: 12, color: fill, fontWeight: 800 }}>{pct(c.etr, 1)}</span>
@@ -106,17 +112,17 @@ export default function OverviewPage() {
           </div>
           <div className="map-canvas">
             <WorldMap />
-            {calcs.map((c) => {
-              const pos = MAP_COORDS[c.iso];
+            {summarizeByIso(calcs).map((d) => {
+              const pos = MAP_COORDS[d.iso];
               if (!pos) return null;
-              const cls = c.jurisdictionalTopUp > 0 ? "topup" : c.exposure === "Safe harbour" ? "sh" : c.exposure === "Review" ? "review" : "ok";
+              const cls = d.jurisdictionalTopUp > 0 ? "topup" : d.exposure === "Safe harbour" ? "sh" : d.exposure === "Review" ? "review" : "ok";
               return (
                 <button
-                  key={c.iso}
+                  key={d.iso}
                   className={`map-dot ${cls}`}
                   style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  title={`${c.name} ${pct(c.etr)}`}
-                  onClick={() => router.push(`/etr?iso=${c.iso}`)}
+                  title={`${d.name} ${pct(d.main.etr)}`}
+                  onClick={() => router.push(etrHref(d.main))}
                 />
               );
             })}
@@ -158,7 +164,7 @@ export default function OverviewPage() {
               <thead><tr><th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered tax</th><th className="num">ETR</th><th>Result</th></tr></thead>
               <tbody>
                 {calcs.slice(0, 8).map((c) => (
-                  <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
+                  <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
                     <td>{c.name}</td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>

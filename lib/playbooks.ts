@@ -37,7 +37,7 @@ export const PLAYBOOKS: Playbook[] = [
     steps: [
       { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: Aetherion is the working group.", href: "/clients", hrefLabel: "Clients" },
       { n: "02", title: "Run the $750m test", body: "Scope must be IN SCOPE (or documented REVIEW) before mapping starts.", href: "/group", hrefLabel: "Group structure" },
-      { n: "03", title: "Walk entities into ETR", body: "Open an entity row to land on that jurisdiction’s ETR. Use the ownership graph for PE / JV questions.", href: "/entities", hrefLabel: "Entities" },
+      { n: "03", title: "Walk entities into ETR", body: "Run the entity test (MOCE ≤ 30% UPE ownership; POPE if outsiders hold > 20% of a non-UPE Parent). Open an entity row to land on that blend’s ETR — not a mixed country rate.", href: "/entities", hrefLabel: "Entities" },
     ],
   },
   {

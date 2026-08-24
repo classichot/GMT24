@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { GIR_SECTIONS } from "@/lib/model";
-import { GROUPS } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 
 export default function GirPage() {
-  const { flash, workflow, patchWorkflow } = useStore();
-  const { t, groupId } = useCalc();
-  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
+  const { flash, workflow, patchWorkflow, group } = useStore();
+  const { t } = useCalc();
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <GIR xmlns="urn:oecd:ties:gir:v1" version="2026.1">
   <MessageSpec>

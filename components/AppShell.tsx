@@ -27,12 +27,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { ADVISOR_USER, GROUPS, INHOUSE_USER } from "@/lib/model";
+import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
+import { StartEngage } from "@/components/StartEngage";
 import { useCalc } from "@/lib/useCalc";
 import { PLAYBOOKS } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
@@ -134,6 +135,7 @@ const TITLES: Record<string, [string, string]> = {
   "/etr-map": ["Overview", "Global ETR map"],
   "/exposure": ["Overview", "Top-up tax exposure"],
   "/clients": ["Advisor mode", "Client portfolio"],
+  "/onboard": ["Advisor mode", "New engagement"],
   "/group": ["Group", "Structure & scope"],
   "/entities": ["Group", "Constituent entities"],
   "/graph": ["Group", "Global Tax Graph"],
@@ -188,9 +190,8 @@ function isActive(path: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, toast, navOpen, setNavOpen, mode, groupId, setCopilotOpen, copilotOpen, activeFy } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
-  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const { t } = useCalc();
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
@@ -223,6 +224,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 13 }}>{group.name}</div>
           <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>{group.fy} · <Amount n={t.topUp} audit={t.audit} compact /> top-up</div>
         </Link>
+        {mode === "advisor" && !invite && (
+          <div className="sidebar-start">
+            <div className="sidebar-start-kicker">Start here</div>
+            <StartEngage block />
+          </div>
+        )}
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
           {NAV.map((g) => {
             const items = g.items.filter((i) => {
@@ -273,6 +280,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
           <span className="tag tag-outline header-hide-sm">{activeFy}</span>
+          {mode === "advisor" && !invite && (
+            <span className="header-hide-sm">
+              <StartEngage />
+            </span>
+          )}
           <ModeToggle compact />
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>

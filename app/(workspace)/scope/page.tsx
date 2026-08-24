@@ -2,6 +2,7 @@
 
 import { ENTITIES } from "@/lib/model";
 import { scopeTest } from "@/lib/engine";
+import { classFor } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 
@@ -35,16 +36,21 @@ export default function ScopePage() {
         <div className="panel-head"><h4>Classification</h4></div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Entity</th><th>Type</th><th>Excluded?</th><th>Effective</th></tr></thead>
+            <thead><tr><th>Entity</th><th>Type</th><th>GloBE class</th><th>UPE %</th><th>Excluded?</th><th>Effective</th></tr></thead>
             <tbody>
-              {ENTITIES.map((e) => (
+              {ENTITIES.map((e) => {
+                const cls = classFor(e.id);
+                return (
                 <tr key={e.id}>
                   <td>{e.name}</td>
                   <td>{e.type}</td>
-                  <td>{e.excludedReason ?? "In scope CE / UPE / PE / JV as classified"}</td>
+                  <td>{cls.tag}</td>
+                  <td>{cls.upeOwnership}%</td>
+                  <td>{e.excludedReason ?? (cls.moce ? "In scope — MOCE, separate ETR" : cls.pope ? "In scope — POPE, IIR first" : cls.jv ? "In scope — JV Group, separate ETR" : "In scope CE / UPE / PE as classified")}</td>
                   <td>{e.acquired}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

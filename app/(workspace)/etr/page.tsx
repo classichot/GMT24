@@ -8,14 +8,14 @@ import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
-import { MIN_RATE } from "@/lib/engine";
+import { MIN_RATE, pickCalc, etrHref } from "@/lib/engine";
 
 const METHOD = [
   {
     n: "01",
     title: "Blend the jurisdiction",
-    body: "ETR is jurisdictional, not entity-level. Sum Adjusted Covered Taxes and Net GloBE Income of Constituent Entities located in the country. Investment Entities are out. Each Stateless CE is treated as its own jurisdiction.",
-    refs: ["Art. 5.1.1", "Art. 5.1.2"],
+    body: "ETR is jurisdictional, not entity-level — with the entity-test exceptions. Sum Adjusted Covered Taxes and Net GloBE Income of CEs in the same blend: majority CEs together; a standalone MOCE or MOSG separately (Art. 5.1.3); a JV Group separately (Art. 6.4). Investment Entities are out. Each Stateless CE is its own jurisdiction.",
+    refs: ["Art. 5.1.1", "Art. 5.1.2", "Art. 5.1.3", "Art. 6.4"],
   },
   {
     n: "02",
@@ -47,6 +47,9 @@ const REFERENCES = [
   { cite: "Art. 5.2.1", work: "Top-up Tax Percentage = max(0, Minimum Rate − ETR)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
   { cite: "Art. 5.2.2", work: "Excess Profit = Net GloBE Income − SBIE — the base the top-up percentage multiplies", loc: "OECD-SBIE-2026 v2026.1", href: "/sbie" },
   { cite: "Art. 5.2.3", work: "Jurisdictional Top-up Tax = Top-up Tax Percentage × Excess Profit (+ additional current − QDMTT)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
+  { cite: "Art. 5.1.3", work: "MOCE / MOSG — ETR computed separately from other CEs located in the same jurisdiction when UPE ownership ≤ 30%", loc: "OECD-MOCE-513 v2026.1", href: "/entities" },
+  { cite: "Art. 2.1.4", work: "POPE applies IIR first on its Ownership Interests (Inclusion Ratio); UPE takes the residual (Art. 2.1.5 / 2.2.2)", loc: "OECD-POPE-214 v2026.1", href: "/allocation" },
+  { cite: "Art. 6.4", work: "Joint Venture Group treated as a separate MNE for ETR — not blended with majority CEs", loc: "OECD-JV-64 v2026.1", href: "/entities" },
 ];
 
 function Inner() {
@@ -54,8 +57,10 @@ function Inner() {
   const { calcs } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
-  const sel = calcs.find((c) => c.iso === iso) ?? calcs.find((c) => c.iso === "TH") ?? calcs[0];
+  const blend = useSearchParams().get("blend");
+  const sel = pickCalc(calcs, iso, blend) ?? pickCalc(calcs, "TH") ?? calcs[0];
   const min = pct(MIN_RATE, 0);
+  const siblings = calcs.filter((c) => c.iso === sel.iso && c.blendKey !== sel.blendKey);
 
   return (
     <div>
@@ -63,7 +68,7 @@ function Inner() {
 
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>ETR method.</strong> Jurisdictional Effective Tax Rate is Adjusted Covered Taxes over Net GloBE Income. It is not a local CIT computation and it is not reduced by SBIE. Formula:{" "}
+          <strong>ETR method.</strong> {sel.name}: Adjusted Covered Taxes over Net GloBE Income for this blend ({sel.blendKind}). Majority CEs, MOCE/MOSG and JV Groups are not mixed. Formula:{" "}
           <span className="mono">ETR = Covered Taxes ÷ GloBE income</span>
           {" · "}
           <span className="mono">Top-up % = max(0, {min} − ETR)</span>
@@ -75,6 +80,18 @@ function Inner() {
           <button className="btn btn-primary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
         </div>
       </div>
+
+      {siblings.length > 0 && (
+        <p className="text-muted" style={{ marginBottom: 16, fontSize: 13 }}>
+          Same country, different blend:{" "}
+          {siblings.map((c, i) => (
+            <span key={c.blendKey}>
+              {i > 0 ? " · " : ""}
+              <Link href={etrHref(c)}>{c.name}</Link>
+            </span>
+          ))}
+        </p>
+      )}
 
       <div className="grid-2" style={{ marginBottom: 20 }}>
         {METHOD.map((m) => (
@@ -181,7 +198,7 @@ function Inner() {
               <thead><tr><th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th>Result</th></tr></thead>
               <tbody>
                 {calcs.map((c) => (
-                  <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
+                  <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
                     <td>{c.name}</td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>

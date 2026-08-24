@@ -152,9 +152,26 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /rayong pe|situs|dual.resid|notification no\.?\s*3/i,
     answer: () => ({
       role: "assistant",
-      text: `Rayong is a fixed-place / manufacturing PE of Aetherion (Thailand) Ltd., located in Thailand, blended in the Thai QDMTT. Notification No. 3 four PE categories were reviewed; treaty tie-breaker is not required.\n\nTH001 itself is a Thai CE (TFRS, 100% owned, not dual-resident, not an Excluded Entity, not MOCE).\nNo Notification No. 7 excluded entity in Thailand.\n\nEach classification stores result, period, facts, evidence, Thai provision, OECD interpretation and reviewer. Open Entity situs.`,
-      cites: [{ label: "Thai entity situs", href: "/thailand/entities" }, { label: "Ownership graph", href: "/graph" }],
+      text: `Rayong is a fixed-place / manufacturing PE of Aetherion (Thailand) Ltd., located in Thailand, blended in the Thai QDMTT. Notification No. 3 four PE categories were reviewed; treaty tie-breaker is not required.\n\nTH001 itself is a Thai CE (TFRS, UPE look-through 100%, not dual-resident, not an Excluded Entity). Entity test: not MOCE (UPE ownership 100% > 30%), not POPE.\nNo Notification No. 7 excluded entity in Thailand.\n\nEach classification stores result, period, facts, evidence, Thai provision, OECD interpretation and reviewer. Open Entity situs or the group entity test.`,
+      cites: [{ label: "Thai entity situs", href: "/thailand/entities" }, { label: "Entity test", href: "/entities" }, { label: "Ownership graph", href: "/graph" }],
     }),
+  },
+  {
+    match: /\bmoce\b|minority-owned|pope|partially-owned parent|inclusion ratio|entity test/i,
+    answer: () => {
+      const list = calculateGroup();
+      const special = list.filter((c) => c.blendKind !== "main" && c.jurisdictionalTopUp > 0);
+      return {
+        role: "assistant",
+        text: `Entity test is computed from the ownership chain (OECD-MOCE-513 / OECD-POPE-214 / OECD-IR-222 / OECD-JV-64 v2026.1).\n\nMOCE — Art. 5.1.3 / 10.1: UPE Ownership Interests ≤ 30%. Separate ETR from majority CEs in the same country. This snapshot: Aetherion Penang Components (MY028) is 28% UPE-owned — MOCE, not blended with Aetherion Malaysia Sdn. Bhd. PT Aetherion Indonesia is 99% — not MOCE.\n\nPOPE — Art. 2.1.4: a non-UPE Parent where outsiders hold more than 20%. IIR applies at the POPE first × Inclusion Ratio; UPE takes the residual. This snapshot: Aetherion UK Ltd. is 78% group-owned (22% outside) — POPE. European QDMTT still collects first, so POPE IIR residual is $0 there. Vietnam has no POPE on the chain (SG-HC is 100% group-owned) — UPE IIR.\n\nJV — Art. 6.4: Aetherion-Keppel Logistics is a separate Singapore ETR, not mixed with the HoldCo.\n\nSpecial blends with top-up: ${special.map((c) => `${c.name} (${c.collection.payer})`).join("; ") || "none on this snapshot besides majority-CE exposure"}. Open the entity register.`,
+        cites: [
+          { label: "Entity test", href: "/entities" },
+          { label: "OECD-MOCE-513", href: "/rulebook" },
+          { label: "OECD-POPE-214", href: "/rulebook" },
+          { label: "Allocation", href: "/allocation" },
+        ],
+      };
+    },
   },
   {
     match: /net retained|survives qdmtt|boi.*qdmtt|incentive value/i,
@@ -276,7 +293,11 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /oecd|basis|rule/i,
     answer: () => ({
       role: "assistant",
-      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — $750m / 2-of-4 (group presentation USD)\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• OECD-ELEC-2026 — Election & Scenario Engine (scope, 5-year locks, GIR section D)\n• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
+      text: `Active rule pack for this snapshot: GMT24 Global Rulebook 2026.2.\n\n• OECD-GloBE-15 — 15% minimum (Commentary 2026)\n• OECD-SCOPE-750 — $750m / 2-of-4 (group presentation USD)\n• OECD-SBIE-2026 — payroll 9.4% / assets 7.4%\n• OECD-TCSH-2026 — Transitional CbCR SH extended to FY beginning on or before 31 Dec 2027; 17% simplified ETR for 2026 and 2027\n• OECD-SETR-SH — Simplified ETR Safe Harbour framework for later years\n• OECD-SBTISH — Substance-based Tax Incentive Safe Harbour\n• OECD-ELEC-2026 — Election & Scenario Engine (scope, 5-year locks, GIR section D)\n• OECD-MOCE-513 — MOCE / MOSG separate ETR (UPE ownership ≤ 30%)
+• OECD-POPE-214 — POPE IIR first (outsiders > 20% of a non-UPE Parent)
+• OECD-IR-222 — Inclusion Ratio
+• OECD-JV-64 — JV Group separate ETR
+• Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
       cites: RULES.slice(0, 6).map((r) => ({ label: `${r.id} ${r.version}` })),
     }),
   },
@@ -315,6 +336,7 @@ export const SUGGESTIONS = [
   "What happens if the BOI tax holiday expires?",
   "Explain the TH001 dividend adjustment.",
   "Which data is missing from Singapore?",
+  "How does the entity test treat MOCE and POPE?",
   "Show the OECD basis for this treatment.",
 ];
 

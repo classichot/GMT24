@@ -62,7 +62,7 @@ export default function GlobeIncomePage() {
   const router = useRouter();
   const [id, setId] = useState("TH-CE");
   const row = entityCalc(id);
-  const jur = calculateGroup(groupId).find((c) => c.iso === row?.entity.iso);
+  const jur = calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
   const f = row.f;
   let running = f.fanil;

@@ -57,7 +57,7 @@ export default function CoveredTaxesPage() {
   const router = useRouter();
   const [id, setId] = useState("TH-CE");
   const row = entityCalc(id);
-  const jur = calcs.find((c) => c.iso === row?.entity.iso);
+  const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
   const f = row.f;
   const min = pct(MIN_RATE, 0);

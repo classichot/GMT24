@@ -10,7 +10,6 @@ import {
   eligibilityEngine,
   scoreWorking,
 } from "@/lib/electionEngine";
-import { GROUPS } from "@/lib/model";
 import {
   YEAR_LOGIC,
   buildTracks,
@@ -26,6 +25,7 @@ export default function YearsPage() {
   const {
     mode,
     groupId,
+    group,
     ask,
     flash,
     electionsOn,
@@ -53,7 +53,6 @@ export default function YearsPage() {
   const blocks = compare?.hits.filter((h) => h.severity === "block") ?? [];
   const dirty = !!(sameLock && workingDiffers(sameLock, electionsOn, sbieClaim));
   const next = nextFy(activeFy);
-  const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0];
   const desk = mode === "advisor" ? "Advisor engagement" : "In-house close";
 
   function lock() {
@@ -313,7 +312,7 @@ export default function YearsPage() {
                 <tr><td colSpan={6} className="text-muted">No calculation movement versus the prior close — expected when the data model is unchanged and no election overlay moved GloBE or covered taxes.</td></tr>
               )}
               {compare?.calcs.map((c) => (
-                <tr key={c.iso}>
+                <tr key={c.blendKey ?? c.iso}>
                   <td style={{ fontWeight: 700 }}>{c.name}</td>
                   <td className="num"><Amount n={c.dGlobe} compact /></td>
                   <td className="num"><Amount n={c.dCovered} compact /></td>

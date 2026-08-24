@@ -166,6 +166,8 @@ export type Group = {
   jurisdictions: number;
   workflow: Workflow;
   advisor?: string;
+  custom?: boolean;
+  upeTin?: string;
 };
 
 export const FIRM = "7-L Advisory";
@@ -425,6 +427,54 @@ export const RULES: Rule[] = [
     parameters: {},
     status: "active",
   },
+  {
+    id: "OECD-MOCE-513",
+    jurisdiction: "OECD",
+    ruleType: "entity-test",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 5.1.3 / 10.1 — Minority-Owned Constituent Entity",
+    version: "2026.1",
+    formula: "if UPE ownership ≤ 30%: separate ETR (standalone MOCE or MOSG); do not blend with majority CEs in the same jurisdiction",
+    parameters: { upeOwnershipMax: 0.3 },
+    status: "active",
+  },
+  {
+    id: "OECD-POPE-214",
+    jurisdiction: "OECD",
+    ruleType: "entity-test",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 2.1.4 / 2.1.5 / 10.1 — Partially-Owned Parent Entity",
+    version: "2026.1",
+    formula: "if Parent is not UPE and outsiders hold > 20%: IIR at POPE × Inclusion Ratio, then UPE residual, then UTPR",
+    parameters: { outsiderMin: 0.2 },
+    status: "active",
+  },
+  {
+    id: "OECD-IR-222",
+    jurisdiction: "OECD",
+    ruleType: "allocation",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 2.2.2 — Inclusion Ratio",
+    version: "2026.1",
+    formula: "parent_iir = ltce_top_up × (GloBE income attributable to Parent Ownership Interests ÷ GloBE income of the LTCE)",
+    parameters: {},
+    status: "active",
+  },
+  {
+    id: "OECD-JV-64",
+    jurisdiction: "OECD",
+    ruleType: "entity-test",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 6.4 — Joint Venture Group",
+    version: "2026.1",
+    formula: "JV Group treated as a separate MNE for ETR; not blended with majority CEs in the JV jurisdiction",
+    parameters: {},
+    status: "active",
+  },
 ];
 
 export const GROUPS: Group[] = [
@@ -518,7 +568,7 @@ export const ENTITIES: Entity[] = [
   { id: "MY-CE", code: "MY001", name: "Aetherion Malaysia Sdn. Bhd.", jurisdiction: "Malaysia", iso: "MY", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "MFRS", fx: "MYR", acquired: "2014-01-12", incentiveIds: [], completeness: 91, review: "Calculated", graph: { x: 180, y: 340 } },
   { id: "ID-CE", code: "ID001", name: "PT Aetherion Indonesia", jurisdiction: "Indonesia", iso: "ID", type: "CE", parentId: "SG-HC", ownership: 99, gaap: "PSAK", fx: "IDR", acquired: "2015-06-20", incentiveIds: [], completeness: 88, review: "Calculated", graph: { x: 320, y: 340 } },
   { id: "AE-CE", code: "AE001", name: "Aetherion MENA FZ-LLC", jurisdiction: "United Arab Emirates", iso: "AE", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "IFRS", fx: "AED", acquired: "2021-04-01", incentiveIds: ["AE-FZ"], completeness: 79, review: "Mapped", graph: { x: 360, y: 250 } },
-  { id: "UK-HC", code: "UK010", name: "Aetherion UK Ltd.", jurisdiction: "United Kingdom", iso: "GB", type: "HoldCo", parentId: "JP-UPE", ownership: 100, gaap: "UK IFRS", fx: "GBP", acquired: "2004-11-01", incentiveIds: [], completeness: 97, review: "Reviewed", graph: { x: 620, y: 140 } },
+  { id: "UK-HC", code: "UK010", name: "Aetherion UK Ltd.", jurisdiction: "United Kingdom", iso: "GB", type: "HoldCo", parentId: "JP-UPE", ownership: 78, gaap: "UK IFRS", fx: "GBP", acquired: "2004-11-01", incentiveIds: [], completeness: 97, review: "Reviewed", graph: { x: 620, y: 140 } },
   { id: "DE-CE", code: "DE001", name: "Aetherion Germany GmbH", jurisdiction: "Germany", iso: "DE", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "HGB/IFRS", fx: "EUR", acquired: "2006-02-01", incentiveIds: [], completeness: 99, review: "Approved", graph: { x: 540, y: 250 } },
   { id: "FR-CE", code: "FR001", name: "Aetherion France SAS", jurisdiction: "France", iso: "FR", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "ANC/IFRS", fx: "EUR", acquired: "2008-05-01", incentiveIds: [], completeness: 95, review: "Reviewed", graph: { x: 680, y: 250 } },
   { id: "NL-CE", code: "NL001", name: "Aetherion Netherlands B.V.", jurisdiction: "Netherlands", iso: "NL", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "NL IFRS", fx: "EUR", acquired: "2011-08-01", incentiveIds: ["NL-IP"], completeness: 93, review: "Calculated", graph: { x: 610, y: 340 } },
@@ -527,6 +577,7 @@ export const ENTITIES: Entity[] = [
   { id: "IE-CE", code: "IE001", name: "Aetherion Ireland Ltd.", jurisdiction: "Ireland", iso: "IE", type: "CE", parentId: "JP-UPE", ownership: 100, gaap: "IFRS", fx: "EUR", acquired: "2013-04-01", incentiveIds: ["IE-IP"], completeness: 92, review: "Prepared", graph: { x: 860, y: 250 } },
   { id: "TH-PE", code: "TH-PE1", name: "Aetherion (Thailand) Ltd. — Rayong PE", jurisdiction: "Thailand", iso: "TH", type: "PE", parentId: "TH-CE", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2019-02-01", incentiveIds: ["TH-BOI"], completeness: 84, review: "Mapped", graph: { x: 40, y: 340 } },
   { id: "SG-JV", code: "SG-JV1", name: "Aetherion-Keppel Logistics JV", jurisdiction: "Singapore", iso: "SG", type: "JV", parentId: "SG-HC", ownership: 50, gaap: "SFRS(I)", fx: "SGD", acquired: "2022-01-01", incentiveIds: [], completeness: 72, review: "Imported", graph: { x: 40, y: 180 } },
+  { id: "MY-MOCE", code: "MY028", name: "Aetherion Penang Components Sdn. Bhd.", jurisdiction: "Malaysia", iso: "MY", type: "MOCE", parentId: "SG-HC", ownership: 28, gaap: "MFRS", fx: "MYR", acquired: "2023-05-01", incentiveIds: [], completeness: 84, review: "Validated", graph: { x: 80, y: 380 } },
 ];
 
 export const FINANCIALS: Financials[] = [
@@ -546,6 +597,7 @@ export const FINANCIALS: Financials[] = [
   { entityId: "IE-CE", revenue: 204_000_000, fanil: 168_400_000, currentTax: 10_920_000, deferredTax: 740_000, otherCovered: 0, nonCovered: 60_000, payrollEligible: 18_600_000, employees: 86, tangibleEligible: 54_800_000, cbcrRevenue: 204_800_000, cbcrProfit: 169_100_000, cbcrTax: 11_200_000, priorDta: 210_000, priorDtl: 1_840_000 },
   { entityId: "TH-PE", revenue: 8_200_000, fanil: 1_140_000, currentTax: 90_000, deferredTax: 10_000, otherCovered: 0, nonCovered: 0, payrollEligible: 3_400_000, employees: 140, tangibleEligible: 6_800_000, cbcrRevenue: 8_200_000, cbcrProfit: 1_140_000, cbcrTax: 90_000, priorDta: 0, priorDtl: 0 },
   { entityId: "SG-JV", revenue: 14_000_000, fanil: 2_200_000, currentTax: 260_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 0, payrollEligible: 1_800_000, employees: 22, tangibleEligible: 4_100_000, cbcrRevenue: 14_000_000, cbcrProfit: 2_200_000, cbcrTax: 260_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "MY-MOCE", revenue: 12_400_000, fanil: 4_200_000, currentTax: 280_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 8_000, payrollEligible: 2_800_000, employees: 96, tangibleEligible: 3_600_000, cbcrRevenue: 12_400_000, cbcrProfit: 4_200_000, cbcrTax: 300_000, priorDta: 40_000, priorDtl: 20_000 },
 ];
 
 export const ADJUSTMENTS: Adjustment[] = [
@@ -592,7 +644,9 @@ export const ISSUES: Issue[] = [
   { id: "IQ-02", severity: "block", area: "SBIE", entity: "VN-CE", jurisdiction: "Vietnam", title: "Payroll file incomplete", detail: "Eligible employee listing covers 11 of 12 months. SBIE payroll carve-out is estimated.", owner: "VN Finance" },
   { id: "IQ-03", severity: "warn", area: "Mapping", entity: "TH-CE", jurisdiction: "Thailand", title: "FX gain mapping at 62% confidence", detail: "Account 830010 — FX Gain needs tax-team approval before lock.", owner: "N. Chai" },
   { id: "IQ-04", severity: "warn", area: "CbCR", jurisdiction: "Singapore", title: "CbCR revenue vs consolidation", detail: "Singapore CbCR revenue $88.0M vs consolidation $86.4M (HoldCo + JV). $1.6M unexplained.", owner: "L. Tan" },
-  { id: "IQ-05", severity: "info", area: "Ownership", entity: "ID-CE", jurisdiction: "Indonesia", title: "1% minority", detail: "PT Aetherion Indonesia is 99% owned. Confirm MOCE treatment is not required.", owner: "Group Tax" },
+  { id: "IQ-05", severity: "info", area: "Ownership", entity: "ID-CE", jurisdiction: "Indonesia", title: "1% minority — not MOCE", detail: "Entity test: UPE look-through ownership of PT Aetherion Indonesia is 99% (> 30%). Art. 5.1.3 MOCE does not apply. The entity blends with any other majority CEs in Indonesia.", owner: "Group Tax" },
+  { id: "IQ-08", severity: "info", area: "Ownership", entity: "UK-HC", jurisdiction: "United Kingdom", title: "POPE — 22% outside the group", detail: "Aetherion UK Ltd. is a Parent Entity and persons that are not Group Entities hold 22% (> 20%). Entity test: POPE (Art. 2.1.4). IIR would apply here first on any LTCE it owns; European QDMTT still collects first on this snapshot.", owner: "Group Tax" },
+  { id: "IQ-09", severity: "info", area: "Ownership", entity: "MY-MOCE", jurisdiction: "Malaysia", title: "MOCE — separate Malaysian ETR", detail: "Aetherion Penang Components is 28% UPE-owned. Entity test: MOCE. GloBE ETR is computed standalone and is not blended with Aetherion Malaysia Sdn. Bhd. Malaysian QDMTT still collects any top-up on that blend.", owner: "Group Tax" },
   { id: "IQ-06", severity: "warn", area: "Deferred tax", entity: "AE-CE", jurisdiction: "UAE", title: "Deferred tax movement unexplained", detail: "UAE CIT commencement created a DTL with no roll-forward narrative.", owner: "MENA Tax" },
   { id: "IQ-07", severity: "warn", area: "Deferred tax", entity: "TH-CE", jurisdiction: "Thailand", title: "FY2022 DTL approaching five-year recapture", detail: "GloBE DTL origin FY2022 is not a Recapture Exception Accrual and has not reversed. Article 4.4.4 deadline is the end of FY2027. Origin-year ETR must be recomputed if still outstanding.", owner: "N. Chai" },
 ];

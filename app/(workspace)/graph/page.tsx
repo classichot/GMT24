@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
-import { calculateGroup } from "@/lib/engine";
+import { calculateGroup, etrHref } from "@/lib/engine";
+import { classFor } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -28,7 +29,7 @@ export default function GraphPage() {
   return (
     <div>
       <p className="text-muted" style={{ marginBottom: 16 }}>
-        Global Tax Graph — ownership, jurisdiction and Pillar Two exposure on every node. Click Thailand to open the entire Thai calculation.
+        Global Tax Graph — ownership, GloBE class (MOCE / POPE / JV) and Pillar Two exposure on every node. Click a node, then open that blend’s ETR. MOCE and JV do not share the majority-CE rate.
       </p>
       <div className="graph-wrap" style={{ height: 420, marginBottom: 20 }}>
         <svg viewBox="0 0 960 400" width="100%" height="400">
@@ -47,7 +48,7 @@ export default function GraphPage() {
                   width="140"
                   height="44"
                 />
-                <text x={e.graph.x} y={e.graph.y - 4} textAnchor="middle" fontSize="11" fontFamily="Archivo" fontWeight="800" fill="var(--color-text)">{e.iso} · {e.type}</text>
+                <text x={e.graph.x} y={e.graph.y - 4} textAnchor="middle" fontSize="11" fontFamily="Archivo" fontWeight="800" fill="var(--color-text)">{e.iso} · {classFor(e.id).tag}</text>
                 <text x={e.graph.x} y={e.graph.y + 12} textAnchor="middle" fontSize="10" fontFamily="Archivo" fill="var(--color-neutral-700)">{pct(c?.etr ?? 0, 0)} ETR</text>
               </g>
             );
@@ -58,9 +59,9 @@ export default function GraphPage() {
         <div className="panel-head">
           <div>
             <h4 style={{ margin: 0 }}>{selected.name}</h4>
-            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {selected.gaap} · ownership {selected.ownership}%</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {classFor(selected.id).tag} · UPE {classFor(selected.id).upeOwnership}% · direct {selected.ownership}%</div>
           </div>
-          <button className="btn btn-primary" onClick={() => router.push(`/etr?iso=${selected.iso}`)}>Open {selected.jurisdiction} calculation</button>
+          <button className="btn btn-primary" onClick={() => router.push(jc ? etrHref(jc) : `/etr?iso=${selected.iso}`)}>Open {jc?.name ?? selected.jurisdiction} calculation</button>
         </div>
         {jc && (
           <div className="kpi-grid cols-6">

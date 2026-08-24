@@ -40,7 +40,7 @@ export default function SafeHarbourPage() {
           </thead>
           <tbody>
             {calcs.map((c) => (
-              <tr key={c.iso}>
+              <tr key={c.blendKey}>
                 <td>
                   <div style={{ fontWeight: 700 }}>{c.name}</div>
                   <div className="text-muted" style={{ fontSize: 11 }}>CbCR ETR path · GloBE {pct(c.etr, 1)}</div>

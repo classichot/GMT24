@@ -134,7 +134,7 @@ const BASE: GapItem[] = [
     rd: "Four PE categories, dual-resident treaty then covered-tax-paid then SBIE tie-breaker, flow-through, JV, MOCE, investment entity, excluded-entity tree.",
     rdCite: "DG Notifications No. 3, 7, 8",
     kind: "overlay",
-    core: "Entity list + type (CE / PE / JV). No Thai decision tree.",
+    core: "Entity test posts CE / PE / JV / MOCE / POPE from the ownership chain. MOCE and JV are separate ETR blends. POPE takes IIR first. No Thai PE-category tree on Core.",
     pack: "Situs engine stores result, period, facts, evidence, Thai cite, OECD cite, reviewer.",
     action: "RD will ask for the PE category and excluded-entity conclusion. Do not send only the ownership graph.",
     href: "/thailand/entities",
@@ -177,7 +177,7 @@ const BASE: GapItem[] = [
   {
     id: "G-ORDER",
     area: "Collection order",
-    oecd: "Qualified QDMTT first, residual IIR to parent, then UTPR.",
+    oecd: "Qualified QDMTT first, then POPE IIR × Inclusion Ratio, then UPE IIR residual, then UTPR. MOCE/JV top-up is computed on a separate blend.",
     oecdCite: "Art. 2 / 10.1 · Central Record",
     rd: "Thai QDMTT, Thai IIR (Thai UPE / IPO / POPE), Thai UTPR allocation, foreign QDMTT/IIR reductions, designated-taxpayer election, joint and several.",
     rdCite: "Decree · DG Notification No. 5",

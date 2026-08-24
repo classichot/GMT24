@@ -10,8 +10,16 @@ import {
   type ReactNode,
 } from "react";
 import { THEMES, normalizeTheme, type ThemeKey } from "./format";
-import type { ProductMode } from "./model";
+import { GROUPS, type Group, type ProductMode } from "./model";
 import type { AuditNode } from "./engine";
+import {
+  ENGAGEMENT_KEY,
+  draftToGroup,
+  nameTaken,
+  parseStoredGroups,
+  setExtraGroups as registerExtras,
+  type EngagementDraft,
+} from "./onboard";
 import type { Restate, SbieMode } from "./electionEngine";
 import { clearInviteSession } from "./invite";
 import {
@@ -39,6 +47,9 @@ type Store = {
   setMode: (m: ProductMode) => void;
   groupId: string;
   setGroupId: (id: string) => void;
+  groups: Group[];
+  group: Group;
+  addEngagement: (draft: EngagementDraft) => string | null;
   toast: string | null;
   flash: (m: string) => void;
   navOpen: boolean;
@@ -84,6 +95,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeKey>("dark");
   const [mode, setModeState] = useState<ProductMode>("inhouse");
   const [groupId, setGroupIdState] = useState("aetherion");
+  const [extraGroups, setExtraGroups] = useState<Group[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(true);
@@ -108,6 +120,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setThemeState(normalizeTheme(localStorage.getItem("gmt24_theme")));
     const m = localStorage.getItem("gmt24_mode");
     if (m === "advisor" || m === "inhouse") setModeState(m);
+    const extras = parseStoredGroups(localStorage.getItem(ENGAGEMENT_KEY));
+    setExtraGroups(extras);
+    registerExtras(extras);
     const g = localStorage.getItem("gmt24_group");
     const startGroup = g || "aetherion";
     if (g) setGroupIdState(g);
@@ -152,6 +167,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("gmt24_mode", m);
   }, []);
 
+  const flash = useCallback((m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(null), 2800);
+  }, []);
+
+  const groups = useMemo(() => [...GROUPS, ...extraGroups], [extraGroups]);
+  const group = groups.find((g) => g.id === groupId) ?? GROUPS[0];
+
   const setGroupId = useCallback((id: string) => {
     setGroupIdState(id);
     localStorage.setItem("gmt24_group", id);
@@ -162,10 +185,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSbieClaimState(loaded.sbie);
   }, []);
 
-  const flash = useCallback((m: string) => {
-    setToast(m);
-    window.setTimeout(() => setToast(null), 2800);
-  }, []);
+  const addEngagement = useCallback((draft: EngagementDraft) => {
+    if (mode !== "advisor") {
+      flash("Switch to Advisor mode to open a new engagement");
+      return null;
+    }
+    const name = draft.name.trim();
+    if (!name) {
+      flash("Group legal name is required");
+      return null;
+    }
+    if (!draft.upe.trim()) {
+      flash("UPE legal name is required");
+      return null;
+    }
+    if (nameTaken(name, extraGroups)) {
+      flash("That group is already on the portfolio");
+      return null;
+    }
+    const row = draftToGroup(draft, extraGroups);
+    const next = [row, ...extraGroups];
+    setExtraGroups(next);
+    registerExtras(next);
+    localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify(next));
+    setGroupIdState(row.id);
+    localStorage.setItem("gmt24_group", row.id);
+    const loaded = loadGroupLedger(row.id);
+    setActiveFyState(loaded.fy);
+    setYearRecords(loaded.records);
+    setElectionsOn(loaded.elections);
+    setSbieClaimState(loaded.sbie);
+    flash(`${row.name} added. Next: drop the close pack on Data Hub.`);
+    return row.id;
+  }, [mode, extraGroups, flash]);
 
   const ask = useCallback((q: string) => {
     setPendingAsk(q);
@@ -297,6 +349,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setMode,
       groupId,
       setGroupId,
+      groups,
+      group,
+      addEngagement,
       toast,
       flash,
       navOpen,
@@ -327,7 +382,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openNextYear,
       setActiveFy,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

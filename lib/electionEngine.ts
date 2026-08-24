@@ -1,6 +1,6 @@
 import { money } from "./format";
 import type { AuditNode, JurCalc } from "./engine";
-import { totals } from "./engine";
+import { allocateCollection, totals, uniqueIsoCalcs } from "./engine";
 import {
   ELECTIONS,
   REALISATION_FV,
@@ -24,6 +24,7 @@ export type EligibilityRow = {
 export type Restate = {
   iso: string;
   name: string;
+  blendKey?: string;
   globe: number;
   covered: number;
   sbie: number;
@@ -82,9 +83,8 @@ const MIN = 0.15;
 
 function collect(c: JurCalc, topUp: number, harbour: boolean) {
   if (harbour || topUp <= 0) return { qdmtt: 0, iir: 0, utpr: 0 };
-  if (c.pack?.qdmtt) return { qdmtt: topUp, iir: 0, utpr: 0 };
-  if (c.pack?.iir) return { qdmtt: 0, iir: topUp, utpr: 0 };
-  return { qdmtt: 0, iir: 0, utpr: topUp };
+  const a = allocateCollection({ topUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name });
+  return { qdmtt: a.qdmtt, iir: a.iir, utpr: a.utpr };
 }
 
 function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: boolean, note: string): Restate {
@@ -97,7 +97,7 @@ function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: b
   const etr = globe > 0 ? covered / globe : 0;
   const topUp = harbour ? 0 : money(Math.max(0, MIN - etr) * excess);
   const pay = collect(c, topUp, harbour);
-  return { iso: c.iso, name: c.name, globe, covered, sbie, excess, etr, topUp, harbour, note, ...pay };
+  return { iso: c.iso, name: c.name, blendKey: c.blendKey, globe, covered, sbie, excess, etr, topUp, harbour, note, ...pay };
 }
 
 function stockDelta(iso: string) {
@@ -129,7 +129,7 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
             : e.family === "setr"
               ? "Simplified ETR inner elections are available only if the SETR Safe Harbour itself is elected for a tested jurisdiction. Five-year opt-outs survive a later return to full GloBE."
               : "Group-wide timing elections bind every jurisdiction. Not a single-country switch.",
-        boundEntities: calcs.map((c) => c.iso),
+        boundEntities: uniqueIsoCalcs(calcs).map((c) => c.iso),
       });
       continue;
     }
@@ -171,8 +171,8 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
     }
 
     const start = out.length;
-    for (const c of calcs) {
-      const entities = c.entities.map((x) => x.code);
+    for (const c of uniqueIsoCalcs(calcs)) {
+      const entities = calcs.filter((x) => x.iso === c.iso).flatMap((x) => x.entities.map((e) => e.code));
       let status: EligStatus = "n/a";
       let reason = "No triggering fact on this snapshot.";
 
@@ -270,11 +270,11 @@ export function applyPackage(calcs: JurCalc[], flags: {
   return calcs.map((c) => {
     let globeAdj = 0;
     const notes: string[] = [];
-    if (flags.stock?.includes(c.iso)) {
+    if (flags.stock?.includes(c.iso) && c.blendKind === "main") {
       globeAdj += stockDelta(c.iso);
       notes.push("Art. 3.2.2 stock-comp");
     }
-    if (flags.realisation?.includes(c.iso)) {
+    if (flags.realisation?.includes(c.iso) && c.blendKind === "main") {
       globeAdj += realisationDelta(c.iso);
       notes.push("Art. 3.2.5 realisation");
     }

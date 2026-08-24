@@ -14,7 +14,7 @@ export default function AuditPage() {
         Every calculated amount in GMT24 is clickable. The trail walks amount → OECD rule (id + version) → entity → account → uploaded source file. The engine posts the number; the LLM does not.
       </div>
       {calcs.map((c) => (
-        <div key={c.iso} className="panel" style={{ marginBottom: 12 }}>
+        <div key={c.blendKey} className="panel" style={{ marginBottom: 12 }}>
           <div className="panel-head">
             <h4 style={{ margin: 0 }}>{c.name}</h4>
             <Amount n={c.jurisdictionalTopUp} audit={c.audit} />

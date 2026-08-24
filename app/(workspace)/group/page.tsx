@@ -2,6 +2,7 @@
 
 import { ENTITIES } from "@/lib/model";
 import { calculateGroup, scopeTest } from "@/lib/engine";
+import { classifyAll } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 import Link from "next/link";
@@ -10,7 +11,10 @@ export default function GroupPage() {
   const { groupId } = useStore();
   const scope = scopeTest(groupId);
   const calcs = calculateGroup(groupId);
+  const classes = classifyAll();
   const cls = (t: string) => ENTITIES.filter((e) => e.type === t).length;
+  const popeN = classes.filter((c) => c.pope).length;
+  const moceN = classes.filter((c) => c.moce).length;
 
   return (
     <div>
@@ -41,8 +45,8 @@ export default function GroupPage() {
           ["UPE", cls("UPE")],
           ["HoldCo", cls("HoldCo")],
           ["CE", cls("CE")],
-          ["PE", cls("PE")],
-          ["JV", cls("JV")],
+          ["MOCE", moceN],
+          ["POPE", popeN],
           ["Graph nodes", ENTITIES.length],
         ].map(([k, v]) => (
           <div className="kpi" key={String(k)}><div className="kpi-label">{k}</div><div className="kpi-val">{v}</div></div>
@@ -53,7 +57,7 @@ export default function GroupPage() {
         <Link href="/entities" className="btn btn-secondary">Entity register</Link>
         <Link href="/scope" className="btn btn-secondary">Scope engine</Link>
       </div>
-      <p className="text-muted" style={{ marginTop: 16, fontSize: 13 }}>{calcs.length} jurisdictions computed in this snapshot. Full group is 48 / 212 — remaining entities are held in the canonical model as in-scope CEs with complete data (prototype graph shows the control chain).</p>
+      <p className="text-muted" style={{ marginTop: 16, fontSize: 13 }}>{calcs.length} ETR blends computed in this snapshot (majority CEs, MOCE and JV are not mixed). Full group is 48 / 212 — remaining entities are held in the canonical model as in-scope CEs with complete data (prototype graph shows the control chain).</p>
     </div>
   );
 }

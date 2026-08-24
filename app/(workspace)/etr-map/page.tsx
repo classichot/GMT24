@@ -10,13 +10,16 @@ import { Amount } from "@/components/Amount";
 import { WorldMap } from "@/components/WorldMap";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
+import { etrHref, pickCalc, summarizeByIso } from "@/lib/engine";
 
 function MapInner() {
   const { ask } = useStore();
   const { calcs, t } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
-  const sel = calcs.find((c) => c.iso === iso) ?? calcs[0];
+  const blend = useSearchParams().get("blend");
+  const sel = pickCalc(calcs, iso, blend) ?? calcs[0];
+  const dots = summarizeByIso(calcs);
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,12 +39,12 @@ function MapInner() {
       <div ref={scroller} className="map-canvas hero" style={{ margin: "16px 0 20px" }}>
         <div className="map-layer">
           <WorldMap />
-          {calcs.map((c) => {
-            const pos = MAP_COORDS[c.iso];
+          {dots.map((d) => {
+            const pos = MAP_COORDS[d.iso];
             if (!pos) return null;
-            const cls = c.jurisdictionalTopUp > 0 ? "topup" : c.exposure === "Safe harbour" || c.exposure === "Review" ? "sh" : "ok";
+            const cls = d.jurisdictionalTopUp > 0 ? "topup" : d.exposure === "Safe harbour" || d.exposure === "Review" ? "sh" : "ok";
             return (
-              <button key={c.iso} className={`map-dot ${cls}${sel.iso === c.iso ? " active" : ""}`} style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => router.push(`/etr-map?iso=${c.iso}`)} title={c.name} />
+              <button key={d.iso} className={`map-dot ${cls}${sel.iso === d.iso ? " active" : ""}`} style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => router.push(`/etr-map?iso=${d.iso}`)} title={d.name} />
             );
           })}
         </div>
@@ -57,7 +60,7 @@ function MapInner() {
             <div className="wf-row total"><span>Top-up tax</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
             <p className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>{sel.sh.navigator}</p>
             <div className="stack-actions" style={{ marginTop: 16 }}>
-              <Link href={`/etr?iso=${sel.iso}`} className="btn btn-primary">Open ETR</Link>
+              <Link href={etrHref(sel)} className="btn btn-primary">Open ETR</Link>
               <Link href="/top-up" className="btn btn-secondary">Top-up</Link>
               <Link href="/allocation" className="btn btn-secondary">Allocation</Link>
               <button className="btn btn-secondary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
@@ -71,7 +74,7 @@ function MapInner() {
               <thead><tr><th>Jurisdiction</th><th className="num">ETR</th><th className="num">Top-up</th></tr></thead>
               <tbody>
                 {calcs.map((c) => (
-                  <tr key={c.iso} className="clickable" onClick={() => router.push(`/etr?iso=${c.iso}`)}>
+                  <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
                     <td>{c.name}</td>
                     <td className="num">{pct(c.etr, 1)}</td>
                     <td className="num">{eur(c.jurisdictionalTopUp, true)}</td>

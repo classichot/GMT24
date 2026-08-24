@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { PAYROLL_RATE, ASSET_RATE } from "@/lib/engine";
+import { PAYROLL_RATE, ASSET_RATE, pickCalc } from "@/lib/engine";
 import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
@@ -54,7 +54,8 @@ function Inner() {
   const { calcs } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
-  const sel = calcs.find((c) => c.iso === iso) ?? calcs.find((c) => c.iso === "TH") ?? calcs[0];
+  const blend = useSearchParams().get("blend");
+  const sel = pickCalc(calcs, iso, blend) ?? pickCalc(calcs, "TH") ?? calcs[0];
   const pr = pct(PAYROLL_RATE, 1);
   const ar = pct(ASSET_RATE, 1);
 
@@ -149,7 +150,7 @@ function Inner() {
               <thead><tr><th>Jurisdiction</th><th className="num">Payroll</th><th className="num">Assets</th><th className="num">SBIE</th><th className="num">Excess</th></tr></thead>
               <tbody>
                 {calcs.map((c) => (
-                  <tr key={c.iso} className="clickable" onClick={() => router.push(`/sbie?iso=${c.iso}`)}>
+                  <tr key={c.blendKey} className="clickable" onClick={() => router.push(`/sbie?iso=${c.iso}${c.blendKind === "main" ? "" : `&blend=${encodeURIComponent(c.blendKey)}`}`)}>
                     <td>{c.name}</td>
                     <td className="num"><Amount n={c.payrollCarve} audit={c.trace.payroll} compact /></td>
                     <td className="num"><Amount n={c.assetCarve} audit={c.trace.assets} compact /></td>

@@ -26,7 +26,7 @@ export default function SettingsPage() {
           </div>
           <p className="text-muted" style={{ fontSize: 13 }}>
             In-house: single MNE, internal data requests, Group Tax Director as reviewer, one year ledger.<br />
-            Advisor: multi-client portfolio, engagement letters, client PBC, partner sign-off, one year ledger per client.
+            Advisor: multi-client portfolio, New engagement, client PBC, partner sign-off, one year ledger per client.
           </p>
         </div>
       </div>

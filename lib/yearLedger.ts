@@ -7,6 +7,7 @@ export const LOCK_YEARS = 5;
 export type YearJurRow = {
   iso: string;
   name: string;
+  blendKey?: string;
   globe: number;
   covered: number;
   etr: number;
@@ -121,6 +122,7 @@ export type ElectionChange = {
 
 export type CalcChange = {
   iso: string;
+  blendKey?: string;
   name: string;
   globe: number;
   globePrior: number;
@@ -173,6 +175,7 @@ export function rowsFromRestate(rows: Restate[]): YearJurRow[] {
   return rows.map((r) => ({
     iso: r.iso,
     name: r.name,
+    blendKey: r.blendKey,
     globe: r.globe,
     covered: r.covered,
     etr: r.etr,
@@ -386,10 +389,13 @@ export function compareYears(prior: YearRecord, current: { fy: string; elections
     };
   });
 
-  const isos = [...new Set([...prior.rows.map((r) => r.iso), ...current.rows.map((r) => r.iso)])];
-  const calcs: CalcChange[] = isos.map((iso) => {
-    const p = prior.rows.find((r) => r.iso === iso);
-    const c = current.rows.find((r) => r.iso === iso);
+  const blendKeys = [...new Set([
+    ...prior.rows.map((r) => r.blendKey ?? r.iso),
+    ...current.rows.map((r) => r.blendKey ?? r.iso),
+  ])];
+  const calcs: CalcChange[] = blendKeys.map((key) => {
+    const p = prior.rows.find((r) => (r.blendKey ?? r.iso) === key);
+    const c = current.rows.find((r) => (r.blendKey ?? r.iso) === key);
     const globe = c?.globe ?? 0;
     const covered = c?.covered ?? 0;
     const etr = c?.etr ?? 0;
@@ -399,8 +405,9 @@ export function compareYears(prior: YearRecord, current: { fy: string; elections
     const etrPrior = p?.etr ?? 0;
     const topUpPrior = p?.topUp ?? 0;
     return {
-      iso,
-      name: c?.name ?? p?.name ?? iso,
+      iso: c?.iso ?? p?.iso ?? key,
+      blendKey: c?.blendKey ?? p?.blendKey,
+      name: c?.name ?? p?.name ?? key,
       globe,
       globePrior,
       covered,
