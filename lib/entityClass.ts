@@ -84,20 +84,32 @@ export function ownershipOf(ancestorId: string, descendantId: string): number {
   return cur ? Math.round(pct * 10000) / 100 : 0;
 }
 
-function isJvType(t: EntityType) {
-  return t === "JV" || t === "JV Sub";
+/** Art. 10.1 Joint Venture: equity method in the UPE CFS and UPE Ownership Interests of at least 50%. Type label is not the test. */
+export const JV_UPE_MIN = 50;
+
+function isJvRoot(e: Entity | undefined): boolean {
+  if (!e || e.type === "Excluded") return false;
+  if (e.type === "JV") return lookThroughToUpe(e.id) >= JV_UPE_MIN;
+  return Boolean(e.equityMethod) && lookThroughToUpe(e.id) >= JV_UPE_MIN;
 }
 
 function jvRootId(e: Entity): string {
   let cur: Entity | undefined = e;
   const seen = new Set<string>();
+  let found: string | null = null;
   while (cur) {
-    if (cur.type === "JV") return cur.id;
-    if (!cur.parentId || seen.has(cur.id)) return e.id;
+    if (isJvRoot(cur)) found = cur.id;
+    if (!cur.parentId || seen.has(cur.id)) break;
     seen.add(cur.id);
     cur = byId[cur.parentId];
   }
-  return e.id;
+  return found ?? e.id;
+}
+
+function isJvMember(e: Entity): boolean {
+  if (e.type === "JV Sub") return true;
+  const root = byId[jvRootId(e)];
+  return isJvRoot(e) || isJvRoot(root);
 }
 
 function hasCeChild(id: string) {
@@ -108,7 +120,7 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
   const upeOwnership = lookThroughToUpe(e.id);
   const outsiderPct = Math.round((100 - upeOwnership) * 100) / 100;
   const excluded = e.type === "Excluded" || Boolean(e.excludedReason);
-  const jv = isJvType(e.type);
+  const jv = !excluded && isJvMember(e);
   const investment = e.type === "Investment";
   const stateless = e.type === "Stateless";
   const upe = e.type === "UPE";
@@ -168,7 +180,9 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
     { id: "mosg", label: "MOSG member", pass: mosg, detail: mosg ? `Blended with other MOCEs under Minority-Owned Parent ${mopeId}.` : "No Minority-Owned Parent Entity on the chain — standalone MOCE or majority CE." },
     { id: "parent", label: "Parent Entity", pass: parentEntity, detail: parentEntity ? "Owns an Ownership Interest in another CE of the group." : "No CE subsidiary — not a Parent Entity." },
     { id: "pope", label: `POPE (outsiders > ${POPE_OUTSIDER_MIN}%)`, pass: pope, detail: pope ? `${outsiderPct}% held outside the group — IIR applies here first with Inclusion Ratio (Art. 2.1.4).` : upe ? "This is the UPE — POPE is a non-UPE Parent." : !parentEntity ? "Not a Parent Entity." : `Outsiders hold ${outsiderPct}% (need more than ${POPE_OUTSIDER_MIN}%). Not a POPE.` },
-    { id: "jv", label: "JV Group (Art. 6.4)", pass: jv, detail: jv ? "Joint Venture is a separate MNE for ETR — not blended with majority CEs." : "Not classified as a Joint Venture." },
+    { id: "jv", label: "JV Group (Art. 6.4 / 10.1)", pass: jv, detail: jv ? `Equity-accounted in the UPE CFS and UPE ownership ${upeOwnership}% ≥ ${JV_UPE_MIN}% — separate MNE for ETR, not blended with majority CEs.` : `Not a Joint Venture (need equity method in the UPE CFS and UPE ownership ≥ ${JV_UPE_MIN}%).` },
+    { id: "ie", label: "Investment Entity (Art. 7)", pass: investment, detail: investment ? "Investment Entity is out of the jurisdictional blend — own ETR (Art. 7)." : "Not an Investment Entity." },
+    { id: "stateless", label: "Stateless CE (Art. 10.3.4)", pass: stateless, detail: stateless ? "Each Stateless CE is treated as located in a separate jurisdiction." : "Located in a jurisdiction." },
   ];
 
   return {

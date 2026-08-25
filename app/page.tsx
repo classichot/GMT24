@@ -46,7 +46,7 @@ export default function LoginPage() {
         <footer className="login-pane-foot">
           <div className="login-stats">
             <div>
-              <strong>$14.8M</strong>
+              <strong>$18.9M</strong>
               <span>Demo top-up</span>
             </div>
             <div>

@@ -13,7 +13,7 @@ const METHOD = [
   {
     n: "01",
     title: "Start with FANIL",
-    body: "Financial Accounting Net Income or Loss of the Constituent Entity, taken from the UPE consolidated financial statements. This is accounting profit, not taxable profit.",
+    body: "Financial Accounting Net Income or Loss of the Constituent Entity, taken from the UPE consolidated financial statements (Art. 3.1.1), translated at the locked FX table. A CE may use an acceptable local GAAP under Art. 3.1.2 / 3.1.3 only if the EUR 75m / EUR 1m screens pass.",
     refs: ["Art. 3.1.1", "Art. 3.1.2", "Art. 3.1.3"],
   },
   {
@@ -75,6 +75,7 @@ export default function GlobeIncomePage() {
         </div>
         <div className="stack-actions">
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
+          <Link href="/fx" className="btn btn-secondary">FX / GAAP</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
           <button className="btn btn-primary" onClick={() => ask("Explain TH001 excluded dividends")}>Ask GMT24</button>
         </div>
@@ -108,8 +109,8 @@ export default function GlobeIncomePage() {
         </div>
         <div className="panel-body waterfall">
           <div className="wf-row">
-            <span>FANIL (Art. 3.1.1 — accounting)</span>
-            <Amount n={f.fanil} audit={row.trace.fanil} />
+            <span>FANIL (Art. 3.1 — accounting, USD)</span>
+            <Amount n={row.trace.fanil.amount ?? f.fanil} audit={row.trace.fanil} />
           </div>
           {row.adjustments.map((a) => {
             running += a.amount;

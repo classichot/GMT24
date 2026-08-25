@@ -50,6 +50,12 @@ export type Entity = {
   gaap: string;
   fx: string;
   acquired: string;
+  /** Art. 10.1 — results reported under the equity method in the UPE CFS. With UPE ownership ≥ 50% this is a Joint Venture. */
+  equityMethod?: boolean;
+  /** FANIL source: UPE consolidation GAAP vs acceptable local standard (Art. 3.1.2 / 3.1.3). */
+  gaapBasis?: "upe" | "local";
+  /** Local-GAAP FANIL in USD. Used only if Art. 3.1.3 is elected and the EUR 75m / 1m screens pass. */
+  fanilLocal?: number;
   excludedReason?: string;
   incentiveIds: string[];
   completeness: number;
@@ -61,6 +67,8 @@ export type Financials = {
   entityId: string;
   revenue: number;
   fanil: number;
+  /** FANIL in functional currency. Engine translates at the locked FX table (`lib/fx.ts`). */
+  fanilFc?: number;
   currentTax: number;
   deferredTax: number;
   otherCovered: number;
@@ -563,7 +571,7 @@ export const GROUPS: Group[] = [
 export const ENTITIES: Entity[] = [
   { id: "JP-UPE", code: "JP001", name: "Nippon Aether Holdings K.K.", jurisdiction: "Japan", iso: "JP", type: "UPE", parentId: null, ownership: 100, gaap: "IFRS", fx: "JPY", acquired: "1998-04-01", incentiveIds: [], completeness: 98, review: "Reviewed", graph: { x: 480, y: 36 } },
   { id: "SG-HC", code: "SG010", name: "Aetherion Singapore Pte. Ltd.", jurisdiction: "Singapore", iso: "SG", type: "HoldCo", parentId: "JP-UPE", ownership: 100, gaap: "SFRS(I)", fx: "SGD", acquired: "2009-07-01", incentiveIds: ["SG-DE"], completeness: 94, review: "Calculated", graph: { x: 220, y: 140 } },
-  { id: "TH-CE", code: "TH001", name: "Aetherion (Thailand) Ltd.", jurisdiction: "Thailand", iso: "TH", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2012-03-15", incentiveIds: ["TH-BOI", "TH-BOI-AUTO"], completeness: 96, review: "Prepared", graph: { x: 110, y: 250 } },
+  { id: "TH-CE", code: "TH001", name: "Aetherion (Thailand) Ltd.", jurisdiction: "Thailand", iso: "TH", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2012-03-15", gaapBasis: "upe", fanilLocal: 44_410_000, incentiveIds: ["TH-BOI", "TH-BOI-AUTO"], completeness: 96, review: "Prepared", graph: { x: 110, y: 250 } },
   { id: "VN-CE", code: "VN001", name: "Aetherion Vietnam Co., Ltd.", jurisdiction: "Vietnam", iso: "VN", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "VAS/IFRS", fx: "VND", acquired: "2016-09-01", incentiveIds: ["VN-EIT"], completeness: 81, review: "Validated", graph: { x: 250, y: 250 } },
   { id: "MY-CE", code: "MY001", name: "Aetherion Malaysia Sdn. Bhd.", jurisdiction: "Malaysia", iso: "MY", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "MFRS", fx: "MYR", acquired: "2014-01-12", incentiveIds: [], completeness: 91, review: "Calculated", graph: { x: 180, y: 340 } },
   { id: "ID-CE", code: "ID001", name: "PT Aetherion Indonesia", jurisdiction: "Indonesia", iso: "ID", type: "CE", parentId: "SG-HC", ownership: 99, gaap: "PSAK", fx: "IDR", acquired: "2015-06-20", incentiveIds: [], completeness: 88, review: "Calculated", graph: { x: 320, y: 340 } },
@@ -576,28 +584,36 @@ export const ENTITIES: Entity[] = [
   { id: "US-CE", code: "US001", name: "Aetherion Americas Inc.", jurisdiction: "United States", iso: "US", type: "CE", parentId: "JP-UPE", ownership: 100, gaap: "US GAAP", fx: "USD", acquired: "2001-09-01", incentiveIds: [], completeness: 97, review: "Reviewed", graph: { x: 860, y: 140 } },
   { id: "IE-CE", code: "IE001", name: "Aetherion Ireland Ltd.", jurisdiction: "Ireland", iso: "IE", type: "CE", parentId: "JP-UPE", ownership: 100, gaap: "IFRS", fx: "EUR", acquired: "2013-04-01", incentiveIds: ["IE-IP"], completeness: 92, review: "Prepared", graph: { x: 860, y: 250 } },
   { id: "TH-PE", code: "TH-PE1", name: "Aetherion (Thailand) Ltd. — Rayong PE", jurisdiction: "Thailand", iso: "TH", type: "PE", parentId: "TH-CE", ownership: 100, gaap: "TFRS", fx: "THB", acquired: "2019-02-01", incentiveIds: ["TH-BOI"], completeness: 84, review: "Mapped", graph: { x: 40, y: 340 } },
-  { id: "SG-JV", code: "SG-JV1", name: "Aetherion-Keppel Logistics JV", jurisdiction: "Singapore", iso: "SG", type: "JV", parentId: "SG-HC", ownership: 50, gaap: "SFRS(I)", fx: "SGD", acquired: "2022-01-01", incentiveIds: [], completeness: 72, review: "Imported", graph: { x: 40, y: 180 } },
+  { id: "SG-JV", code: "SG-JV1", name: "Aetherion-Keppel Logistics JV", jurisdiction: "Singapore", iso: "SG", type: "CE", parentId: "SG-HC", ownership: 50, gaap: "SFRS(I)", fx: "SGD", acquired: "2022-01-01", equityMethod: true, incentiveIds: [], completeness: 72, review: "Imported", graph: { x: 40, y: 180 } },
   { id: "MY-MOCE", code: "MY028", name: "Aetherion Penang Components Sdn. Bhd.", jurisdiction: "Malaysia", iso: "MY", type: "MOCE", parentId: "SG-HC", ownership: 28, gaap: "MFRS", fx: "MYR", acquired: "2023-05-01", incentiveIds: [], completeness: 84, review: "Validated", graph: { x: 80, y: 380 } },
+  { id: "SG-IE", code: "SG-IE1", name: "Aetherion Capital Fund Pte. Ltd.", jurisdiction: "Singapore", iso: "SG", type: "Investment", parentId: "SG-HC", ownership: 100, gaap: "SFRS(I)", fx: "SGD", acquired: "2024-06-01", incentiveIds: [], completeness: 88, review: "Mapped", graph: { x: 40, y: 80 } },
+  { id: "XX-ST", code: "XX-ST1", name: "Aetherion Regional Sales (stateless CE)", jurisdiction: "Stateless", iso: "XX", type: "Stateless", parentId: "JP-UPE", ownership: 100, gaap: "IFRS", fx: "USD", acquired: "2025-01-01", incentiveIds: [], completeness: 70, review: "Imported", graph: { x: 400, y: 90 } },
+  { id: "LU-CE", code: "LU001", name: "Aetherion Luxembourg S.à r.l.", jurisdiction: "Luxembourg", iso: "LU", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "Lux GAAP/IFRS", fx: "EUR", acquired: "2020-03-01", incentiveIds: [], completeness: 90, review: "Prepared", graph: { x: 860, y: 340 } },
+  { id: "HK-CE", code: "HK001", name: "Aetherion Hong Kong Ltd.", jurisdiction: "Hong Kong", iso: "HK", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "HKFRS", fx: "HKD", acquired: "2017-08-01", incentiveIds: [], completeness: 87, review: "Validated", graph: { x: 140, y: 80 } },
 ];
 
 export const FINANCIALS: Financials[] = [
-  { entityId: "JP-UPE", revenue: 210_000_000, fanil: 148_200_000, currentTax: 36_100_000, deferredTax: 1_400_000, otherCovered: 0, nonCovered: 420_000, payrollEligible: 62_000_000, employees: 1840, tangibleEligible: 84_000_000, cbcrRevenue: 210_400_000, cbcrProfit: 149_000_000, cbcrTax: 36_800_000, priorDta: 4_200_000, priorDtl: 6_100_000 },
-  { entityId: "SG-HC", revenue: 18_000_000, fanil: 71_400_000, currentTax: 10_900_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 90_000, payrollEligible: 9_400_000, employees: 62, tangibleEligible: 2_100_000, cbcrRevenue: 88_000_000, cbcrProfit: 72_200_000, cbcrTax: 11_400_000, priorDta: 210_000, priorDtl: 640_000 },
-  { entityId: "TH-CE", revenue: 96_400_000, fanil: 44_820_000, currentTax: 4_120_000, deferredTax: 610_000, otherCovered: 0, nonCovered: 80_000, payrollEligible: 31_800_000, employees: 1240, tangibleEligible: 42_600_000, cbcrRevenue: 97_100_000, cbcrProfit: 45_200_000, cbcrTax: 4_280_000, priorDta: 1_120_000, priorDtl: 880_000 },
-  { entityId: "VN-CE", revenue: 54_000_000, fanil: 31_250_000, currentTax: 3_620_000, deferredTax: 410_000, otherCovered: 0, nonCovered: 40_000, payrollEligible: 22_400_000, employees: 980, tangibleEligible: 28_900_000, cbcrRevenue: 54_600_000, cbcrProfit: 31_800_000, cbcrTax: 3_710_000, priorDta: 0, priorDtl: 310_000 },
-  { entityId: "MY-CE", revenue: 41_000_000, fanil: 17_800_000, currentTax: 4_180_000, deferredTax: 210_000, otherCovered: 0, nonCovered: 20_000, payrollEligible: 11_200_000, employees: 410, tangibleEligible: 14_400_000, cbcrRevenue: 41_200_000, cbcrProfit: 18_000_000, cbcrTax: 4_250_000, priorDta: 180_000, priorDtl: 240_000 },
-  { entityId: "ID-CE", revenue: 33_000_000, fanil: 14_900_000, currentTax: 3_180_000, deferredTax: 160_000, otherCovered: 0, nonCovered: 15_000, payrollEligible: 9_800_000, employees: 520, tangibleEligible: 12_200_000, cbcrRevenue: 33_400_000, cbcrProfit: 15_100_000, cbcrTax: 3_220_000, priorDta: 90_000, priorDtl: 140_000 },
-  { entityId: "AE-CE", revenue: 28_000_000, fanil: 22_400_000, currentTax: 1_980_000, deferredTax: 40_000, otherCovered: 0, nonCovered: 0, payrollEligible: 6_100_000, employees: 48, tangibleEligible: 8_400_000, cbcrRevenue: 28_100_000, cbcrProfit: 22_500_000, cbcrTax: 1_990_000, priorDta: 0, priorDtl: 0 },
-  { entityId: "UK-HC", revenue: 12_000_000, fanil: 8_400_000, currentTax: 1_596_000, deferredTax: 80_000, otherCovered: 0, nonCovered: 12_000, payrollEligible: 4_200_000, employees: 38, tangibleEligible: 1_100_000, cbcrRevenue: 12_200_000, cbcrProfit: 8_500_000, cbcrTax: 1_620_000, priorDta: 60_000, priorDtl: 90_000 },
-  { entityId: "DE-CE", revenue: 188_000_000, fanil: 84_100_000, currentTax: 20_640_000, deferredTax: 720_000, otherCovered: 0, nonCovered: 110_000, payrollEligible: 48_000_000, employees: 760, tangibleEligible: 52_000_000, cbcrRevenue: 188_400_000, cbcrProfit: 84_600_000, cbcrTax: 21_100_000, priorDta: 2_400_000, priorDtl: 3_100_000 },
-  { entityId: "FR-CE", revenue: 142_000_000, fanil: 61_200_000, currentTax: 15_180_000, deferredTax: 410_000, otherCovered: 0, nonCovered: 70_000, payrollEligible: 32_400_000, employees: 510, tangibleEligible: 29_800_000, cbcrRevenue: 142_200_000, cbcrProfit: 61_500_000, cbcrTax: 15_400_000, priorDta: 1_100_000, priorDtl: 1_800_000 },
-  { entityId: "NL-CE", revenue: 67_000_000, fanil: 40_400_000, currentTax: 9_920_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 40_000, payrollEligible: 14_800_000, employees: 190, tangibleEligible: 18_200_000, cbcrRevenue: 67_100_000, cbcrProfit: 40_600_000, cbcrTax: 10_050_000, priorDta: 420_000, priorDtl: 710_000 },
-  { entityId: "HU-CE", revenue: 36_000_000, fanil: 27_800_000, currentTax: 2_480_000, deferredTax: 80_000, otherCovered: 0, nonCovered: 10_000, payrollEligible: 8_200_000, employees: 210, tangibleEligible: 11_400_000, cbcrRevenue: 36_200_000, cbcrProfit: 28_000_000, cbcrTax: 2_510_000, priorDta: 40_000, priorDtl: 60_000 },
-  { entityId: "US-CE", revenue: 310_000_000, fanil: 94_200_000, currentTax: 19_410_000, deferredTax: 620_000, otherCovered: 0, nonCovered: 1_200_000, payrollEligible: 58_000_000, employees: 640, tangibleEligible: 71_000_000, cbcrRevenue: 311_000_000, cbcrProfit: 95_000_000, cbcrTax: 20_100_000, priorDta: 3_400_000, priorDtl: 5_200_000 },
-  { entityId: "IE-CE", revenue: 204_000_000, fanil: 168_400_000, currentTax: 10_920_000, deferredTax: 740_000, otherCovered: 0, nonCovered: 60_000, payrollEligible: 18_600_000, employees: 86, tangibleEligible: 54_800_000, cbcrRevenue: 204_800_000, cbcrProfit: 169_100_000, cbcrTax: 11_200_000, priorDta: 210_000, priorDtl: 1_840_000 },
-  { entityId: "TH-PE", revenue: 8_200_000, fanil: 1_140_000, currentTax: 90_000, deferredTax: 10_000, otherCovered: 0, nonCovered: 0, payrollEligible: 3_400_000, employees: 140, tangibleEligible: 6_800_000, cbcrRevenue: 8_200_000, cbcrProfit: 1_140_000, cbcrTax: 90_000, priorDta: 0, priorDtl: 0 },
-  { entityId: "SG-JV", revenue: 14_000_000, fanil: 2_200_000, currentTax: 260_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 0, payrollEligible: 1_800_000, employees: 22, tangibleEligible: 4_100_000, cbcrRevenue: 14_000_000, cbcrProfit: 2_200_000, cbcrTax: 260_000, priorDta: 0, priorDtl: 0 },
-  { entityId: "MY-MOCE", revenue: 12_400_000, fanil: 4_200_000, currentTax: 280_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 8_000, payrollEligible: 2_800_000, employees: 96, tangibleEligible: 3_600_000, cbcrRevenue: 12_400_000, cbcrProfit: 4_200_000, cbcrTax: 300_000, priorDta: 40_000, priorDtl: 20_000 },
+  { entityId: "JP-UPE", revenue: 210_000_000, fanil: 148_200_000, fanilFc: 23_297_040_000, currentTax: 36_100_000, deferredTax: 1_400_000, otherCovered: 0, nonCovered: 420_000, payrollEligible: 62_000_000, employees: 1840, tangibleEligible: 84_000_000, cbcrRevenue: 210_400_000, cbcrProfit: 149_000_000, cbcrTax: 36_800_000, priorDta: 4_200_000, priorDtl: 6_100_000 },
+  { entityId: "SG-HC", revenue: 18_000_000, fanil: 71_400_000, fanilFc: 96_461_400, currentTax: 10_900_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 90_000, payrollEligible: 9_400_000, employees: 62, tangibleEligible: 2_100_000, cbcrRevenue: 88_000_000, cbcrProfit: 72_200_000, cbcrTax: 11_400_000, priorDta: 210_000, priorDtl: 640_000 },
+  { entityId: "TH-CE", revenue: 96_400_000, fanil: 44_820_000, fanilFc: 1_723_329_000, currentTax: 4_120_000, deferredTax: 610_000, otherCovered: 0, nonCovered: 80_000, payrollEligible: 31_800_000, employees: 1240, tangibleEligible: 42_600_000, cbcrRevenue: 97_100_000, cbcrProfit: 45_200_000, cbcrTax: 4_280_000, priorDta: 1_120_000, priorDtl: 880_000 },
+  { entityId: "VN-CE", revenue: 54_000_000, fanil: 31_250_000, fanilFc: 795_312_500_000, currentTax: 3_620_000, deferredTax: 410_000, otherCovered: 0, nonCovered: 40_000, payrollEligible: 22_400_000, employees: 980, tangibleEligible: 28_900_000, cbcrRevenue: 54_600_000, cbcrProfit: 31_800_000, cbcrTax: 3_710_000, priorDta: 0, priorDtl: 310_000 },
+  { entityId: "MY-CE", revenue: 41_000_000, fanil: 17_800_000, fanilFc: 79_566_000, currentTax: 4_180_000, deferredTax: 210_000, otherCovered: 0, nonCovered: 20_000, payrollEligible: 11_200_000, employees: 410, tangibleEligible: 14_400_000, cbcrRevenue: 41_200_000, cbcrProfit: 18_000_000, cbcrTax: 4_250_000, priorDta: 180_000, priorDtl: 240_000 },
+  { entityId: "ID-CE", revenue: 33_000_000, fanil: 14_900_000, fanilFc: 241_380_000_000, currentTax: 3_180_000, deferredTax: 160_000, otherCovered: 0, nonCovered: 15_000, payrollEligible: 9_800_000, employees: 520, tangibleEligible: 12_200_000, cbcrRevenue: 33_400_000, cbcrProfit: 15_100_000, cbcrTax: 3_220_000, priorDta: 90_000, priorDtl: 140_000 },
+  { entityId: "AE-CE", revenue: 28_000_000, fanil: 22_400_000, fanilFc: 82_264_000, currentTax: 1_980_000, deferredTax: 40_000, otherCovered: 0, nonCovered: 0, payrollEligible: 6_100_000, employees: 48, tangibleEligible: 8_400_000, cbcrRevenue: 28_100_000, cbcrProfit: 22_500_000, cbcrTax: 1_990_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "UK-HC", revenue: 12_000_000, fanil: 8_400_000, fanilFc: 6_610_800, currentTax: 1_596_000, deferredTax: 80_000, otherCovered: 0, nonCovered: 12_000, payrollEligible: 4_200_000, employees: 38, tangibleEligible: 1_100_000, cbcrRevenue: 12_200_000, cbcrProfit: 8_500_000, cbcrTax: 1_620_000, priorDta: 60_000, priorDtl: 90_000 },
+  { entityId: "DE-CE", revenue: 188_000_000, fanil: 84_100_000, fanilFc: 80_736_000, currentTax: 20_640_000, deferredTax: 720_000, otherCovered: 0, nonCovered: 110_000, payrollEligible: 48_000_000, employees: 760, tangibleEligible: 52_000_000, cbcrRevenue: 188_400_000, cbcrProfit: 84_600_000, cbcrTax: 21_100_000, priorDta: 2_400_000, priorDtl: 3_100_000 },
+  { entityId: "FR-CE", revenue: 142_000_000, fanil: 61_200_000, fanilFc: 58_752_000, currentTax: 15_180_000, deferredTax: 410_000, otherCovered: 0, nonCovered: 70_000, payrollEligible: 32_400_000, employees: 510, tangibleEligible: 29_800_000, cbcrRevenue: 142_200_000, cbcrProfit: 61_500_000, cbcrTax: 15_400_000, priorDta: 1_100_000, priorDtl: 1_800_000 },
+  { entityId: "NL-CE", revenue: 67_000_000, fanil: 40_400_000, fanilFc: 38_784_000, currentTax: 9_920_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 40_000, payrollEligible: 14_800_000, employees: 190, tangibleEligible: 18_200_000, cbcrRevenue: 67_100_000, cbcrProfit: 40_600_000, cbcrTax: 10_050_000, priorDta: 420_000, priorDtl: 710_000 },
+  { entityId: "HU-CE", revenue: 36_000_000, fanil: 27_800_000, fanilFc: 10_981_000_000, currentTax: 2_480_000, deferredTax: 80_000, otherCovered: 0, nonCovered: 10_000, payrollEligible: 8_200_000, employees: 210, tangibleEligible: 11_400_000, cbcrRevenue: 36_200_000, cbcrProfit: 28_000_000, cbcrTax: 2_510_000, priorDta: 40_000, priorDtl: 60_000 },
+  { entityId: "US-CE", revenue: 310_000_000, fanil: 94_200_000, fanilFc: 94_200_000, currentTax: 19_410_000, deferredTax: 620_000, otherCovered: 0, nonCovered: 1_200_000, payrollEligible: 58_000_000, employees: 640, tangibleEligible: 71_000_000, cbcrRevenue: 311_000_000, cbcrProfit: 95_000_000, cbcrTax: 20_100_000, priorDta: 3_400_000, priorDtl: 5_200_000 },
+  { entityId: "IE-CE", revenue: 204_000_000, fanil: 168_400_000, fanilFc: 161_664_000, currentTax: 10_920_000, deferredTax: 740_000, otherCovered: 0, nonCovered: 60_000, payrollEligible: 18_600_000, employees: 86, tangibleEligible: 54_800_000, cbcrRevenue: 204_800_000, cbcrProfit: 169_100_000, cbcrTax: 11_200_000, priorDta: 210_000, priorDtl: 1_840_000 },
+  { entityId: "TH-PE", revenue: 8_200_000, fanil: 1_140_000, fanilFc: 43_833_000, currentTax: 90_000, deferredTax: 10_000, otherCovered: 0, nonCovered: 0, payrollEligible: 3_400_000, employees: 140, tangibleEligible: 6_800_000, cbcrRevenue: 8_200_000, cbcrProfit: 1_140_000, cbcrTax: 90_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "SG-JV", revenue: 14_000_000, fanil: 2_200_000, fanilFc: 2_972_200, currentTax: 260_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 0, payrollEligible: 1_800_000, employees: 22, tangibleEligible: 4_100_000, cbcrRevenue: 14_000_000, cbcrProfit: 2_200_000, cbcrTax: 260_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "MY-MOCE", revenue: 12_400_000, fanil: 4_200_000, fanilFc: 18_774_000, currentTax: 280_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 8_000, payrollEligible: 2_800_000, employees: 96, tangibleEligible: 3_600_000, cbcrRevenue: 12_400_000, cbcrProfit: 4_200_000, cbcrTax: 300_000, priorDta: 40_000, priorDtl: 20_000 },
+  { entityId: "SG-IE", revenue: 2_400_000, fanil: 1_800_000, fanilFc: 2_431_800, currentTax: 270_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 420_000, employees: 6, tangibleEligible: 80_000, cbcrRevenue: 2_400_000, cbcrProfit: 1_800_000, cbcrTax: 270_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "XX-ST", revenue: 900_000, fanil: 180_000, fanilFc: 180_000, currentTax: 0, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 2, tangibleEligible: 0, cbcrRevenue: 900_000, cbcrProfit: 180_000, cbcrTax: 0, priorDta: 0, priorDtl: 0 },
+  { entityId: "LU-CE", revenue: 1_100_000, fanil: -4_200_000, fanilFc: -4_032_000, currentTax: -840_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 8, tangibleEligible: 120_000, cbcrRevenue: 1_100_000, cbcrProfit: -4_200_000, cbcrTax: -840_000, priorDta: 210_000, priorDtl: 0 },
+  { entityId: "HK-CE", revenue: 3_200_000, fanil: 800_000, fanilFc: 6_224_000, currentTax: -120_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 180_000, employees: 14, tangibleEligible: 90_000, cbcrRevenue: 3_200_000, cbcrProfit: 800_000, cbcrTax: -120_000, priorDta: 0, priorDtl: 0 },
 ];
 
 export const ADJUSTMENTS: Adjustment[] = [
@@ -649,6 +665,9 @@ export const ISSUES: Issue[] = [
   { id: "IQ-09", severity: "info", area: "Ownership", entity: "MY-MOCE", jurisdiction: "Malaysia", title: "MOCE — separate Malaysian ETR", detail: "Aetherion Penang Components is 28% UPE-owned. Entity test: MOCE. GloBE ETR is computed standalone and is not blended with Aetherion Malaysia Sdn. Bhd. Malaysian QDMTT still collects any top-up on that blend.", owner: "Group Tax" },
   { id: "IQ-06", severity: "warn", area: "Deferred tax", entity: "AE-CE", jurisdiction: "UAE", title: "Deferred tax movement unexplained", detail: "UAE CIT commencement created a DTL with no roll-forward narrative.", owner: "MENA Tax" },
   { id: "IQ-07", severity: "warn", area: "Deferred tax", entity: "TH-CE", jurisdiction: "Thailand", title: "FY2022 DTL approaching five-year recapture", detail: "GloBE DTL origin FY2022 is not a Recapture Exception Accrual and has not reversed. Article 4.4.4 deadline is the end of FY2027. Origin-year ETR must be recomputed if still outstanding.", owner: "N. Chai" },
+  { id: "IQ-10", severity: "info", area: "Ownership", entity: "SG-JV", jurisdiction: "Singapore", title: "JV Group from Art. 10.1 facts", detail: "Keppel Logistics is equity-accounted in the UPE CFS and UPE ownership is 50% (≥ 50%). Entity test: Joint Venture (Art. 6.4 / 10.1) — separate ETR from Singapore HoldCo. The legal-entity type label is not the test.", owner: "Group Tax" },
+  { id: "IQ-11", severity: "info", area: "Covered tax", entity: "LU-CE", jurisdiction: "Luxembourg", title: "Art. 4.1.5 — Net GloBE Loss and negative Covered Taxes", detail: "Luxembourg has a Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax equal to the negative tax. Elect OECD_4.1.5 to carry the amount forward instead.", owner: "Group Tax" },
+  { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.1.2 — positive Net GloBE Income, negative Covered Taxes", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up Tax Percentage exceeds 15% (Art. 5.2.1). No ETR is computed when Net GloBE Income is zero or negative.", owner: "Group Tax" },
 ];
 
 export const INCENTIVES: Incentive[] = [
@@ -689,6 +708,9 @@ export const JURISDICTION_PACKS = [
   { iso: "AE", name: "United Arab Emirates", iir: false, qdmtt: true, qdmttSH: false, utpr: false, from: "2025-01-01", qualified: "Review", filing: "Domestic MTT", fx: "AED", notes: "CIT 9% + DMTT path under review." },
   { iso: "MY", name: "Malaysia", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "QDMTT", fx: "MYR", notes: "" },
   { iso: "ID", name: "Indonesia", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT", fx: "IDR", notes: "" },
+  { iso: "LU", name: "Luxembourg", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2024-01-01", qualified: "Transitional qualified", filing: "QDMTT + GIR", fx: "EUR", notes: "Art. 4.1.5 teaching case — Net GloBE Loss and negative Covered Taxes." },
+  { iso: "HK", name: "Hong Kong", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "HKD", notes: "Art. 5.1.2 teaching case — positive Net GloBE Income and negative Covered Taxes. Residual to JP IIR." },
+  { iso: "XX", name: "Stateless", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "n/a", filing: "Allocated with UPE IIR / UTPR", fx: "USD", notes: "Each Stateless CE is its own jurisdiction (Art. 10.3.4)." },
 ];
 
 /** Equirectangular: x = (lon+180)/360*100, y = (90−lat)/180*100 */
@@ -707,6 +729,9 @@ export const MAP_COORDS: Record<string, { x: number; y: number }> = {
   HU: { x: 55.4, y: 23.8 },
   US: { x: 23.4, y: 29.4 },
   IE: { x: 47.7, y: 20.3 },
+  LU: { x: 51.8, y: 22.4 },
+  HK: { x: 81.7, y: 38.8 },
+  XX: { x: 50, y: 50 },
 };
 
 export const GIR_SECTIONS = [

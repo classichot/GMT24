@@ -35,6 +35,10 @@ export type Restate = {
   iir: number;
   utpr: number;
   harbour: boolean;
+  additionalCurrent?: number;
+  tcshUsed?: boolean;
+  tcshFailed?: boolean;
+  tcshBarred?: boolean;
   note: string;
 };
 
@@ -87,17 +91,26 @@ function collect(c: JurCalc, topUp: number, harbour: boolean) {
   return { qdmtt: a.qdmtt, iir: a.iir, utpr: a.utpr };
 }
 
-function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: boolean, note: string): Restate {
+function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: boolean, note: string, opts?: { carry415?: boolean; tcshElected?: boolean }): Restate {
   const keepHarbour = c.exposure === "Safe harbour";
   const harbour = forceZero || keepHarbour;
-  const globe = money(Math.max(1, c.globeIncome + globeAdj));
+  const globe = money(c.globeIncome + globeAdj);
   const covered = c.coveredTax;
   const sbie = sbieMode === "none" ? 0 : sbieMode === "partial" ? money(c.sbie * 0.5) : c.sbie;
   const excess = money(Math.max(0, globe - sbie));
-  const etr = globe > 0 ? covered / globe : 0;
-  const topUp = harbour ? 0 : money(Math.max(0, MIN - etr) * excess);
+  const etrComputed = globe > 0;
+  const etr = etrComputed ? covered / globe : 0;
+  const rateTopUp = etrComputed ? money(Math.max(0, MIN - etr) * excess) : 0;
+  let additionalCurrent = 0;
+  if (globe <= 0 && covered < 0 && !opts?.carry415) additionalCurrent = money(Math.abs(covered));
+  const topUp = harbour ? 0 : money(rateTopUp + additionalCurrent);
   const pay = collect(c, topUp, harbour);
-  return { iso: c.iso, name: c.name, blendKey: c.blendKey, globe, covered, sbie, excess, etr, topUp, harbour, note, ...pay };
+  const tcshUsed = Boolean(opts?.tcshElected && c.sh.outcome === "Pass" && c.iso !== "US");
+  const tcshFailed = c.sh.tcshFailed || c.sh.outcome === "Fail";
+  return {
+    iso: c.iso, name: c.name, blendKey: c.blendKey, globe, covered, sbie, excess, etr, topUp, harbour, note, additionalCurrent,
+    tcshUsed, tcshFailed, tcshBarred: c.sh.barred, ...pay,
+  };
 }
 
 function stockDelta(iso: string) {
@@ -214,6 +227,17 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
       } else if (e.id === "SH_SBS") {
         status = c.sh.sbs === "Pass" ? "available" : "unavailable";
         reason = c.sh.navigator;
+      } else if (e.id === "OECD_4.1.5") {
+        status = c.globeIncome <= 0 && c.coveredTax < 0 ? "available" : "n/a";
+        reason = c.globeIncome <= 0 && c.coveredTax < 0
+          ? "Net GloBE Loss and negative Adjusted Covered Taxes. Default posts Additional Current Top-up Tax. Elect to carry the negative tax expense forward."
+          : "Art. 4.1.5 applies only when Net GloBE Income is a loss and Adjusted Covered Taxes are negative.";
+      } else if (e.id === "OECD_3.1.3") {
+        const local = c.entities.find((ent) => ent.fanilLocal != null);
+        status = local ? "available" : "n/a";
+        reason = local
+          ? `${local.code} has a local-GAAP FANIL. EUR 75m / EUR 1m material-difference screens must pass before FANIL switches off the UPE CFS.`
+          : "No local-GAAP FANIL alternative on this blend.";
       } else if (e.id === "OECD_4.5" || e.id === "SETR_4.5") {
         status = c.globeIncome < 0 ? "available" : "unavailable";
         reason = c.globeIncome < 0
@@ -232,8 +256,11 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
         status = c.iso === "TH" ? "review" : "n/a";
         reason = "Rayong PE is blended in Thailand. PE simplification is annual with continuation rules if a PE loss was absorbed in the main entity.";
       } else if (e.id === "OECD_7.5" || e.id === "OECD_7.6") {
-        status = c.iso === "SG" ? "review" : "n/a";
-        reason = "SG-JV is a 50% JV, not an Investment Entity on this snapshot. Art. 7.5 / 7.6 stay dark until IE facts exist.";
+        const ie = calcs.some((x) => x.iso === c.iso && x.blendKind === "investment");
+        status = ie ? "review" : "n/a";
+        reason = ie
+          ? "Investment Entity is on this snapshot (separate blend). Art. 7.5 / 7.6 transparency or taxable-distribution elections are owner + IE, five-year."
+          : "No Investment Entity in this jurisdiction.";
       } else if (e.family === "globe" || e.family === "setr") {
         continue;
       } else if (e.family === "harbour") {
@@ -266,6 +293,8 @@ export function applyPackage(calcs: JurCalc[], flags: {
   realisation?: string[];
   sbie?: SbieMode | Record<string, SbieMode>;
   harbourIso?: string[];
+  carry415?: string[];
+  tcshElect?: string[];
 }): Restate[] {
   return calcs.map((c) => {
     let globeAdj = 0;
@@ -283,7 +312,10 @@ export function applyPackage(calcs: JurCalc[], flags: {
     if (sbie === "partial") notes.push("SBIE partial");
     const zero = flags.harbourIso?.includes(c.iso) ?? false;
     if (zero) notes.push("Safe harbour deemed zero");
-    return restated(c, globeAdj, sbie, zero, notes.join(" · ") || "Default");
+    const carry415 = flags.carry415?.includes(c.iso) ?? false;
+    if (carry415) notes.push("Art. 4.1.5 carry-forward");
+    const tcshElected = flags.tcshElect?.includes(c.iso) ?? false;
+    return restated(c, globeAdj, sbie, zero, notes.join(" · ") || "Default", { carry415, tcshElected });
   });
 }
 
@@ -295,6 +327,8 @@ export function flagsFromOn(
   const stock: string[] = [];
   const realisation: string[] = [];
   const harbourIso: string[] = [];
+  const carry415: string[] = [];
+  const tcshElect: string[] = [];
   const sbie: Record<string, SbieMode> = { ...sbieClaim };
   for (const [key, isOn] of Object.entries(on)) {
     if (!isOn) continue;
@@ -303,6 +337,8 @@ export function flagsFromOn(
     if (!row || !canElect(row.status)) continue;
     if (id === "OECD_3.2.2") stock.push(iso);
     else if (id === "OECD_3.2.5") realisation.push(iso);
+    else if (id === "OECD_4.1.5") carry415.push(iso);
+    else if (id === "SH_TCSH" || id === "SH_TCSH_DM" || id === "SH_TCSH_ETR" || id === "SH_TCSH_RP") tcshElect.push(iso);
     else if (id === "OECD_5.3.1") {
       if (!sbie[iso]) sbie[iso] = "none";
     } else if (HARBOUR_ZERO.has(id) && row.status === "available") {
@@ -311,7 +347,7 @@ export function flagsFromOn(
       } else harbourIso.push(iso);
     }
   }
-  return { stock, realisation, sbie, harbourIso };
+  return { stock, realisation, sbie, harbourIso, carry415, tcshElect };
 }
 
 export function scoreWorking(

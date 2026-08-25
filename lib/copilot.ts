@@ -226,6 +226,28 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     },
   },
   {
+    match: /once out|always out|tcsh barred|barred next/i,
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `Once out, always out applies to the Transitional CbCR Safe Harbour.\n\nThailand ${j.sh.outcome} in FY2026. ${j.sh.navigator}\n\nLock this year and open FY2027: TCSH is barred for that blend. A Pass that is not elected on the GIR (SH_TCSH) is also treated as not used. QDMTT Safe Harbour and SBTISH are separate tests.\n\nOpen Safe Harbour Navigator and Year record.`,
+        cites: [{ label: "OECD-TCSH-2026", href: "/safe-harbours" }, { label: "Year record", href: "/years" }],
+      };
+    },
+  },
+  {
+    match: /4\.1\.5|additional current|acttt|negative tax expense/i,
+    answer: () => {
+      const lu = calcForIso("LU");
+      return {
+        role: "assistant",
+        text: `Art. 5.2.3: Jurisdictional Top-up = (Top-up % × Excess Profit) + Additional Current Top-up Tax − QDMTT.\n\nArt. 4.1.5: when Net GloBE Income is a loss and Adjusted Covered Taxes are negative, the negative tax is Additional Current Top-up Tax unless OECD_4.1.5 is elected (carry-forward).\n\nLuxembourg on this snapshot: GloBE ${lu ? eur(lu.globeIncome) : "n/a"} · Covered taxes ${lu ? eur(lu.coveredTax) : "n/a"} · ACTTT ${lu ? eur(lu.additionalCurrentTopUp) : "n/a"} · collected ${lu?.collection.payer ?? "—"}.\n\nArt. 5.1.2 is different: positive Net GloBE Income and negative Covered Taxes produce a negative ETR and Top-up % above 15% (Hong Kong on this snapshot). That is not an Art. 4.1.5 amount.`,
+        cites: [{ label: "Luxembourg ETR", href: "/etr?iso=LU" }, { label: "Hong Kong ETR", href: "/etr?iso=HK" }, { label: "Top-up", href: "/top-up" }],
+      };
+    },
+  },
+  {
     match: /boi optim|should we keep the boi|convert to 10%|announcement no\.?\s*1\/2566|qrtc|stranded boi|10% boi|wait for qrtc|net economic value after/i,
     answer: () => {
       const j = th();
@@ -337,6 +359,8 @@ export const SUGGESTIONS = [
   "Explain the TH001 dividend adjustment.",
   "Which data is missing from Singapore?",
   "How does the entity test treat MOCE and POPE?",
+  "Where is Additional Current Top-up Tax?",
+  "Does once out, always out bar Thailand next year?",
   "Show the OECD basis for this treatment.",
 ];
 

@@ -47,6 +47,8 @@ export default function YearsPage() {
     ? compareYears(base, { fy: activeFy, electionsOn, sbieClaim, rows: work.rows.map((r) => ({
       iso: r.iso, name: r.name, globe: r.globe, covered: r.covered, etr: r.etr, sbie: r.sbie, excess: r.excess,
       topUp: r.topUp, qdmtt: r.qdmtt, iir: r.iir, utpr: r.utpr, harbour: r.harbour,
+      additionalCurrent: r.additionalCurrent, tcshUsed: r.tcshUsed, tcshFailed: r.tcshFailed, tcshBarred: r.tcshBarred,
+      blendKey: r.blendKey,
     })) }, tracks)
     : null;
   const carried = tracks.filter((t) => (t.duration === "five-year" || t.duration === "first-gir") && electionsOn[t.key] && t.firstFy !== activeFy);
@@ -153,7 +155,7 @@ export default function YearsPage() {
         </div>
         <div className="panel-body">
           <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
-            Lock writes the live engine restatement and the election package to this {mode === "advisor" ? "client" : "group"} ledger. Open next year only after that lock — GMT24 then factors the prior close (carried elections, Art. 4.5 bar, compare baseline).
+            Lock writes the live engine restatement and the election package to this {mode === "advisor" ? "client" : "group"} ledger. Open next year only after that lock — GMT24 then factors the prior close (carried elections, Art. 4.5 bar, TCSH once-out-always-out, compare baseline).
           </p>
           {dirty && (
             <p style={{ color: "var(--color-signal)", fontSize: 13 }}>Working elections differ from the locked {activeFy} record. Re-lock before opening {next} if those toggles should carry.</p>
@@ -197,6 +199,34 @@ export default function YearsPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head"><h4>Transitional CbCR — once out, always out</h4><Link href="/safe-harbours" className="btn btn-ghost">Navigator</Link></div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Blend</th>
+                <th>Outcome</th>
+                <th>Used</th>
+                <th>Failed</th>
+                <th>Barred</th>
+              </tr>
+            </thead>
+            <tbody>
+              {calcs.map((c) => (
+                <tr key={c.blendKey}>
+                  <td>{c.name}</td>
+                  <td>{c.sh.outcome}</td>
+                  <td>{c.sh.tcshUsed ? "Yes" : "No"}</td>
+                  <td>{c.sh.tcshFailed ? "Yes" : "No"}</td>
+                  <td>{c.sh.barred ? "Yes — prior year" : "No"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

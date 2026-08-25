@@ -22,6 +22,7 @@ import {
   upeEntity,
   type BlendKind,
 } from "./entityClass";
+import { fxRate, gaapScreen, usdFromFc } from "./fx";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -72,6 +73,8 @@ export type JurCalc = {
   sbie: number;
   excess: number;
   topUpRate: number;
+  additionalCurrentTopUp: number;
+  actttReason: string;
   jurisdictionalTopUp: number;
   sh: {
     deMinimis: ShResult;
@@ -83,6 +86,9 @@ export type JurCalc = {
     sbs: ShResult;
     navigator: string;
     outcome: ShResult;
+    barred: boolean;
+    tcshUsed: boolean;
+    tcshFailed: boolean;
   };
   exposure: Exposure;
   collection: Collection;
@@ -104,9 +110,53 @@ function sum(xs: number[]) {
   return xs.reduce((a, b) => a + b, 0);
 }
 
-function entityGlobe(f: Financials, entityId: string) {
+export type TcshPriorRow = {
+  blendKey: string;
+  iso: string;
+  fy: string;
+  tcshUsed?: boolean;
+  tcshFailed?: boolean;
+};
+
+export type CalcCtx = {
+  fy?: string;
+  electionsOn?: Record<string, boolean>;
+  tcshPrior?: TcshPriorRow[];
+};
+
+function elected(ctx: CalcCtx | undefined, id: string, iso: string) {
+  return Boolean(ctx?.electionsOn?.[`${id}@${iso}`]);
+}
+
+export function tcshBarredByPrior(blendKey: string, iso: string, ctx?: CalcCtx): { barred: boolean; reason: string } {
+  if (iso === "US") return { barred: false, reason: "" };
+  const prior = ctx?.tcshPrior?.find((r) => r.blendKey === blendKey) ?? ctx?.tcshPrior?.find((r) => r.iso === iso);
+  if (!prior) return { barred: false, reason: "" };
+  if (prior.tcshFailed || prior.tcshUsed === false) {
+    const why = prior.tcshFailed ? "tests failed" : "not elected / not used";
+    return {
+      barred: true,
+      reason: `Once out, always out — Transitional CbCR Safe Harbour barred after ${prior.fy} (${why}). Full GloBE applies.`,
+    };
+  }
+  return { barred: false, reason: "" };
+}
+
+function fanilUsd(e: Entity, f: Financials, ctx?: CalcCtx): number {
+  const useLocal = elected(ctx, "OECD_3.1.3", e.iso) || elected(ctx, "OECD_3.1.3", e.id);
+  if (useLocal && e.fanilLocal != null) {
+    const screen = gaapScreen({ basis: "local", upeFanil: f.fanil, localFanil: e.fanilLocal });
+    if (screen.localAllowed) return money(e.fanilLocal);
+  }
+  if (f.fanilFc != null) return usdFromFc(e.iso, f.fanilFc);
+  return f.fanil;
+}
+
+function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
+  const e = ENTITIES.find((x) => x.id === entityId);
+  const fanil = e ? fanilUsd(e, f, ctx) : f.fanil;
   const adj = sum(ADJUSTMENTS.filter((a) => a.entityId === entityId).map((a) => a.amount));
-  return money(f.fanil + adj);
+  return money(fanil + adj);
 }
 
 function entityCovered(f: Financials) {
@@ -132,34 +182,45 @@ export function traceAdj(a: Adjustment): AuditNode {
   };
 }
 
-export function traceFanil(entityId: string): AuditNode | null {
+export function traceFanil(entityId: string, ctx?: CalcCtx): AuditNode | null {
   const e = ENTITIES.find((x) => x.id === entityId);
   const f = FINANCIALS.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const file = `${e.code} Trial Balance FY2026.xlsx`;
+  const usd = fanilUsd(e, f, ctx);
+  const fx = fxRate(e.iso);
+  const useLocal = (elected(ctx, "OECD_3.1.3", e.iso) || elected(ctx, "OECD_3.1.3", e.id)) && e.fanilLocal != null;
+  const screen = gaapScreen({ basis: useLocal ? "local" : "upe", upeFanil: f.fanil, localFanil: e.fanilLocal });
+  const fc = f.fanilFc ?? Math.round(usd * fx.localPerUsd);
+  const gaapLine = useLocal && screen.localAllowed
+    ? `Art. 3.1.3 elected — FANIL from acceptable local ${e.gaap} (permanent difference ${screen.permanentDiff.toLocaleString("en-GB")} below EUR 1m / 75m screens).`
+    : `Art. 3.1.1 — FANIL from the UPE consolidation (${e.gaap}). Not local taxable profit. ${screen.detail}`;
   return {
     id: `${e.id}-fanil`,
     label: `FANIL · ${e.code}`,
-    amount: f.fanil,
+    amount: usd,
     kind: "entity",
     ruleId: "OECD-GloBE-15",
     ruleVersion: "2026.1",
     sourceFile: file,
-    detail: `Art. 3.1.1 — Financial Accounting Net Income or Loss from the UPE consolidation (${e.gaap}). Not local taxable profit.`,
-    children: [sourceNode(`${e.id}-fanil-src`, file, "Data Hub · UPE CFS / trial balance")],
+    detail: `${gaapLine} Translated ${fc.toLocaleString("en-GB")} ${e.fx} ÷ ${fx.localPerUsd} = ${usd.toLocaleString("en-GB")} USD · ${fx.source} (${fx.asOf} · ${fx.pair}).`,
+    children: [
+      sourceNode(`${e.id}-fanil-src`, file, "Data Hub · UPE CFS / trial balance"),
+      sourceNode(`${e.id}-fanil-fx`, `${fx.pair} ${fx.asOf}`, fx.source),
+    ],
   };
 }
 
-export function traceGlobeEntity(entityId: string): AuditNode | null {
+export function traceGlobeEntity(entityId: string, ctx?: CalcCtx): AuditNode | null {
   const e = ENTITIES.find((x) => x.id === entityId);
   const f = FINANCIALS.find((x) => x.entityId === entityId);
-  const fanil = traceFanil(entityId);
+  const fanil = traceFanil(entityId, ctx);
   if (!e || !f || !fanil) return null;
   const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
   return {
     id: `${e.id}-globe`,
     label: `GloBE income · ${e.code}`,
-    amount: entityGlobe(f, entityId),
+    amount: entityGlobe(f, entityId, ctx),
     kind: "formula",
     ruleId: "OECD-GloBE-15",
     ruleVersion: "2026.1",
@@ -404,8 +465,8 @@ export function scopeTest(groupId = "aetherion") {
   };
 }
 
-export function calculateGroup(groupId = "aetherion"): JurCalc[] {
-  if (groupId !== "aetherion") return calculateGroup("aetherion").map((j, i) => ({
+export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] {
+  if (groupId !== "aetherion") return calculateGroup("aetherion", ctx).map((j, i) => ({
     ...j,
     jurisdictionalTopUp: groupId === "helios" ? 0 : groupId === "meridian" && i < 2 ? Math.round(j.jurisdictionalTopUp * 0.14) : 0,
     exposure: groupId === "helios" ? "Safe harbour" : j.exposure,
@@ -430,21 +491,39 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
     const aid = blendKey.replace(/:/g, "-");
     const fins = entities.map((e) => FINANCIALS.find((f) => f.entityId === e.id)).filter(Boolean) as Financials[];
     const revenue = money(sum(fins.map((f) => f.revenue)));
-    const fanil = money(sum(fins.map((f) => f.fanil)));
+    const fanil = money(sum(entities.map((e) => {
+      const f = FINANCIALS.find((x) => x.entityId === e.id);
+      return f ? fanilUsd(e, f, ctx) : 0;
+    })));
     const globeIncome = money(sum(entities.map((e) => {
       const f = FINANCIALS.find((x) => x.entityId === e.id);
-      return f ? entityGlobe(f, e.id) : 0;
+      return f ? entityGlobe(f, e.id, ctx) : 0;
     })));
     const coveredTax = money(sum(fins.map(entityCovered)));
-    const etr = globeIncome > 0 ? coveredTax / globeIncome : 0;
+    const etrComputed = globeIncome > 0;
+    const etr = etrComputed ? coveredTax / globeIncome : 0;
     const payroll = sum(fins.map((f) => f.payrollEligible));
     const assets = sum(fins.map((f) => f.tangibleEligible));
     const payrollCarve = money(payroll * PAYROLL_RATE);
     const assetCarve = money(assets * ASSET_RATE);
     const sbie = money(payrollCarve + assetCarve);
     const excess = money(Math.max(0, globeIncome - sbie));
-    const topUpRate = Math.max(0, MIN_RATE - etr);
-    let jurisdictionalTopUp = money(topUpRate * excess);
+    const topUpRate = etrComputed ? Math.max(0, MIN_RATE - etr) : 0;
+    const rateTopUp = money(topUpRate * excess);
+    let additionalCurrentTopUp = 0;
+    let actttReason = "No Additional Current Top-up Tax this year.";
+    if (globeIncome <= 0 && coveredTax < 0) {
+      if (elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey)) {
+        additionalCurrentTopUp = 0;
+        actttReason = `Art. 4.1.5 elected — negative tax expense ${Math.abs(coveredTax).toLocaleString("en-GB")} carried forward. No Additional Current Top-up this year.`;
+      } else {
+        additionalCurrentTopUp = money(Math.abs(coveredTax));
+        actttReason = `Art. 4.1.5 — Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax ${additionalCurrentTopUp.toLocaleString("en-GB")}. Elect OECD_4.1.5 to carry forward.`;
+      }
+    } else if (etrComputed && coveredTax < 0) {
+      actttReason = `Art. 5.1.2 — Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up % = 15% − ETR (${(topUpRate * 100).toFixed(2)}%). Not an Art. 4.1.5 Additional Current amount.`;
+    }
+    let jurisdictionalTopUp = money(rateTopUp + additionalCurrentTopUp);
 
     const cbcrRev = sum(fins.map((f) => f.cbcrRevenue));
     const cbcrPbt = sum(fins.map((f) => f.cbcrProfit));
@@ -461,12 +540,19 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
     const utprSH: ShResult = iso === "US" ? "Pass" : "N/A";
     const sbs: ShResult = iso === "US" ? "Pass" : "N/A";
 
+    const bar = tcshBarredByPrior(blendKey, iso, ctx);
     let outcome: ShResult = "Fail";
     let navigator = "No transitional CbCR safe harbour. Compute full GloBE.";
+    let tcshUsed = false;
+    let tcshFailed = false;
     if (iso === "US") {
       outcome = "Pass";
       navigator = "Side-by-Side / Transitional UTPR Safe Harbour applies to the UPE-jurisdiction path for FY2026 (rule US-SBS-2026). Full GloBE ETR is still computed for monitoring.";
       jurisdictionalTopUp = 0;
+    } else if (bar.barred) {
+      outcome = "Fail";
+      tcshFailed = true;
+      navigator = bar.reason;
     } else if (deMinimis === "Pass" || simplifiedEtr === "Pass" || routineProfits === "Pass") {
       outcome = "Pass";
       navigator = simplifiedEtr === "Pass"
@@ -474,22 +560,29 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
         : deMinimis === "Pass"
           ? "Transitional CbCR de minimis test met."
           : "Transitional CbCR routine profits test met.";
-      jurisdictionalTopUp = 0;
+      navigator += elected(ctx, "SH_TCSH", iso)
+        ? " SH_TCSH elected — harbour used."
+        : " Tests pass; elect SH_TCSH on the GIR to use the harbour. Not electing this year bars TCSH next year (once out, always out).";
+      tcshUsed = elected(ctx, "SH_TCSH", iso);
+      if (tcshUsed) jurisdictionalTopUp = 0;
     } else if (cbcrEtr >= 0.15 && cbcrEtr < SIMPLIFIED_ETR) {
       outcome = "Review";
-      navigator = `CbCR simplified ETR ${(cbcrEtr * 100).toFixed(1)}% is above 15% but below the 17% FY2026 transitional rate. GloBE ETR ${(etr * 100).toFixed(1)}% — confirm whether another harbour or full calculation applies.`;
-      if (etr >= MIN_RATE) jurisdictionalTopUp = 0;
+      navigator = `CbCR simplified ETR ${(cbcrEtr * 100).toFixed(1)}% is above 15% but below the 17% FY2026 transitional rate. GloBE ETR ${etrComputed ? `${(etr * 100).toFixed(1)}%` : "not computed (Art. 5.1.2 Net GloBE Income ≤ 0)"} — confirm whether another harbour or full calculation applies. Once out, always out: not using TCSH this year bars it later.`;
+      if (etrComputed && etr >= MIN_RATE) jurisdictionalTopUp = 0;
+      tcshFailed = true;
     } else {
       outcome = "Fail";
-      navigator = `All Transitional CbCR tests failed (simplified ETR ${(cbcrEtr * 100).toFixed(1)}% vs 17%). Full GloBE calculation required.`;
+      tcshFailed = true;
+      navigator = `All Transitional CbCR tests failed (simplified ETR ${(cbcrEtr * 100).toFixed(1)}% vs 17%). Full GloBE calculation required. Once out, always out: locking this Fail bars TCSH from the next Fiscal Year.`;
     }
 
     let exposure: Exposure = "No top-up";
-    if (outcome === "Pass" && iso === "US") exposure = "Safe harbour";
-    else if (outcome === "Pass") exposure = "Safe harbour";
+    if (iso === "US" && outcome === "Pass") exposure = "Safe harbour";
+    else if (outcome === "Pass" && tcshUsed) exposure = "Safe harbour";
     else if (outcome === "Review" && jurisdictionalTopUp === 0) exposure = "Review";
     else if (jurisdictionalTopUp > 0) exposure = "Top-up";
-    else if (etr < MIN_RATE) exposure = "Review";
+    else if (etrComputed && etr < MIN_RATE) exposure = "Review";
+    else if (!etrComputed && additionalCurrentTopUp > 0) exposure = "Top-up";
 
     const vnGap = iso === "VN";
     if (vnGap) {
@@ -519,7 +612,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
       detail: `Σ FANIL ± Art. 3.2 of CEs in this blend (${blendKind}) — not mixed with other Art. 5.1.3 / 6.4 groups in ${entities[0].jurisdiction}`,
-      children: entities.map((e) => traceGlobeEntity(e.id)).filter(Boolean) as AuditNode[],
+      children: entities.map((e) => traceGlobeEntity(e.id, ctx)).filter(Boolean) as AuditNode[],
     };
     const coveredTrace: AuditNode = {
       id: `${aid}-ct`,
@@ -578,7 +671,9 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       kind: "formula",
       ruleId: blendKind === "main" ? "OECD-GloBE-15" : blendRule,
       ruleVersion: "2026.1",
-      detail: `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1${blendKind === "main" ? "" : ` · ${blendKind} separate blend`}`,
+      detail: etrComputed
+        ? `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1${blendKind === "main" ? "" : ` · ${blendKind} separate blend`}${coveredTax < 0 ? " · Art. 5.1.2 negative Covered Taxes → negative ETR" : ""}`
+        : `Art. 5.1.2 — Net GloBE Income is zero or negative. No ETR is computed.`,
       children: [coveredTrace, globeTrace],
     };
 
@@ -587,7 +682,7 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       label: `${name} top-up tax`,
       amount: jurisdictionalTopUp,
       kind: "result",
-      detail: `Snapshot FY2026 · engine GMT24-CALC 2026.2 · min rate 15% · Top-up % × Excess Profit · blend ${blendKind}`,
+      detail: `Art. 5.2.3 · (Top-up % × Excess Profit) + Additional Current Top-up Tax. Snapshot FY2026 · engine GMT24-CALC 2026.2 · blend ${blendKind}`,
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
       children: [
@@ -604,7 +699,27 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
           label: "Top-up tax rate",
           amount: topUpRate,
           kind: "formula",
-          detail: `max(0, 15% − ETR ${(etr * 100).toFixed(2)}%) = ${(topUpRate * 100).toFixed(2)}%`,
+          detail: etrComputed
+            ? `max(0, 15% − ETR ${(etr * 100).toFixed(2)}%) = ${(topUpRate * 100).toFixed(2)}%${coveredTax < 0 ? " · Art. 5.1.2 negative Covered Taxes" : ""}`
+            : "No ETR (Art. 5.1.2 Net GloBE Income ≤ 0) — Top-up % is 0; Additional Current Top-up may still apply (Art. 4.1.5).",
+          ruleId: "OECD-GloBE-15",
+          ruleVersion: "2026.1",
+        },
+        {
+          id: `${aid}-acttt`,
+          label: "Additional Current Top-up Tax",
+          amount: additionalCurrentTopUp,
+          kind: "formula",
+          detail: actttReason,
+          ruleId: additionalCurrentTopUp || globeIncome <= 0 ? "OECD-GloBE-15" : "OECD-GloBE-15",
+          ruleVersion: "2026.1",
+        },
+        {
+          id: `${aid}-formula`,
+          label: "Art. 5.2.3 jurisdictional top-up",
+          amount: jurisdictionalTopUp,
+          kind: "formula",
+          detail: `(${(topUpRate * 100).toFixed(2)}% × Excess ${excess.toLocaleString("en-GB")}) + ACTTT ${additionalCurrentTopUp.toLocaleString("en-GB")} = ${jurisdictionalTopUp.toLocaleString("en-GB")} before QDMTT / IIR / UTPR allocation`,
           ruleId: "OECD-GloBE-15",
           ruleVersion: "2026.1",
         },
@@ -638,8 +753,10 @@ export function calculateGroup(groupId = "aetherion"): JurCalc[] {
       sbie,
       excess,
       topUpRate,
+      additionalCurrentTopUp,
+      actttReason,
       jurisdictionalTopUp,
-      sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome },
+      sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome, barred: bar.barred, tcshUsed, tcshFailed },
       exposure,
       collection,
       completeness,
@@ -711,7 +828,7 @@ export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
       const extraSbie = money(s.payrollTh * PAYROLL_RATE);
       const sbie = money(c.sbie + extraSbie);
       const excess = money(Math.max(0, c.globeIncome - sbie));
-      let jurisdictionalTopUp = money(c.topUpRate * excess);
+      let jurisdictionalTopUp = money(c.topUpRate * excess + (c.additionalCurrentTopUp ?? 0));
       if (s.boiExtend) jurisdictionalTopUp = money(jurisdictionalTopUp * 0.38);
       return { ...c, sbie, excess, jurisdictionalTopUp };
     }

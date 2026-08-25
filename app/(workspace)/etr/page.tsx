@@ -26,7 +26,7 @@ const METHOD = [
   {
     n: "03",
     title: "Divide by Net GloBE Income",
-    body: "Denominator is the positive Net GloBE Income of the jurisdiction (GloBE income of profit CEs less GloBE losses of loss CEs). SBIE does not reduce this figure. If Net GloBE Income is zero or negative, no ETR is computed.",
+    body: "Denominator is the positive Net GloBE Income of the jurisdiction (GloBE income of profit CEs less GloBE losses of loss CEs). SBIE does not reduce this figure. If Net GloBE Income is zero or negative, no ETR is computed. If Net GloBE Income is positive and Adjusted Covered Taxes are negative, ETR is negative and Top-up % exceeds 15%.",
     refs: ["Art. 5.1.1", "Art. 5.1.2", "Art. 3.1"],
   },
   {
@@ -41,12 +41,12 @@ const REFERENCES = [
   { cite: "OECD (2021)", work: "Tax Challenges Arising from the Digitalisation of the Economy – Global Anti-Base Erosion Model Rules (Pillar Two)", loc: "Chapter 5, Art. 5.1 Determination of Effective Tax Rate", href: "/rulebook" },
   { cite: "OECD (2026)", work: "Consolidated Commentary to the GloBE Model Rules", loc: "Arts. 5.1–5.2", href: "/rulebook" },
   { cite: "Art. 5.1.1", work: "ETR = Σ Adjusted Covered Taxes of CEs in the jurisdiction ÷ Net GloBE Income of the jurisdiction", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
-  { cite: "Art. 5.1.2", work: "Net GloBE Income = GloBE Income of profit CEs − GloBE Losses of loss CEs (not below zero for ETR)", loc: "OECD-GloBE-15 v2026.1", href: "/globe-income" },
+  { cite: "Art. 5.1.2", work: "Net GloBE Income = GloBE Income of profit CEs − GloBE Losses of loss CEs. No ETR if net ≤ 0. Positive net + negative Covered Taxes → negative ETR (Hong Kong on this snapshot)", loc: "OECD-GloBE-15 v2026.1", href: "/etr?iso=HK" },
   { cite: "Art. 4.1.1", work: "Adjusted Covered Taxes — numerator of the ETR", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 4.4.1", work: "Deferred tax recast at the Minimum Rate before it enters Covered Taxes", loc: "OECD-GloBE-15 v2026.1", href: "/covered-taxes" },
   { cite: "Art. 5.2.1", work: "Top-up Tax Percentage = max(0, Minimum Rate − ETR)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
   { cite: "Art. 5.2.2", work: "Excess Profit = Net GloBE Income − SBIE — the base the top-up percentage multiplies", loc: "OECD-SBIE-2026 v2026.1", href: "/sbie" },
-  { cite: "Art. 5.2.3", work: "Jurisdictional Top-up Tax = Top-up Tax Percentage × Excess Profit (+ additional current − QDMTT)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
+  { cite: "Art. 5.2.3", work: "Jurisdictional Top-up Tax = (Top-up Tax Percentage × Excess Profit) + Additional Current Top-up Tax − QDMTT", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
   { cite: "Art. 5.1.3", work: "MOCE / MOSG — ETR computed separately from other CEs located in the same jurisdiction when UPE ownership ≤ 30%", loc: "OECD-MOCE-513 v2026.1", href: "/entities" },
   { cite: "Art. 2.1.4", work: "POPE applies IIR first on its Ownership Interests (Inclusion Ratio); UPE takes the residual (Art. 2.1.5 / 2.2.2)", loc: "OECD-POPE-214 v2026.1", href: "/allocation" },
   { cite: "Art. 6.4", work: "Joint Venture Group treated as a separate MNE for ETR — not blended with majority CEs", loc: "OECD-JV-64 v2026.1", href: "/entities" },
@@ -185,6 +185,13 @@ function Inner() {
               </span>
               <Amount n={sel.topUpRate} audit={sel.audit.children?.find((n) => n.id.endsWith("-rate"))} />
             </div>
+            <div className="wf-row">
+              <span>
+                Additional Current Top-up Tax
+                <div className="text-muted" style={{ fontSize: 12 }}>{sel.actttReason} · <Link href="/covered-taxes">Art. 4.1.5</Link> / <Link href="/top-up">Art. 5.2.3</Link></div>
+              </span>
+              <Amount n={sel.additionalCurrentTopUp} audit={sel.audit.children?.find((n) => n.id.endsWith("-acttt"))} />
+            </div>
           </div>
           <div className="stack-actions" style={{ padding: "0 16px 16px" }}>
             <Link href="/globe-income" className="btn btn-secondary">GloBE income</Link>
@@ -213,7 +220,7 @@ function Inner() {
       </div>
 
       <p className="text-muted" style={{ marginTop: 14, fontSize: 13 }}>
-        SBIE changes Excess Profit, not the ETR. Top-up is Top-up Tax Percentage × Excess Profit (<Link href="/top-up">Art. 5.2.3</Link>).
+        SBIE changes Excess Profit, not the ETR. Jurisdictional top-up is (Top-up Tax Percentage × Excess Profit) + Additional Current Top-up Tax (<Link href="/top-up">Art. 5.2.3</Link>), then allocated QDMTT → POPE IIR → UPE IIR → UTPR.
         {" "}
         <Link href="/globe-income">FANIL engine</Link>
         {" · "}

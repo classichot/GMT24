@@ -13,7 +13,7 @@ export default function AllocationPage() {
   return (
     <div>
       <FlowBar />
-      <p className="text-muted" style={{ marginBottom: 16 }}>Who pays → where → why → amount. Collection: qualified QDMTT first, then POPE IIR × Inclusion Ratio (Art. 2.1.4), then UPE IIR residual, then UTPR. MOCE / JV top-up is computed on a separate ETR blend.</p>
+      <p className="text-muted" style={{ marginBottom: 16 }}>Who pays → where → why → amount. Collection takes the Art. 5.2.3 amount — (Top-up % × Excess) + Additional Current Top-up Tax — then qualified QDMTT first, then POPE IIR × Inclusion Ratio (Art. 2.1.4), then UPE IIR residual, then UTPR. MOCE / JV / Investment / Stateless top-up is computed on a separate ETR blend.</p>
       <div className="stack-actions" style={{ marginBottom: 16 }}>
           <Link href="/thailand/liability" className="btn btn-secondary">Thai liability pack</Link>
           <Link href="/gir" className="btn btn-primary">Build GIR</Link>
@@ -34,6 +34,7 @@ export default function AllocationPage() {
               </div>
               <p className="text-muted" style={{ marginTop: 14, fontSize: 12 }}>
                 Pack: {c.pack?.qualified}. QDMTT {eur(c.collection.qdmtt)} · IIR {eur(c.collection.iir)} · UTPR {eur(c.collection.utpr)}.
+                {c.additionalCurrentTopUp > 0 ? ` Additional Current Top-up ${eur(c.additionalCurrentTopUp)} is in this amount.` : ""}
               </p>
             </div>
           </div>

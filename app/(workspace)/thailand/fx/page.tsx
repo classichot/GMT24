@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ThaiPackBar } from "@/components/ThaiPackBar";
 import { thb } from "@/lib/format";
 import { BOT_RATES, EUR_THRESHOLD, botRate } from "@/lib/thailand";
@@ -26,6 +27,7 @@ export default function ThaiFxPage() {
           <strong>BOT Foreign-Exchange Engine.</strong> Three conversion methods under DG Notification No. 6. GMT24 retrieves, locks and archives the rate. A convenient year-end rate cannot be applied silently.
         </div>
         <div className="stack-actions">
+          <Link href="/fx" className="btn btn-secondary">Group FX table</Link>
           <button className="btn btn-primary" onClick={() => ask("Which Bank of Thailand rate does GMT24 lock for the EUR 750m test?")}>Ask GMT24</button>
         </div>
       </div>

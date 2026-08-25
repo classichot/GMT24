@@ -3,15 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
-import { calculateGroup, etrHref } from "@/lib/engine";
+import { etrHref } from "@/lib/engine";
 import { classFor } from "@/lib/entityClass";
-import { useStore } from "@/lib/store";
+import { useCalc } from "@/lib/useCalc";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 
 export default function GraphPage() {
-  const { groupId } = useStore();
-  const calcs = calculateGroup(groupId);
+  const { calcs } = useCalc();
   const byId = Object.fromEntries(calcs.flatMap((c) => c.entities.map((e) => [e.id, c])));
   const router = useRouter();
   const [sel, setSel] = useState("TH-CE");
@@ -29,13 +28,25 @@ export default function GraphPage() {
   return (
     <div>
       <p className="text-muted" style={{ marginBottom: 16 }}>
-        Global Tax Graph — ownership, GloBE class (MOCE / POPE / JV) and Pillar Two exposure on every node. Click a node, then open that blend’s ETR. MOCE and JV do not share the majority-CE rate.
+        Global Tax Graph — hop % on each edge, look-through UPE % on the node. GloBE class (MOCE / POPE / JV / Investment / Stateless) and Pillar Two exposure. Click a node, then open that blend’s ETR.
       </p>
-      <div className="graph-wrap" style={{ height: 420, marginBottom: 20 }}>
-        <svg viewBox="0 0 960 400" width="100%" height="400">
-          {edges.map(({ e, p }) => (
-            <line key={e.id} x1={p.graph.x} y1={p.graph.y + 18} x2={e.graph.x} y2={e.graph.y - 18} stroke="var(--color-divider)" strokeWidth="2" />
-          ))}
+      <div className="graph-wrap" style={{ height: 460, marginBottom: 20 }}>
+        <svg viewBox="0 0 960 440" width="100%" height="440">
+          {edges.map(({ e, p }) => {
+            const x1 = p.graph.x;
+            const y1 = p.graph.y + 18;
+            const x2 = e.graph.x;
+            const y2 = e.graph.y - 18;
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            return (
+              <g key={e.id}>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--color-divider)" strokeWidth="2" />
+                <rect x={mx - 16} y={my - 8} width="32" height="14" fill="var(--color-surface, #fff)" />
+                <text x={mx} y={my + 3} textAnchor="middle" fontSize="9" fontFamily="Archivo" fontWeight="700" fill="var(--color-neutral-700)">{e.ownership}%</text>
+              </g>
+            );
+          })}
           {ENTITIES.map((e) => {
             const c = byId[e.id];
             const hot = (c?.jurisdictionalTopUp ?? 0) > 0;
@@ -69,7 +80,7 @@ export default function GraphPage() {
             <div className="kpi"><div className="kpi-label">GloBE</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.globeIncome} audit={jc.trace.globe} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Covered tax</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.coveredTax} audit={jc.trace.covered} compact /></div></div>
             <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} audit={jc.trace.etr} compact /></div></div>
-            <div className="kpi"><div className="kpi-label">Safe harbour</div><div className="kpi-val" style={{ fontSize: 18 }}>{jc.sh.outcome}</div></div>
+            <div className="kpi"><div className="kpi-label">Safe harbour</div><div className="kpi-val" style={{ fontSize: 18 }}>{jc.sh.outcome}{jc.sh.barred ? " · barred" : ""}</div></div>
             <div className="kpi"><div className="kpi-label">Top-up</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></div></div>
           </div>
         )}

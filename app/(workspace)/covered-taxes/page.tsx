@@ -36,6 +36,12 @@ const METHOD = [
     body: "PE, CFC, hybrid and distribution taxes move to the Constituent Entity that has the GloBE income (Art. 4.3). Jurisdiction Adjusted Covered Taxes is the sum of CEs in that country — the numerator of the ETR. It is not a GloBE-income adjustment.",
     refs: ["Art. 4.3", "Art. 5.1.1"],
   },
+  {
+    n: "05",
+    title: "Net GloBE Loss and negative Covered Taxes",
+    body: "If Net GloBE Income is a loss and Adjusted Covered Taxes are negative, Art. 4.1.5 treats the negative tax as Additional Current Top-up Tax unless the MNE elects to carry the negative tax expense forward (OECD_4.1.5, annual). Open Luxembourg on this snapshot.",
+    refs: ["Art. 4.1.5", "Art. 5.2.3"],
+  },
 ];
 
 const REFERENCES = [
@@ -48,6 +54,7 @@ const REFERENCES = [
   { cite: "Art. 4.4.1", work: "Total Deferred Tax Adjustment Amount — recast at the Minimum Rate", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.4.4", work: "Five-year recapture of deferred tax liabilities that are not Recapture Exception Accruals", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.5", work: "GloBE Loss Election — in lieu of Art. 4.4 deferred-tax mechanics", loc: "Model Rules Ch. 4", href: "/rulebook" },
+  { cite: "Art. 4.1.5", work: "Net GloBE Loss + negative Adjusted Covered Taxes → Additional Current Top-up Tax unless carry-forward elected", loc: "OECD-GloBE-15 v2026.1", href: "/etr?iso=LU" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Σ Adjusted Covered Taxes ÷ Net GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
 

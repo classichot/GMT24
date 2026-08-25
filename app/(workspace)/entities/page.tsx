@@ -4,28 +4,31 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ENTITIES } from "@/lib/model";
-import { calculateGroup, calcForEntity, etrHref } from "@/lib/engine";
+import { etrHref } from "@/lib/engine";
 import { classifyAll, classFor, ENTITY_TEST_STEPS } from "@/lib/entityClass";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
+import { useCalc } from "@/lib/useCalc";
 
 export default function EntitiesPage() {
-  const { groupId, ask } = useStore();
-  const calcs = calculateGroup(groupId);
+  const { ask } = useStore();
+  const { calcs } = useCalc();
   const classes = classifyAll();
   const router = useRouter();
   const [sel, setSel] = useState(classes.find((c) => c.moce)?.id ?? classes.find((c) => c.pope)?.id ?? "TH-CE");
   const row = classFor(sel);
   const entity = ENTITIES.find((e) => e.id === sel)!;
-  const jc = calcForEntity(sel, groupId);
+  const jc = calcs.find((c) => c.entities.some((n) => n.id === sel));
   const moceN = classes.filter((c) => c.moce).length;
   const popeN = classes.filter((c) => c.pope).length;
+  const ieN = classes.filter((c) => c.investment).length;
+  const stN = classes.filter((c) => c.stateless).length;
 
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Entity test.</strong> Classification is computed from the ownership chain — not from the legal-entity type label. MOCE (UPE ownership ≤ 30%) and JV / Investment Entities are valued in a separate ETR blend. POPE (outsiders &gt; 20% of a non-UPE Parent) takes IIR first, with Inclusion Ratio. This snapshot: {moceN} MOCE, {popeN} POPE.
+          <strong>Entity test.</strong> Classification is computed from the ownership chain — not from the legal-entity type label. MOCE (UPE ownership ≤ 30%) and JV / Investment Entities are valued in a separate ETR blend. POPE (outsiders &gt; 20% of a non-UPE Parent) takes IIR first, with Inclusion Ratio. This snapshot: {moceN} MOCE, {popeN} POPE, {ieN} Investment Entity, {stN} Stateless.
         </div>
         <div className="stack-actions">
           <Link href="/graph" className="btn btn-secondary">Ownership graph</Link>
@@ -69,7 +72,7 @@ export default function EntitiesPage() {
                     <td className="mono">{e.code}</td>
                     <td>{e.name}</td>
                     <td>{e.type}</td>
-                    <td><span className={`tag ${cls.moce || cls.pope || cls.jv ? "tag-warn" : "tag-ok"}`}>{cls.tag}</span></td>
+                    <td><span className={`tag ${cls.moce || cls.pope || cls.jv || cls.investment || cls.stateless ? "tag-warn" : "tag-ok"}`}>{cls.tag}</span></td>
                     <td>{e.iso}</td>
                     <td>{e.ownership}%</td>
                     <td>{cls.upeOwnership}%</td>

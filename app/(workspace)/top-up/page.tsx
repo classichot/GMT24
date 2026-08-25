@@ -34,7 +34,7 @@ export default function TopUpPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">Top-up</th>
+                <th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Top-up</th>
               </tr>
             </thead>
             <tbody>
@@ -47,6 +47,7 @@ export default function TopUpPage() {
                   <td className="num"><Amount n={c.topUpRate} audit={c.audit.children?.find((n) => n.id.endsWith("-rate"))} compact /></td>
                   <td className="num"><Amount n={c.sbie} audit={c.trace.sbie} compact /></td>
                   <td className="num"><Amount n={c.excess} audit={c.trace.excess} compact /></td>
+                  <td className="num"><Amount n={c.additionalCurrentTopUp} audit={c.audit.children?.find((n) => n.id.endsWith("-acttt"))} compact /></td>
                   <td className="num"><Amount n={c.jurisdictionalTopUp} audit={c.audit} compact /></td>
                 </tr>
               ))}

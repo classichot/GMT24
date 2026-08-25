@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { calculateGroup } from "@/lib/engine";
-import { useStore } from "@/lib/store";
+import { useCalc } from "@/lib/useCalc";
 import { pct } from "@/lib/format";
 
 const TESTS = [
@@ -16,16 +15,17 @@ const TESTS = [
 ] as const;
 
 export default function SafeHarbourPage() {
-  const { groupId } = useStore();
-  const calcs = calculateGroup(groupId);
+  const { calcs } = useCalc();
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Safe Harbour Navigator</strong> is a generic framework, not a hard-coded Transitional CbCR screen. Tests are selected from the effective-dated rulebook (OECD-TCSH-2026 v2026.2 extended to FY beginning on or before 31 Dec 2027; Simplified ETR SH for later years; SBTISH; QDMTT SH; UTPR SH; SbS). If more than one qualifying test exists, GIR requires the MNE to identify the test elected. Simplified ETR itself contains inner elections (FX, pension, PE, group timing).
+          <strong>Safe Harbour Navigator</strong> is a generic framework, not a hard-coded Transitional CbCR screen. Tests are selected from the effective-dated rulebook (OECD-TCSH-2026 v2026.2 extended to FY beginning on or before 31 Dec 2027; Simplified ETR SH for later years; SBTISH; QDMTT SH; UTPR SH; SbS).
+          {" "}<strong>Once out, always out:</strong> if a blend fails TCSH or does not elect it in a year it could have used it, the year lock bars TCSH for remaining transition years. Elect SH_TCSH on the GIR to use a Pass.
         </div>
         <div className="stack-actions">
           <Link href="/elections" className="btn btn-secondary">SETR inner elections</Link>
+          <Link href="/years" className="btn btn-secondary">Year record</Link>
           <Link href="/optimize" className="btn btn-primary">Optimize GloBE</Link>
         </div>
       </div>
@@ -35,6 +35,7 @@ export default function SafeHarbourPage() {
             <tr>
               <th>Jurisdiction</th>
               {TESTS.map(([, l]) => <th key={l}>{l}</th>)}
+              <th>TCSH</th>
               <th>Navigator</th>
             </tr>
           </thead>
@@ -50,7 +51,13 @@ export default function SafeHarbourPage() {
                   const cls = v === "Pass" ? "tag-ok" : v === "Fail" ? "tag-hot" : v === "Review" ? "tag-warn" : "tag-neutral";
                   return <td key={k}><span className={`tag ${cls}`}>{v}</span></td>;
                 })}
-                <td style={{ fontSize: 12, maxWidth: 280 }}>{c.sh.navigator}</td>
+                <td>
+                  {c.sh.barred ? <span className="tag tag-hot">Barred</span>
+                    : c.sh.tcshUsed ? <span className="tag tag-ok">Used</span>
+                    : c.sh.tcshFailed ? <span className="tag tag-hot">Failed</span>
+                    : <span className="tag tag-warn">Not elected</span>}
+                </td>
+                <td style={{ fontSize: 12, maxWidth: 320 }}>{c.sh.navigator}</td>
               </tr>
             ))}
           </tbody>
