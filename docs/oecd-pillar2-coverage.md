@@ -10,53 +10,61 @@ Statuses: **implemented** · **partial** · **missing** · **election-only** · 
 
 ## 1. Art. 3.3 International Shipping Income (deep-dive)
 
-### Auditor remediation (Model Rules verification)
+### Auditor scorecard
 
-| Finding | Legal text | Disposition |
+| ID | Finding | Disposition |
 | --- | --- | --- |
-| Management test is OR; cite 3.3.6 not 3.3.4 | Art. 3.3.6: “strategic **or** commercial management”; Art. 3.3.4 is the QAISI 50% cap (Commentary ¶172–173, ¶180) | **Confirmed — fixed** |
-| Third-party bareboat is not QISI | Art. 3.3.2(d) / Commentary ¶157: bareboat-out is QISI only if lessee is another CE of the same MNE Group; Art. 3.3.3(a) / ¶163: third-party bareboat-out is QAISI (≤ 3 years) | **Confirmed — fixed** |
-| Inland haulage is not QAISI | Commentary ¶171: inland transportation is **not** a qualified ancillary activity under Art. 3.3.3 — remains in GloBE Income | **Confirmed — fixed** (auditor’s “included” = included in GloBE, not in QAISI) |
-| Art. 3.3.1 is mandatory | Art. 3.3.1: income/loss “**shall** be excluded” | **Confirmed — fixed** (removed election gate; removed `OECD_3.3` election row) |
+| B1 | Art. 3.3.6 OR management | **CLEARED** |
+| B3 | Inland haulage not QAISI (¶171) | **CLEARED** |
+| M1 | Art. 3.3.1 mandatory; no `OECD_3.3` election | **CLEARED** |
+| B2 | Third-party bareboat tag split only | **CLEARED (second-read)** — lessee-ISI (3.3.2(d) ¶157) + ≤3-year duration engine incl. renewals (3.3.3(a) ¶164); failing tests when facts absent |
+| M2 | Two-CE Art. 3.3.4 jurisdictional cap | **CLEARED** — tested |
+| M3 | OECD Examples 3.3.1-1 / -2 / -3 | **CLEARED** — numeric tests |
+| M4 | Art. 4.1.3(a) Covered Tax split | **CLEARED** — Example 4.1.3-1 proportional method; tax on 3.3.4 spill stays in |
+| M5 | Traffic / voyage tests | **CLEARED** — ¶152 solely-domestic; ¶160 inland waterways |
+| M7 | Art. 3.3.2(c) crewed time/voyage charter | **CLEARED** — category + expected-international-traffic gate |
 
-No finding was discarded.
+No finding discarded without citation.
 
 ### Current status
 
-| Topic | OECD | Status | Where | What the code does / what tests prove |
+| Topic | OECD | Status | Where | What tests prove |
 | --- | --- | --- | --- | --- |
-| Mandatory exclusion | Art. 3.3.1 | **implemented** | `lib/shipping.ts` → `entityGlobe` | Exclusion runs when Art. 3.3.6 passes; no election switch |
-| QISI categories | Art. 3.3.2 | **partial** | Category set + tests | Transport, intragroup bareboat-out, slot, pool/agency, ship sale. Holding-period / use-history for ship sale is a boolean fact, not computed |
-| Third-party bareboat | Art. 3.3.3(a) · ¶163 | **implemented** | `bareboat_charter_third_party` as QAISI | Seed + tests; mis-labelled QISI rejected |
-| Intragroup bareboat | Art. 3.3.2(d) · ¶157 | **implemented** | `bareboat_charter_intragroup` as QISI | Test-only fixture (not on live seed) |
-| Inland haulage | Commentary ¶171 | **implemented** | `inland_transport` → non-qualifying | Stays in GloBE; SG-SHIP keeps $0.4m |
-| QAISI 50% cap | **Art. 3.3.4** | **partial** | `jurisdictionalQaisiCap` | Jurisdictional aggregation + pro-rata spill; multi-CE same-jurisdiction stress beyond one seed is thin |
-| Management test | **Art. 3.3.6** | **implemented** | `managementTestPass` (OR) | Strategic-only pass; commercial-only pass; both-fail disqualify |
-| Covered Taxes on excluded shipping | Commentary ↔ Art. 4 | **partial** | Pack `coveredTaxesOnShipping` | Attributable amount is a fact input, not an Art. 4.3 allocation engine |
-| Cost attribution | Art. 3.3.5 | **missing** | — | Net amounts assumed pre-computed in the shipping pack |
-| Flag vs management | ¶182 | **implemented** | Tests | Flag alone does not fail 3.3.6 |
+| Mandatory exclusion | Art. 3.3.1 | **implemented** | `computeShippingExclusion` | Examples 3.3.1-1 / -3; no election gate |
+| Transport in international traffic | Art. 3.3.2(a) · ¶152 | **implemented** | `voyage.solelyDomesticPlaces` | Fail when solely domestic |
+| Slot charter | Art. 3.3.2(b) | **implemented** | `slot_charter` + voyage screen | Domestic-only slot fails |
+| Crewed time/voyage charter-out | Art. 3.3.2(c) · ¶156 | **implemented** | `time_voyage_charter` | Requires `expectedInternationalTraffic`; fails if absent |
+| Intragroup bareboat | Art. 3.3.2(d) · ¶157 | **implemented** | `bareboat` facts | Needs `lesseeIsGroupCe` **and** `lesseeHasInternationalShippingIncome` |
+| Ship sale | Art. 3.3.2(f) · ¶159 | **partial** | `heldYears ≥ 1` | Holding years are a fact, not a PPE/inventory classifier |
+| Inland waterways same jur. | Art. 3.3.2 last · ¶160 | **implemented** | voyage flag | Fail → non-qualifying |
+| Third-party bareboat | Art. 3.3.3(a) · ¶163–164 | **implemented** | duration engine | Non-CE shipping enterprise + `charterYears` (+ renewals) ≤ 3; missing/over-limit fails |
+| Inland haulage (land) | ¶171 | **implemented** | `inland_transport` | Stays in GloBE |
+| QAISI 50% cap | Art. 3.3.4 | **implemented** | two-CE test + Example 3.3.1-2 | Jurisdictional aggregation + pro-rata; not a live multi-CE seed |
+| Management | Art. 3.3.6 | **implemented** | OR test | — |
+| Covered Tax reduction | Art. 4.1.3(a) | **implemented** (shipping path) | `art413aReduction` | `excluded/taxable×current tax`; spill tax remains |
+| Cost attribution | Art. 3.3.5 | **missing** | — | Net amounts assumed pre-computed — **hook stop**; needs revenue/cost split rewrite |
 
 ### Hook
 
 ```
 FANIL (Art. 3.1)
-  + Σ Art. 3.2 adjustments          ← ADJUSTMENTS[]
+  + Σ Art. 3.2 adjustments
   + Art. 3.3.1 globeDelta           ← lib/shipping.ts (if Art. 3.3.6 passes)
 = GloBE Income
 
-Covered Taxes
+Adjusted Covered Taxes
   = current + Art. 4.4 deferred + other
-  − Covered Taxes attributable to excluded shipping (pack fact)
+  − Art. 4.1.3(a) reduction         ← incomeExcluded / taxableIncome × currentTaxExpense
 ```
 
 Live seed: **SG-SHIP**. Rule id: `OECD-SHIP-33`.  
-Verify: `npm run test:shipping`.
+Verify: `npm run test:shipping` (58 assertions on second-read suite).
 
 ### Not claimed
 
-- Full Art. 3.3.5 direct/indirect cost allocation engine
-- Multi-year management-failure / evidence pack beyond boolean facts
-- Shipping inside Simplified ETR beyond the existing `SETR_SHIP` label (SETR package — distinct from Art. 3.3.1)
+- Full Art. 3.3.5 direct/indirect cost allocation (document hook: would need gross revenue + cost lines per activity, not net pack amounts)
+- Broader Art. 4.3 CFC/PE/hybrid Covered Tax allocation (only shipping 4.1.3(a) proportional method)
+- Shipping inside Simplified ETR beyond `SETR_SHIP` label
 
 ---
 
@@ -91,7 +99,7 @@ Verify: `npm run test:shipping`.
 | Art. 3.2.1(a)–(i) catalogue | **partial** | Few seeded deltas | **Largest remaining GloBE-income gap** — pension, insurance 3.2.9, equity gains default, etc. absent |
 | Art. 3.2.2 SBC | **partial** | Election + optimizer overlay | TH overlay; IE static row |
 | Art. 3.2.5 / 3.2.6 / 3.2.8 | **election-only** | Register | No realisation / aggregate-gain / intra-group engines |
-| **Art. 3.3 shipping** | **partial → core rules implemented** | `lib/shipping.ts` · `test-shipping.ts` | See §1 — 3.3.5 costs still missing |
+| **Art. 3.3 shipping** | **partial → core rules + B2/M2–M7 tested** | `lib/shipping.ts` · `test-shipping.ts` | Art. 3.3.5 costs still missing |
 | Art. 3.4 Allocation to PEs | **partial** | TH-PE separate CE row | No PE profit attribution engine |
 
 ### Ch 4 — Covered Taxes
@@ -99,6 +107,7 @@ Verify: `npm run test:shipping`.
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
 | Art. 4.1 Adjusted Covered Taxes | **partial** | `entityCovered` | CFC / hybrid / push-down largely stub |
+| Art. 4.1.3(a) reduction for excluded Ch. 3 income | **partial** | Shipping path `art413aReduction` | Proved for shipping + Example 4.1.3-1 method; not a general excluded-dividend / all Ch. 3 engine |
 | **Art. 4.3 allocation** of Covered Taxes | **missing** / **partial** | `otherCovered` stub | CFC, Hybrid, Main Entity ↔ PE, cross-border allocation not computed |
 | Art. 4.1.5 → ACTTT | **partial** | LU seed posts ACTTT when globe ≤ 0 and covered < 0 | Carry-forward utilisation across years not ledger-proven; do **not** read as full Art. 4.1.5 machinery |
 | Art. 4.4 DT recast / recapture | **partial** | `lib/deferredTax.ts` | Origin-year reopen not auto-refiled |
@@ -169,10 +178,10 @@ Verify: `npm run test:shipping`.
 | **6** | Investment Entity methods | 7.5–7.6 | Wrong blend / ETR | **Partial** |
 | **7** | FX tables beyond TH | 3.1.3 / local | Presentation / QDMTT FX | **Partial** |
 | **8** | FANIL local GAAP default path | 3.1.2–3.1.3 | Starting point | **Partial** |
-| **9** | Art. 3.3.5 shipping cost attribution | 3.3.5 | Net shipping income assumed pre-baked | **Missing** |
+| **9** | Art. 3.3.5 shipping cost attribution | 3.3.5 | Net shipping income assumed pre-baked — rewrite of pack shape | **Missing** (hook documented) |
 | **10** | Look-through % on graph edges | 10.1 | UX / audit clarity | **Partial** |
 
-Art. 3.3 core (3.3.1 / 3.3.4 / 3.3.6 + Commentary bareboat / inland) is **no longer** on this ranked leftover list as an open shipping-classification gap; residual shipping work is Art. 3.3.5 (#9).
+Art. 3.3 core (3.3.1 / 3.3.2(a)–(d),(f) / 3.3.3(a) / 3.3.4 / 3.3.6 + ¶152/160/171 + Art. 4.1.3(a) shipping) is tested on this branch. Residual shipping work is Art. 3.3.5 (#9).
 
 ---
 
@@ -182,8 +191,8 @@ Art. 3.3 core (3.3.1 / 3.3.4 / 3.3.6 + Commentary bareboat / inland) is **no lon
 npm run test:shipping
 ```
 
-UI: `/globe-income` → **Aetherion Maritime Pte. Ltd.** — Art. 3.3.1 exclusion; inland line remains in residual GloBE; audit cites Art. 3.3.4 (cap) and Art. 3.3.6 (management).
+UI: `/globe-income` → **Aetherion Maritime Pte. Ltd.** — Art. 3.3.1 exclusion; inland line remains in residual GloBE; audit cites Art. 3.3.4 (cap), Art. 3.3.6 (management), and Art. 4.1.3(a) tax reduction.
 
 ---
 
-*Do not treat UI citations or teaching seeds as Model Rules coverage without a matching row above and a proving test.*
+*Do not treat UI citations or teaching seeds as Model Rules coverage without a matching row above and a proving test. Draft stays draft until auditor re-read.*

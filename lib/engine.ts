@@ -169,7 +169,7 @@ function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
 
 function entityCovered(f: Financials) {
   const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
-  // Commentary to Art. 3.3 ↔ Art. 4 — Covered Taxes attributable to excluded shipping income leave Adjusted Covered Taxes.
+  // Commentary ¶148 / Art. 4.1.3(a) — Covered Taxes on excluded shipping income leave Adjusted Covered Taxes.
   const shipTax = shippingCoveredTaxExcluded(f.entityId);
   return money(f.currentTax + deferred + f.otherCovered - shipTax);
 }
