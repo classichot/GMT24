@@ -111,6 +111,14 @@ type Store = {
 
 const Ctx = createContext<Store | null>(null);
 
+function loadApprovedMaps(groupId: string): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(`gmt24_maps_${groupId}`) ?? "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -181,6 +189,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
+    setApprovedMaps(loadApprovedMaps(startGroup));
     applyLedger(loadLedger(startGroup));
     setReady(true);
   }, [applyLedger]);
@@ -200,6 +209,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setYearRecords(loaded.records);
       setElectionsOn(loaded.elections);
       setSbieClaimState(loaded.sbie);
+      setApprovedMaps(loadApprovedMaps("aetherion"));
       applyLedger(loadLedger("aetherion"));
     }
     const next = appendEvent(ledgerRef.current, {
@@ -271,6 +281,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
+    setApprovedMaps(loadApprovedMaps(id));
     applyLedger(loadLedger(id));
   }, [applyLedger]);
 
@@ -304,6 +315,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
+    setApprovedMaps(loadApprovedMaps(row.id));
     applyLedger(loadLedger(row.id));
     const opened = appendEvent(ledgerRef.current, {
       kind: "action",
@@ -332,7 +344,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [pendingAsk]);
 
   const approveMap = useCallback((account: string) => {
-    setApprovedMaps((p) => ({ ...p, [account]: true }));
+    setApprovedMaps((p) => {
+      const next = { ...p, [account]: true };
+      localStorage.setItem(`gmt24_maps_${groupId}`, JSON.stringify(next));
+      return next;
+    });
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
     appendHistory({
       kind: "change",
       title: `Account mapping approved · ${account}`,
@@ -340,19 +357,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       href: "/mapping",
       ref: account,
     });
-  }, [appendHistory]);
+  }, [appendHistory, groupId]);
 
   const setScenario = useCallback((p: Partial<Store["scenario"]>) => {
     setScenarioState((s) => ({ ...s, ...p }));
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
   }, []);
 
   const patchWorkflow = useCallback((p: Partial<Store["workflow"]>) => {
     setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
     if (p.girValidated) {
-      appendHistory({ kind: "action", title: "GIR schema validated", detail: "XML schema passed. Warnings remain on VN DTA.", href: "/gir", ref: "gir-validate" });
+      appendHistory({ kind: "action", title: "GIR XML preflight passed", detail: "GMT24 population and calculation-to-collection reconciliations passed. Official three-file OECD XSD validation remains a filing-gate step.", href: "/gir", ref: "gir-validate" });
     }
     if (p.girExported) {
-      appendHistory({ kind: "doc", title: "GIR pack exported", detail: "XML + PDF + evidence zip written to the filing pack.", href: "/gir", ref: "gir-export" });
+      appendHistory({ kind: "doc", title: "GIR XML exported", detail: "Snapshot-driven GLOBEXML v1.0 file downloaded; local filing extensions remain jurisdiction-specific.", href: "/gir", ref: "gir-export" });
     }
     if (p.snapshotApproved === true) {
       appendHistory({ kind: "action", title: "FY calculation snapshot approved", detail: "Reviewer lock on the working package. Does not file.", href: "/approvals", ref: "snapshot" });
@@ -393,6 +411,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const tracks = buildTracks(yearRecords, { fy: activeFy, electionsOn });
     const gate = electionConstraint(key, on, !!electionsOn[key], activeFy, tracks, false);
     if (!gate.ok) return gate.reason;
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
     setElectionsOn((p) => {
       const next = { ...p };
       if (!on) delete next[key];
@@ -417,6 +436,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       : { electionsOn: {}, sbieClaim: {} as Record<string, SbieMode> };
     setElectionsOn(carry.electionsOn);
     setSbieClaimState(carry.sbieClaim);
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
     persistElections(carry.electionsOn, carry.sbieClaim);
     appendHistory({
       kind: "change",
@@ -430,6 +450,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [yearRecords, activeFy, persistElections, appendHistory]);
 
   const setSbieClaim = useCallback((iso: string, mode: SbieMode) => {
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
     setSbieClaimState((p) => {
       const sbie = { ...p };
       if (mode === "max") delete sbie[iso];

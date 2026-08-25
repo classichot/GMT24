@@ -6,9 +6,12 @@ import { ArrowRight, Building2, Scale } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import type { ProductMode } from "@/lib/model";
+import { useCalc } from "@/lib/useCalc";
+import { eur } from "@/lib/format";
 
 export default function LoginPage() {
   const { login, authed, ready, mode: sessionMode } = useStore();
+  const { t } = useCalc();
   const router = useRouter();
   const [email, setEmail] = useState("m.sato@aetherion.com");
   const [password, setPassword] = useState("demo1234");
@@ -46,7 +49,7 @@ export default function LoginPage() {
         <footer className="login-pane-foot">
           <div className="login-stats">
             <div>
-              <strong>$18.9M</strong>
+              <strong>{eur(t.topUp, true)}</strong>
               <span>Demo top-up</span>
             </div>
             <div>

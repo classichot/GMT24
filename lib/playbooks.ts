@@ -48,7 +48,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "Local tax / data steward",
     steps: [
       { n: "01", title: "Ingest source files", body: "Trial balance, provision, CbCR, payroll, FAR, BOI certificates. Dropzone opens mapping in this prototype.", href: "/data", hrefLabel: "Data Hub" },
-      { n: "02", title: "Approve AI mapping", body: "Account → financial → GloBE → covered tax → SBIE. Hold anything under 80% confidence.", href: "/mapping", hrefLabel: "Account mapping" },
+      { n: "02", title: "Approve and post mapping", body: "Account → financial → GloBE rule → computed posting. Approval writes the Art. 3.2 / 3.5 delta, reruns the ETR and is sealed in Evidence history. Hold anything under 80% confidence.", href: "/mapping", hrefLabel: "Account mapping" },
       { n: "03", title: "Clear blockers", body: "Readiness must move before lock. Gap Hunter drafts the request; do not invent deferred tax or payroll.", href: "/quality", hrefLabel: "Data quality" },
     ],
   },
@@ -60,8 +60,8 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "Preparer, then reviewer",
     steps: [
       { n: "01", title: "Confirm scope, harbours and elections", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out. Then run the Election Engine — stock compensation, realisation, SBIE max/partial/none and Simplified ETR inner options can change the answer before anyone files GIR section D.", href: "/elections", hrefLabel: "Elections" },
-      { n: "02", title: "Build the ETR", body: "GloBE income (FANIL + Art. 3.2 − Art. 3.4 shipping) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/globe-income", hrefLabel: "GloBE income" },
-      { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR. For Thailand open the Thai Liability Dashboard; do not stop at the global allocation screen.", href: "/thailand/liability", hrefLabel: "Thai liability" },
+      { n: "02", title: "Build the ETR", body: "GloBE income (FANIL + mapped Art. 3.2 / 3.5 − Art. 3.4 shipping) then covered taxes, including Art. 4.3 source/target allocations and deferred-tax recast. Then jurisdictional ETR.", href: "/globe-income", hrefLabel: "GloBE income" },
+      { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then QDMTT → POPE/UPE IIR → UTPR. Any residual UTPR is split by the Art. 2.6 50% employees / 50% tangible-assets key.", href: "/allocation", hrefLabel: "Allocation" },
     ],
   },
   {
@@ -95,7 +95,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Calculation → GIR XML → validate → export → local matrix → notifications.",
     owner: "GIR preparer / filing coordinator",
     steps: [
-      { n: "01", title: "Generate GIR", body: "XML carries the live group top-up. Validate schema, then export the pack.", href: "/gir", hrefLabel: "GIR" },
+      { n: "01", title: "Generate GIR", body: "GLOBEXML v1.0 carries live entity, jurisdiction, safe-harbour, election, ETR, top-up and collection fields. Run population/reconciliation validation, then download the XML; local portal extensions remain separate.", href: "/gir", hrefLabel: "GIR" },
       { n: "02", title: "Complete the matrix", body: "Central filing relieves local GIR where conditions hold. Status follows GIR export and snapshot approval.", href: "/filings", hrefLabel: "Filing matrix" },
       { n: "03", title: "Notifications", body: "Generate local notifications and SbS / UTPR memos. Archive after file.", href: "/notifications", hrefLabel: "Notifications" },
     ],

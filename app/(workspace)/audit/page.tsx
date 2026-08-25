@@ -1,14 +1,13 @@
 "use client";
 
-import { calculateGroup } from "@/lib/engine";
-import { useStore } from "@/lib/store";
+import { useCalc } from "@/lib/useCalc";
 import { Amount } from "@/components/Amount";
 import { eur } from "@/lib/format";
 import Link from "next/link";
 
 export default function AuditPage() {
-  const { groupId } = useStore();
-  const calcs = calculateGroup(groupId).filter((c) => c.jurisdictionalTopUp > 0);
+  const { calcs: allCalcs } = useCalc();
+  const calcs = allCalcs.filter((c) => c.jurisdictionalTopUp > 0);
   return (
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>

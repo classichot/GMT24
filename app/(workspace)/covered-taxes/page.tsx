@@ -59,11 +59,11 @@ const REFERENCES = [
 ];
 
 export default function CoveredTaxesPage() {
-  const { ask } = useStore();
+  const { ask, approvedMaps, electionsOn, activeFy } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
   const [id, setId] = useState("TH-CE");
-  const row = entityCalc(id);
+  const row = entityCalc(id, { approvedMaps, electionsOn, fy: activeFy });
   const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
   const f = row.f;
@@ -75,7 +75,7 @@ export default function CoveredTaxesPage() {
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <strong>Covered-tax method.</strong> The ETR numerator is Adjusted Covered Taxes, not the P&amp;L tax line. Current tax is taken from FANIL, deferred tax is recast at the Minimum Rate, non-covered levies stay out. Formula:{" "}
-          <span className="mono">ACT = current Covered Tax ± Art. 4.1 adj. + Art. 4.4 deferred (recast {min})</span>
+          <span className="mono">ACT = current ± Art. 4.1 + Art. 4.4 deferred ± Art. 4.3 allocations</span>
         </div>
         <div className="stack-actions">
           <Link href="/deferred-tax" className="btn btn-secondary">Deferred tax engine</Link>
@@ -130,10 +130,21 @@ export default function CoveredTaxesPage() {
             <div className="wf-row">
               <span>
                 + Other covered
-                <div className="text-muted" style={{ fontSize: 12 }}>In-lieu / allocated PE · CFC · hybrid · distributions · <Link href="/rulebook">Art. 4.2</Link> / <Link href="/rulebook">Art. 4.3</Link></div>
+                <div className="text-muted" style={{ fontSize: 12 }}>In-lieu and other Covered Taxes booked directly by this CE · <Link href="/rulebook">Art. 4.2</Link></div>
               </span>
               <Amount n={f.otherCovered} audit={row.trace.other} />
             </div>
+            {row.trace.article43 && (
+              <div className="wf-row">
+                <span>
+                  ± Article 4.3 allocations
+                  <div className="text-muted" style={{ fontSize: 12 }}>
+                    PE · tax-transparent · CFC · hybrid · distributions. Source CE is reduced when the target CE receives the tax; passive CFC/hybrid tax is capped under Art. 4.3.3.
+                  </div>
+                </span>
+                <Amount n={row.trace.article43.amount ?? 0} audit={row.trace.article43} />
+              </div>
+            )}
             {row.shipping.present && (
               <div className="wf-row">
                 <span>
@@ -158,7 +169,7 @@ export default function CoveredTaxesPage() {
             <div className="wf-row total">
               <span>
                 Adjusted Covered Taxes
-                <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>Current + deferred (recast) + other covered · <Link href="/rulebook">Art. 4.1.1</Link></div>
+                <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>Current + deferred (recast) + direct covered ± Art. 4.3 allocations · <Link href="/rulebook">Art. 4.1.1</Link></div>
               </span>
               <Amount n={row.covered} audit={row.trace.covered} />
             </div>
@@ -202,7 +213,8 @@ export default function CoveredTaxesPage() {
                 <th>Entity</th>
                 <th className="num">Current</th>
                 <th className="num">Deferred</th>
-                <th className="num">Other covered</th>
+                <th className="num">Direct covered</th>
+                <th className="num">Art. 4.3</th>
                 <th className="num">Non-covered</th>
                 <th className="num">Prior DTA</th>
                 <th className="num">Prior DTL</th>
@@ -213,14 +225,17 @@ export default function CoveredTaxesPage() {
               {FINANCIALS.map((fin) => {
                 const e = ENTITIES.find((x) => x.id === fin.entityId)!;
                 const deferred = deferredTaxAdjustment(fin.entityId) ?? fin.deferredTax;
-                const covered = fin.currentTax + deferred + fin.otherCovered;
-                const ct = traceCoveredEntity(fin.entityId);
+                const entityRow = entityCalc(fin.entityId, { approvedMaps, electionsOn, fy: activeFy });
+                const covered = entityRow?.covered ?? 0;
+                const ct = entityRow?.trace.covered ?? traceCoveredEntity(fin.entityId);
+                const a43 = entityRow?.trace.article43;
                 return (
                   <tr key={fin.entityId} className="clickable" onClick={() => setId(fin.entityId)}>
                     <td>{e.name}</td>
                     <td className="num"><Amount n={fin.currentTax} audit={ct?.children?.find((n) => n.id.endsWith("-current"))} compact /></td>
                     <td className="num"><Amount n={deferred} audit={traceDeferredEntity(fin.entityId) ?? undefined} compact /></td>
                     <td className="num">{eur(fin.otherCovered, true)}</td>
+                    <td className="num"><Amount n={a43?.amount ?? 0} audit={a43} compact /></td>
                     <td className="num">{eur(fin.nonCovered, true)}</td>
                     <td className="num">{eur(fin.priorDta, true)}</td>
                     <td className="num">{eur(fin.priorDtl, true)}</td>

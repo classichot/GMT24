@@ -5,10 +5,11 @@ import { ArrowUp, BookOpen, X } from "lucide-react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { answerCopilot, SUGGESTIONS, type CopilotMsg } from "@/lib/copilot";
-import { applyScenario, calculateGroup } from "@/lib/engine";
+import { useCalc } from "@/lib/useCalc";
 
 export function Copilot() {
-  const { copilotOpen, setCopilotOpen, consumeAsk, groupId, pendingAsk, scenario } = useStore();
+  const { copilotOpen, setCopilotOpen, consumeAsk, pendingAsk } = useStore();
+  const { calcs } = useCalc();
   const [log, setLog] = useState<CopilotMsg[]>([
     {
       role: "assistant",
@@ -33,7 +34,6 @@ export function Copilot() {
   function run(text: string) {
     const t = text.trim();
     if (!t) return;
-    const calcs = applyScenario(calculateGroup(groupId), scenario);
     setLog((l) => [...l, { role: "user", text: t }, answerCopilot(t, calcs)]);
     setQ("");
   }

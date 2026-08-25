@@ -1,5 +1,4 @@
 import {
-  ADJUSTMENTS,
   ENTITIES,
   FINANCIALS,
   ISSUES,
@@ -24,6 +23,11 @@ import {
 } from "./entityClass";
 import { fxRate, gaapScreen, usdFromFc } from "./fx";
 import { eligibleAssets, eligiblePayroll, shippingPost } from "./shipping";
+import { article43Post } from "./coveredTax";
+import { entityAdjustments } from "./fanil";
+import { utprAllocation, type UtprFactor } from "./utpr";
+import { sbtishResult } from "./harbours2026";
+import { recapturePostings } from "./recaptureYear";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -56,6 +60,7 @@ export type Collection = {
   upeIir: number;
   inclusionRatio: number;
   popeId: string | null;
+  utprAllocations: UtprFactor[];
 };
 
 export type JurCalc = {
@@ -123,6 +128,7 @@ export type CalcCtx = {
   fy?: string;
   electionsOn?: Record<string, boolean>;
   tcshPrior?: TcshPriorRow[];
+  approvedMaps?: Record<string, boolean>;
 };
 
 function elected(ctx: CalcCtx | undefined, id: string, iso: string) {
@@ -156,13 +162,13 @@ function fanilUsd(e: Entity, f: Financials, ctx?: CalcCtx): number {
 function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
   const e = ENTITIES.find((x) => x.id === entityId);
   const fanil = e ? fanilUsd(e, f, ctx) : f.fanil;
-  const adj = sum(ADJUSTMENTS.filter((a) => a.entityId === entityId).map((a) => a.amount));
+  const adj = sum(entityAdjustments(entityId, ctx?.approvedMaps).map((a) => a.amount));
   return money(fanil + adj - shippingPost(entityId).excludedIncome);
 }
 
 function entityCovered(f: Financials) {
   const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
-  return money(f.currentTax + deferred + f.otherCovered - shippingPost(f.entityId).excludedTax);
+  return money(f.currentTax + deferred + f.otherCovered + article43Post(f.entityId).net - shippingPost(f.entityId).excludedTax);
 }
 
 function sourceNode(id: string, file: string, detail: string): AuditNode {
@@ -178,7 +184,7 @@ export function traceAdj(a: Adjustment): AuditNode {
     ruleId: a.ruleId,
     ruleVersion: "2026.1",
     sourceFile: a.sourceDoc,
-    detail: `Art. 3.2 · original ${a.original.toLocaleString("en-GB")} · delta ${a.amount.toLocaleString("en-GB")}${a.account ? ` · acct ${a.account}` : ""} · ${a.reason} · ${a.preparer}${a.reviewer ? ` / ${a.reviewer}` : ""} · ${a.status}`,
+    detail: `${a.article ?? "Art. 3.2"} · original ${a.original.toLocaleString("en-GB")} · delta ${a.amount.toLocaleString("en-GB")}${a.account ? ` · acct ${a.account}` : ""} · ${a.reason} · ${a.preparer}${a.reviewer ? ` / ${a.reviewer}` : ""} · ${a.status}`,
     children: [sourceNode(`${a.id}-src`, a.sourceDoc, "Approved mapping · engine posted the delta, not the LLM")],
   };
 }
@@ -254,7 +260,7 @@ export function traceGlobeEntity(entityId: string, ctx?: CalcCtx): AuditNode | n
   const f = FINANCIALS.find((x) => x.entityId === entityId);
   const fanil = traceFanil(entityId, ctx);
   if (!e || !f || !fanil) return null;
-  const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
+  const adjs = entityAdjustments(entityId, ctx?.approvedMaps);
   const ship = traceShipping(entityId);
   return {
     id: `${e.id}-globe`,
@@ -263,8 +269,36 @@ export function traceGlobeEntity(entityId: string, ctx?: CalcCtx): AuditNode | n
     kind: "formula",
     ruleId: ship ? "OECD-SHIP-34" : "OECD-GloBE-15",
     ruleVersion: "2026.1",
-    detail: "GloBE = FANIL + Σ Art. 3.2 deltas − Art. 3.4 (if Art. 3.4.5 met). Engine posted; LLM did not.",
+    detail: "GloBE = FANIL + mapped Art. 3.2 / 3.5 postings − Art. 3.4 (if Art. 3.4.5 met). Engine posted; LLM did not.",
     children: [fanil, ...adjs.map(traceAdj), ...(ship ? [ship] : [])],
+  };
+}
+
+export function traceArticle43(entityId: string): AuditNode | null {
+  const post = article43Post(entityId);
+  const lines = [...post.incoming, ...post.outgoing];
+  if (!lines.length) return null;
+  return {
+    id: `${entityId}-a43`,
+    label: "Article 4.3 allocated Covered Taxes",
+    amount: post.net,
+    kind: "formula",
+    ruleId: "OECD-CT-43",
+    ruleVersion: "2026.1",
+    detail: `Incoming ${post.incomingAmount.toLocaleString("en-GB")} − outgoing ${post.outgoingAmount.toLocaleString("en-GB")}. Taxes move with the related GloBE income and are removed from the source CE to prevent double counting.`,
+    children: lines.map((line) => {
+      const incoming = line.targetEntityId === entityId;
+      return {
+        id: `${line.id}-${incoming ? "in" : "out"}`,
+        label: `${incoming ? "From" : "To"} ${incoming ? line.sourceCode : line.targetCode} · ${line.kind}`,
+        amount: incoming ? line.allocated : -line.allocated,
+        kind: "formula",
+        ruleId: "OECD-CT-43",
+        ruleVersion: "2026.1",
+        sourceFile: line.sourceDoc,
+        detail: `${line.detail}${line.passiveCap != null ? ` Art. 4.3.3 cap ${line.passiveCap.toLocaleString("en-GB")}; actual tax ${line.tax.toLocaleString("en-GB")}; allocated ${line.allocated.toLocaleString("en-GB")}.` : ""}`,
+      } satisfies AuditNode;
+    }),
   };
 }
 
@@ -333,6 +367,7 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
   if (!e || !f) return null;
   const deferred = traceDeferredEntity(entityId);
   const shipTax = traceShippingTax(entityId);
+  const allocated = traceArticle43(entityId);
   const file = `${e.code} Trial Balance FY2026.xlsx`;
   return {
     id: `${e.id}-ct`,
@@ -341,7 +376,7 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
     kind: "entity",
     ruleId: "OECD-GloBE-15",
     ruleVersion: "2026.1",
-    detail: "Current Covered Tax + Art. 4.4 deferred (recast) + other covered − Art. 4.1.3 tax on excluded shipping. Non-covered excluded.",
+    detail: "Current Covered Tax + Art. 4.4 deferred (recast) + other covered ± Art. 4.3 allocations − Art. 4.1.3 tax on excluded shipping. Non-covered excluded.",
     children: [
       {
         id: `${e.id}-current`,
@@ -360,8 +395,9 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
         label: "Other covered",
         amount: f.otherCovered,
         kind: "formula",
-        detail: "Art. 4.2 / 4.3 in-lieu, PE, CFC, hybrid, distributions",
+        detail: "Art. 4.2 in-lieu and other Covered Taxes booked directly by this CE",
       },
+      ...(allocated ? [allocated] : []),
       ...(shipTax ? [shipTax] : []),
       {
         id: `${e.id}-non`,
@@ -387,7 +423,7 @@ export function allocateCollection(opts: {
   name: string;
 }): Collection {
   const empty: Collection = {
-    qdmtt: 0, iir: 0, utpr: 0, payer: "—", path: [], popeIir: 0, upeIir: 0, inclusionRatio: 0, popeId: null,
+    qdmtt: 0, iir: 0, utpr: 0, payer: "—", path: [], popeIir: 0, upeIir: 0, inclusionRatio: 0, popeId: null, utprAllocations: [],
   };
   if (opts.topUp <= 0) return empty;
 
@@ -414,7 +450,7 @@ export function allocateCollection(opts: {
     path.push("Remaining top-up $0");
     return {
       qdmtt, iir: 0, utpr: 0, payer, path, popeIir: 0, upeIir: 0,
-      inclusionRatio: irUpe, popeId: pope?.id ?? null,
+      inclusionRatio: irUpe, popeId: pope?.id ?? null, utprAllocations: [],
     };
   }
 
@@ -445,9 +481,13 @@ export function allocateCollection(opts: {
   }
 
   const utpr = remaining;
+  const utprAllocations = utprAllocation(utpr);
   if (utpr > 0) {
-    if (!popeIir && !upeIir && !qdmtt) payer = "UTPR residual";
-    path.push(`Residual UTPR ${utpr.toLocaleString("en-GB")}`);
+    if (!popeIir && !upeIir && !qdmtt) payer = `UTPR · ${utprAllocations.length} jurisdictions`;
+    path.push(`Residual UTPR ${utpr.toLocaleString("en-GB")} · Art. 2.6 key`);
+    utprAllocations.forEach((row) => {
+      path.push(`${row.name} ${(row.percentage * 100).toFixed(2)}% · ${row.amount.toLocaleString("en-GB")}`);
+    });
   } else {
     path.push("Residual UTPR $0");
   }
@@ -462,6 +502,7 @@ export function allocateCollection(opts: {
     upeIir,
     inclusionRatio: popeIir ? irPope : irUpe,
     popeId: pope?.id ?? null,
+    utprAllocations,
   };
 }
 
@@ -564,6 +605,12 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     } else if (etrComputed && coveredTax < 0) {
       actttReason = `Art. 5.1.2 — Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up % = 15% − ETR (${(topUpRate * 100).toFixed(2)}%). Not an Art. 4.1.5 Additional Current amount.`;
     }
+    const recap = recapturePostings().filter((p) => p.iso === iso);
+    const recaptureActtt = money(recap.reduce((a, p) => a + p.acttt, 0));
+    if (recaptureActtt > 0) {
+      additionalCurrentTopUp = money(additionalCurrentTopUp + recaptureActtt);
+      actttReason = `${actttReason} Art. 4.4.4 recapture ACTTT ${recaptureActtt.toLocaleString("en-GB")} posted into the year close.`;
+    }
     let jurisdictionalTopUp = money(rateTopUp + additionalCurrentTopUp);
 
     const cbcrRev = sum(fins.map((f) => f.cbcrRevenue));
@@ -577,7 +624,8 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const simplifiedEtr = shPass(cbcrEtr >= SIMPLIFIED_ETR);
     const routineProfits = shPass(cbcrPbt <= routine);
     const qdmttSH: ShResult = pack?.qdmttSH && pack.qualified.startsWith("Transitional") && etr >= MIN_RATE ? "Pass" : pack?.qdmttSH ? "Review" : "N/A";
-    const sbtish: ShResult = entities.some((e) => e.incentiveIds.length && iso !== "IE" && iso !== "NL") ? "Review" : "N/A";
+    const sbti = sbtishResult({ entities, etr, globeIncome });
+    const sbtish: ShResult = sbti.result;
     const utprSH: ShResult = iso === "US" ? "Pass" : "N/A";
     const sbs: ShResult = iso === "US" ? "Pass" : "N/A";
 
@@ -822,6 +870,7 @@ export function totals(calcs: JurCalc[]) {
   const topUp = money(sum(calcs.map((c) => c.jurisdictionalTopUp)));
   const qdmtt = money(sum(calcs.map((c) => c.collection.qdmtt)));
   const iir = money(sum(calcs.map((c) => c.collection.iir)));
+  const utpr = money(sum(calcs.map((c) => c.collection.utpr)));
   const globe = money(sum(calcs.map((c) => c.globeIncome)));
   const covered = money(sum(calcs.map((c) => c.coveredTax)));
   const low = calcs.filter((c) => c.etr > 0 && c.etr < MIN_RATE).length;
@@ -845,6 +894,7 @@ export function totals(calcs: JurCalc[]) {
     topUp,
     qdmtt,
     iir,
+    utpr,
     globe,
     covered,
     etr: globe > 0 ? covered / globe : 0,
@@ -871,11 +921,14 @@ export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
       const excess = money(Math.max(0, c.globeIncome - sbie));
       let jurisdictionalTopUp = money(c.topUpRate * excess + (c.additionalCurrentTopUp ?? 0));
       if (s.boiExtend) jurisdictionalTopUp = money(jurisdictionalTopUp * 0.38);
-      return { ...c, sbie, excess, jurisdictionalTopUp };
+      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name });
+      return { ...c, sbie, excess, jurisdictionalTopUp, collection };
     }
     if (c.iso === "IE" && s.tpMargin !== 3) {
       const factor = 1 + ((s.tpMargin - 3) / 2) * 0.08;
-      return { ...c, jurisdictionalTopUp: money(Math.max(0, c.jurisdictionalTopUp * factor)) };
+      const jurisdictionalTopUp = money(Math.max(0, c.jurisdictionalTopUp * factor));
+      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name });
+      return { ...c, jurisdictionalTopUp, collection };
     }
     return c;
   });
@@ -937,13 +990,13 @@ export function etrHref(c: JurCalc) {
   return c.blendKind === "main" ? `/etr?iso=${c.iso}` : `/etr?iso=${c.iso}&blend=${encodeURIComponent(c.blendKey)}`;
 }
 
-export function entityCalc(entityId: string) {
+export function entityCalc(entityId: string, ctx?: CalcCtx) {
   const e = ENTITIES.find((x) => x.id === entityId);
   const f = FINANCIALS.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
-  const globe = entityGlobe(f, entityId);
+  const globe = entityGlobe(f, entityId, ctx);
   const covered = entityCovered(f);
-  const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
+  const adjs = entityAdjustments(entityId, ctx?.approvedMaps);
   const coveredTrace = traceCoveredEntity(entityId)!;
   return {
     entity: e,
@@ -954,12 +1007,13 @@ export function entityCalc(entityId: string) {
     adjustments: adjs,
     shipping: shippingPost(entityId),
     trace: {
-      fanil: traceFanil(entityId)!,
-      globe: traceGlobeEntity(entityId)!,
+      fanil: traceFanil(entityId, ctx)!,
+      globe: traceGlobeEntity(entityId, ctx)!,
       covered: coveredTrace,
       current: coveredTrace.children?.find((c) => c.id === `${entityId}-current`),
       deferred: traceDeferredEntity(entityId),
       other: coveredTrace.children?.find((c) => c.id === `${entityId}-other`),
+      article43: coveredTrace.children?.find((c) => c.id === `${entityId}-a43`),
       nonCovered: coveredTrace.children?.find((c) => c.id === `${entityId}-non`),
       shipping: traceShipping(entityId),
       shippingTax: traceShippingTax(entityId),

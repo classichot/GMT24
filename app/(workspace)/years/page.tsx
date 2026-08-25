@@ -20,6 +20,7 @@ import {
   workingDiffers,
   yearsLeftOnLock,
 } from "@/lib/yearLedger";
+import { recapturePostings } from "@/lib/recaptureYear";
 
 export default function YearsPage() {
   const {
@@ -56,6 +57,7 @@ export default function YearsPage() {
   const dirty = !!(sameLock && workingDiffers(sameLock, electionsOn, sbieClaim));
   const next = nextFy(activeFy);
   const desk = mode === "advisor" ? "Advisor engagement" : "In-house close";
+  const recap = recapturePostings();
 
   function lock() {
     const rec = lockCurrentYear(work.rows);
@@ -90,6 +92,38 @@ export default function YearsPage() {
           <button className="btn btn-primary" type="button" onClick={() => ask(`Compare ${base?.fy ?? "prior"} and ${activeFy} elections and calculation.`)}>Ask GMT24</button>
         </div>
       </div>
+
+      {recap.length > 0 ? (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-head">
+            <h4>Art. 4.4.4 recapture → year close</h4>
+            <Link href="/deferred-tax" className="btn btn-ghost">Deferred tax</Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>ISO</th><th>Origin</th><th>Deadline</th><th>Remaining</th><th>Origin ETR</th><th>After</th><th>ACTTT posted</th><th>Treatment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recap.map((p) => (
+                  <tr key={`${p.iso}-${p.originYear}`}>
+                    <td>{p.iso}</td>
+                    <td>FY{p.originYear}</td>
+                    <td>FY{p.deadlineYear}</td>
+                    <td className="num">{eur(p.remaining, true)}</td>
+                    <td>{pct(p.originEtrBefore, 1)}</td>
+                    <td>{pct(p.originEtrAfter, 1)}</td>
+                    <td className="num">{eur(p.acttt, true)}</td>
+                    <td style={{ fontSize: 12 }}>{p.treatment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head"><h4>How this works</h4></div>

@@ -7,16 +7,25 @@ import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
 import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
+import { thaiSchemaReadiness } from "@/lib/thaiFilingSchema";
 
 function days(deadline: string) {
   const d = (new Date(deadline).getTime() - new Date("2026-08-13").getTime()) / 86400000;
   return Math.round(d);
 }
 
+const STATUS_TAG: Record<string, string> = {
+  ready: "tag-pass",
+  mapped: "tag-ok",
+  pending: "tag-warn",
+  blocked: "tag-hot",
+};
+
 export default function ThaiFilingPage() {
   const { ask, workflow } = useStore();
   const { calcs } = useCalc();
   const th = calcs.find((c) => c.iso === "TH");
+  const readiness = thaiSchemaReadiness(th);
 
   return (
     <div>
@@ -28,6 +37,9 @@ export default function ThaiFilingPage() {
         <div className="stack-actions">
           <Link href="/gir" className="btn btn-secondary">OECD GIR</Link>
           <Link href="/filings" className="btn btn-secondary">Global matrix</Link>
+          <button className="btn btn-ghost" disabled title={readiness.blockers[0]}>
+            Export Thai XML (blocked)
+          </button>
           <button className="btn btn-primary" onClick={() => ask("When is the Thai top-up tax return due for FY2026?")}>Ask GMT24</button>
         </div>
       </div>
@@ -44,14 +56,48 @@ export default function ThaiFilingPage() {
           <div className="kpi-sub">ss 54 / 55–56 / 57 · 31 Mar 2028</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Thai tax ID</div>
-          <div className="kpi-val" style={{ fontSize: 18 }}>0107558000121</div>
-          <div className="kpi-sub">TH001 · checksum valid (demo)</div>
+          <div className="kpi-label">Schema readiness</div>
+          <div className="kpi-val" style={{ fontSize: 18 }}>{readiness.readyCount + readiness.mappedCount}/{readiness.fields.length}</div>
+          <div className="kpi-sub">{readiness.blockedCount} blocked · {readiness.pendingCount} pending</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Amount on return</div>
           <div className="kpi-val" style={{ fontSize: 22 }}>{th ? <Amount n={th.jurisdictionalTopUp} audit={th.audit} compact /> : "—"}</div>
           <div className="kpi-sub">QDMTT · schema pending</div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          <h4>s 57 schema-readiness map</h4>
+          <span className="tag tag-hot">Export gated</span>
+        </div>
+        <p className="text-muted" style={{ margin: "0 16px 12px", fontSize: 13 }}>{readiness.note}</p>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Field family</th>
+                <th>Label</th>
+                <th>GMT24 source</th>
+                <th>Value / blocker</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readiness.fields.map((f) => (
+                <tr key={f.id}>
+                  <td className="mono">{f.section}</td>
+                  <td>{f.family}</td>
+                  <td>{f.label}</td>
+                  <td><Link href={f.href}>{f.source}</Link></td>
+                  <td style={{ fontSize: 12 }}>{f.blocker ?? f.value ?? "—"}</td>
+                  <td><span className={`tag ${STATUS_TAG[f.status]}`}>{f.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -85,7 +131,7 @@ export default function ThaiFilingPage() {
             <div className="wf-row"><span>CAA / exchange with Thailand</span><span>Review — confirm before relying on exemption</span></div>
             <div className="wf-row"><span>Local GIR fallback</span><span>Armed if exchange conditions fail</span></div>
             <div className="wf-row"><span>GIR XML (OECD)</span><span>{workflow.girExported ? "Pack exported" : "Draft in GIR Autopilot"}</span></div>
-            <div className="wf-row total"><span>Thai return XML</span><span>Pending delegated schema</span></div>
+            <div className="wf-row total"><span>Thai return XML</span><span>Blocked — schema unpublished</span></div>
           </div>
         </div>
         <div className="panel">

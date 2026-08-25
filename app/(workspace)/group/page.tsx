@@ -1,20 +1,24 @@
 "use client";
 
 import { ENTITIES } from "@/lib/model";
-import { calculateGroup, scopeTest } from "@/lib/engine";
+import { scopeTest } from "@/lib/engine";
 import { classifyAll } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 import Link from "next/link";
+import { useCalc } from "@/lib/useCalc";
+import { populationReconciliation } from "@/lib/population";
 
 export default function GroupPage() {
   const { groupId } = useStore();
   const scope = scopeTest(groupId);
-  const calcs = calculateGroup(groupId);
+  const { calcs } = useCalc();
   const classes = classifyAll();
   const cls = (t: string) => ENTITIES.filter((e) => e.type === t).length;
   const popeN = classes.filter((c) => c.pope).length;
   const moceN = classes.filter((c) => c.moce).length;
+  const population = populationReconciliation();
+  const mosg = classes.filter((c) => c.blendKind === "mosg");
 
   return (
     <div>
@@ -57,7 +61,25 @@ export default function GroupPage() {
         <Link href="/entities" className="btn btn-secondary">Entity register</Link>
         <Link href="/scope" className="btn btn-secondary">Scope engine</Link>
       </div>
-      <p className="text-muted" style={{ marginTop: 16, fontSize: 13 }}>{calcs.length} ETR blends computed in this snapshot (majority CEs, MOCE and JV are not mixed). Full group is 48 / 212 — remaining entities are held in the canonical model as in-scope CEs with complete data (prototype graph shows the control chain).</p>
+      <div className="panel" style={{ marginTop: 20 }}>
+        <div className="panel-head">
+          <h4>Entity-population reconciliation</h4>
+          <span className={population.entityReconciles && population.jurisdictionReconciles ? "tag tag-pass" : "tag tag-warn"}>
+            {population.entityReconciles && population.jurisdictionReconciles ? "Source list reconciled" : "Population gap"}
+          </span>
+        </div>
+        <div className="panel-body waterfall">
+          <div className="wf-row"><span>Legal entity master</span><strong>{population.sourceEntities} entities · {population.sourceJurisdictions} jurisdictions</strong></div>
+          <div className="wf-row"><span>Full-calculation records</span><span>{population.detailedEntities} · {Math.round(population.calculationCoverage * 100)}% coverage</span></div>
+          <div className="wf-row"><span>Non-material CE records</span><span>{population.nonMaterialEntities} · GIR identity / simplified reporting only</span></div>
+          <div className="wf-row"><span>Reporting jurisdictions</span><span>{population.reportingJurisdictions} + {population.statelessEntities} stateless CE</span></div>
+          <div className="wf-row"><span>ETR blends computed</span><span>{calcs.length} · majority, MOSG, MOCE, JV and investment blends stay separate</span></div>
+          <div className="wf-row total"><span>Seeded Minority-Owned Subgroup</span><span>{mosg.length} Malaysian CEs · blend {mosg[0]?.blendKey ?? "—"}</span></div>
+        </div>
+        <p className="text-muted" style={{ margin: "12px 16px 16px", fontSize: 13 }}>
+          The 212-row population now reconciles to the source master. Non-material rows are not represented as invented financial calculations; they are explicitly marked for GIR simplified reporting. The Malaysian Minority-Owned Parent and its two subsidiaries form one multi-entity MOSG blend.
+        </p>
+      </div>
     </div>
   );
 }

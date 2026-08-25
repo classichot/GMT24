@@ -9,9 +9,10 @@ import { classifyAll, classFor, ENTITY_TEST_STEPS } from "@/lib/entityClass";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { intermediateParents, specialCharges, transparentEntities } from "@/lib/specialEntities";
 
 export default function EntitiesPage() {
-  const { ask } = useStore();
+  const { ask, electionsOn } = useStore();
   const { calcs } = useCalc();
   const classes = classifyAll();
   const router = useRouter();
@@ -23,6 +24,12 @@ export default function EntitiesPage() {
   const popeN = classes.filter((c) => c.pope).length;
   const ieN = classes.filter((c) => c.investment).length;
   const stN = classes.filter((c) => c.stateless).length;
+  const charges = specialCharges({
+    elect75: Object.entries(electionsOn).some(([k, v]) => v && k.startsWith("OECD_7.5")),
+    elect76: Object.entries(electionsOn).some(([k, v]) => v && k.startsWith("OECD_7.6")),
+  });
+  const ipes = intermediateParents();
+  const transparent = transparentEntities();
 
   return (
     <div>
@@ -36,6 +43,36 @@ export default function EntitiesPage() {
           <Link href="/allocation" className="btn btn-secondary">QDMTT / IIR / UTPR</Link>
           <button className="btn btn-primary" onClick={() => ask("How does the entity test treat MOCE and POPE?")}>Ask GMT24</button>
         </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          <h4>Special entities · Art. 7 / 10.2 / IPE</h4>
+          <span className="tag tag-outline">{ipes.length} IPE · {transparent.length} transparent · {charges.length} charge lines</span>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Kind</th><th>From</th><th>To</th><th>Ratio</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              {charges.length === 0 ? (
+                <tr><td colSpan={5} className="text-muted">Toggle Art. 7.5 / 7.6 on Elections to move IE income. IPE and tax-transparent flow lines always show.</td></tr>
+              ) : charges.map((c) => (
+                <tr key={c.id}>
+                  <td className="mono">{c.kind}</td>
+                  <td>{c.fromId}</td>
+                  <td>{c.toId ?? "—"}</td>
+                  <td>{c.inclusionRatio}%</td>
+                  <td style={{ fontSize: 12 }}>{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-muted" style={{ margin: "8px 16px 16px", fontSize: 13 }}>
+          IPE (not POPE): {ipes.map((e) => e.code).join(", ") || "—"}. Tax-transparent: {transparent.map((e) => e.code).join(", ") || "—"}. Art. 7.5/7.6 restatements apply when elected.
+        </p>
       </div>
 
       <div className="grid-2" style={{ marginBottom: 20 }}>

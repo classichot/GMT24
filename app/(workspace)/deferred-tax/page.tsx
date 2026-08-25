@@ -25,6 +25,7 @@ import {
   type DtView,
   type RecaptureStatus,
 } from "@/lib/deferredTax";
+import { transitionSummary } from "@/lib/transition";
 
 const OECD_MODEL =
   "https://www.oecd.org/content/dam/oecd/en/topics/policy-sub-issues/global-minimum-tax/tax-challenges-arising-from-the-digitalisation-of-the-economy-global-anti-base-erosion-model-rules-pillar-two.pdf";
@@ -80,6 +81,7 @@ const REFERENCES: { cite: string; work: string; loc: string; href: string; exter
   { cite: "Art. 4.4.4", work: "Five-year recapture of deferred tax liabilities that are not Recapture Exception Accruals; origin-year ETR recomputed", loc: "OECD-DT-444 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.4.5", work: "Recapture Exception Accruals — tangible cost recovery, licences, R&D, decommissioning, certain FV / FX / insurance / reinvestment items", loc: "OECD-DT-445 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.5", work: "GloBE Loss Election — in lieu of Article 4.4 deferred-tax mechanics", loc: "Model Rules Ch. 4", href: "/rulebook" },
+  { cite: "Art. 9.1", work: "Tax Attributes Upon Transition — opening DTAs/DTLs, post-30 Nov 2021 excluded-item DTA strip, transferor carrying value on non-inventory transfers", loc: "OECD-TR-91 v2026.2", href: "/rulebook" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Adjusted Covered Taxes ÷ Net GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
 
@@ -171,6 +173,7 @@ function Inner() {
       })
     : null;
   const stackMax = Math.max(1, ...tm.map((y) => y.reversed + y.exception + y.outstanding + y.approaching + y.recapture));
+  const transition = transitionSummary(iso);
 
   return (
     <div>
@@ -218,6 +221,42 @@ function Inner() {
           {" · "}presentation USD
         </span>
       </div>
+
+      {transition.count > 0 ? (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-head">
+            <h4>Art. 9.1 transition attributes · {iso}</h4>
+            <span className="tag tag-outline">Transition Year {transition.transitionYear} · cut-off {transition.cutoff}</span>
+          </div>
+          <div className="kpi-grid cols-4" style={{ padding: "12px 16px 0" }}>
+            <div className="kpi"><div className="kpi-label">9.1.1 / 9.1.2 / 9.1.3</div><div className="kpi-val" style={{ fontSize: 18 }}>{transition.art911} · {transition.art912} · {transition.art913}</div></div>
+            <div className="kpi"><div className="kpi-label">Opening DTA allowed</div><div className="kpi-val" style={{ fontSize: 18 }}>{eur(transition.openingDtaAllowed, true)}</div></div>
+            <div className="kpi"><div className="kpi-label">DTA stripped</div><div className="kpi-val" style={{ fontSize: 18 }}>{eur(transition.openingDtaExcluded, true)}</div></div>
+            <div className="kpi"><div className="kpi-label">Step-up disallowed</div><div className="kpi-val" style={{ fontSize: 18 }}>{eur(transition.stepUpDisallowed, true)}</div></div>
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Art.</th><th>Item</th><th>Books CV</th><th>GloBE CV</th><th>DTA allowed</th><th>Treatment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transition.lines.map((line) => (
+                  <tr key={line.id}>
+                    <td className="mono">{line.kind}</td>
+                    <td>{line.label}<div className="text-muted" style={{ fontSize: 11 }}>{line.evidence}</div></td>
+                    <td className="num">{eur(line.booksCarrying, true)}</td>
+                    <td className="num">{eur(line.globeCarrying, true)}</td>
+                    <td className="num">{eur(line.openingDtaAllowed, true)}</td>
+                    <td style={{ fontSize: 12 }}>{line.treatment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="kpi-grid cols-4" style={{ marginBottom: 20 }}>
         <div className="kpi">

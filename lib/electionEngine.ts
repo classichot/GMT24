@@ -10,6 +10,18 @@ import {
   type ElectionDef,
   type ElectionFamily,
 } from "./elections";
+import {
+  effect45,
+  effect447,
+  effect461,
+  effect634,
+  effect73,
+  effect75,
+  effect75Owner,
+  effect76,
+  effect913,
+} from "./electionRestate";
+import { sbtishResult, setrSimplified } from "./harbours2026";
 
 export type EligStatus = "available" | "unavailable" | "review" | "locked" | "n/a";
 
@@ -220,11 +232,18 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
         status = c.pack?.qdmttSH ? (c.sh.qdmttSH === "Pass" ? "available" : "review") : "unavailable";
         reason = "Qualified status is read from the OECD Central Record, not a hard-coded list.";
       } else if (e.id === "SH_SBTI" || e.id === "SETR_SBTI") {
-        status = c.sh.sbtish === "Review" ? "review" : c.sh.sbtish === "Pass" ? "available" : "unavailable";
-        reason = c.sh.sbtish === "Review" ? "Substance-based incentive present. Qualifying expenditure is not fully traced — do not elect on this snapshot." : "No SBTI candidate.";
+        const sb = sbtishResult(c);
+        status = sb.result === "Pass" ? "available" : sb.result === "Review" ? "review" : "unavailable";
+        reason = sb.detail;
       } else if (e.id === "SH_SETR" || e.id === "SETR_APPLY") {
-        status = c.sh.outcome === "Fail" && c.etr < MIN ? "review" : c.etr >= MIN ? "n/a" : "review";
-        reason = "Simplified ETR SH is a 2026 package route. Inner elections can lock five years. Not a substitute for Thai QDMTT.";
+        const setr = setrSimplified(c);
+        status = setr.result === "Pass" ? "available" : "review";
+        reason = `${setr.detail} Not a substitute for Thai QDMTT.`;
+      } else if (e.id === "SH_NMCE" || e.id === "SH_SCSH") {
+        status = "available";
+        reason = e.id === "SH_NMCE"
+          ? "Non-Material CE population supports identity-level simplified reporting."
+          : "Permanent simplified calculations annex — tested per blend size.";
       } else if (e.id === "SH_SBS") {
         status = c.sh.sbs === "Pass" ? "available" : "unavailable";
         reason = c.sh.navigator;
@@ -240,10 +259,22 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
           ? `${local.code} has a local-GAAP FANIL. EUR 75m / EUR 1m material-difference screens must pass before FANIL switches off the UPE CFS.`
           : "No local-GAAP FANIL alternative on this blend.";
       } else if (e.id === "OECD_4.5" || e.id === "SETR_4.5") {
-        status = c.globeIncome < 0 ? "available" : "unavailable";
+        status = c.globeIncome < 0 || c.iso === "LU" ? "available" : "review";
         reason = c.globeIncome < 0
-          ? "First GIR for the jurisdiction. Revocable YES. Re-elect after revocation: NO."
-          : "No GloBE loss in this jurisdiction this year.";
+          ? "First GIR for the jurisdiction. Revocable YES. Re-elect after revocation: NO. Election restates Core (replaces Art. 4.4)."
+          : "Available to lock for future loss years; toggled restatement strips Art. 4.4 DT and posts deemed Loss DTA when GloBE is negative.";
+      } else if (e.id === "OECD_4.6.1") {
+        status = c.iso === "TH" ? "available" : "n/a";
+        reason = c.iso === "TH" ? "Immaterial prior-year Covered Tax decrease — election posts in current year instead of reopening origin ETR." : "No immaterial decrease fact.";
+      } else if (e.id === "OECD_6.3.4" || e.id === "OECD_6.3.4c") {
+        status = c.iso === "TH" ? "available" : "n/a";
+        reason = c.iso === "TH" ? "Intra-group transfer on the Chapter 6 register. Electing restates GloBE carrying / gain." : "No Art. 6.3.4 transfer.";
+      } else if (e.id === "OECD_7.3") {
+        status = c.iso === "LU" ? "available" : "n/a";
+        reason = c.iso === "LU" ? "EDTS deemed distribution tax fact — election adds deemed tax to Covered Taxes." : "Not an EDTS jurisdiction on this snapshot.";
+      } else if (e.id === "OECD_9.1.3") {
+        status = c.iso === "TH" || c.iso === "VN" ? "available" : "n/a";
+        reason = "Transition carrying-value treatment restates opening DTA / disallowed step-up under Art. 9.1.3.";
       } else if (e.id === "OECD_QDMTT_FX") {
         status = c.iso === "TH" && c.pack?.qdmtt ? "available" : "n/a";
         reason = c.iso === "TH" ? "Thai QDMTT computes in THB (Notification No. 6). Core remains USD. 5-year currency election where the AG permits." : "No QDMTT currency issue flagged.";
@@ -308,9 +339,21 @@ export function applyPackage(calcs: JurCalc[], flags: {
   harbourIso?: string[];
   carry415?: string[];
   tcshElect?: string[];
+  loss45?: string[];
+  unclaimed447?: string[];
+  immaterial461?: string[];
+  transfer634?: string[];
+  transfer634c?: string[];
+  edts73?: string[];
+  ie75?: string[];
+  ie76?: string[];
+  transition913?: string[];
+  setrIso?: string[];
+  sbtiIso?: string[];
 }): Restate[] {
   return calcs.map((c) => {
     let globeAdj = 0;
+    let coveredAdj = 0;
     const notes: string[] = [];
     if (flags.stock?.includes(c.iso) && c.blendKind === "main") {
       globeAdj += stockDelta(c.iso);
@@ -320,15 +363,71 @@ export function applyPackage(calcs: JurCalc[], flags: {
       globeAdj += realisationDelta(c.iso);
       notes.push("Art. 3.2.5 realisation");
     }
+    if (flags.loss45?.includes(c.iso)) {
+      const fx = effect45(c.iso, c.globeIncome + globeAdj, c.coveredTax);
+      coveredAdj += fx.coveredAdj;
+      notes.push(fx.note);
+    }
+    if (flags.unclaimed447?.includes(c.iso)) {
+      const fx = effect447(c.iso);
+      coveredAdj += fx.coveredAdj;
+      notes.push(fx.note);
+    }
+    if (flags.immaterial461?.includes(c.iso)) {
+      const fx = effect461(c.iso);
+      if (fx) { coveredAdj += fx.coveredAdj; notes.push(fx.note); }
+    }
+    if (flags.transfer634?.includes(c.iso) || flags.transfer634c?.includes(c.iso)) {
+      const fx = effect634(c.iso, Boolean(flags.transfer634c?.includes(c.iso)));
+      if (fx) { globeAdj += fx.globeAdj; notes.push(fx.note); }
+    }
+    if (flags.edts73?.includes(c.iso)) {
+      const fx = effect73(c.iso);
+      if (fx) { coveredAdj += fx.coveredAdj; notes.push(fx.note); }
+    }
+    if (flags.ie75?.includes(c.iso) || flags.ie75?.includes("GROUP")) {
+      if (c.blendKind === "investment") {
+        const fx = effect75(c.iso);
+        if (fx) { globeAdj += fx.globeAdj; coveredAdj += fx.coveredAdj; notes.push(fx.note); }
+      } else {
+        const fx = effect75Owner(c.iso);
+        if (fx) { globeAdj += fx.globeAdj; coveredAdj += fx.coveredAdj; notes.push(fx.note); }
+      }
+    }
+    if (flags.ie76?.includes(c.iso) && c.blendKind === "investment") {
+      const fx = effect76(c.iso);
+      if (fx) { globeAdj += fx.globeAdj; notes.push(fx.note); }
+    }
+    if (flags.transition913?.includes(c.iso)) {
+      const fx = effect913(c.iso);
+      coveredAdj += fx.coveredAdj;
+      notes.push(fx.note);
+    }
+    if (flags.sbtiIso?.includes(c.iso)) {
+      const sb = sbtishResult(c);
+      coveredAdj += sb.coveredAdd;
+      notes.push(`SBTISH · ${sb.detail}`);
+    }
     const sbie: SbieMode = typeof flags.sbie === "object" && flags.sbie ? (flags.sbie[c.iso] ?? "max") : (flags.sbie ?? "max");
     if (sbie === "none") notes.push("SBIE none");
     if (sbie === "partial") notes.push("SBIE partial");
-    const zero = flags.harbourIso?.includes(c.iso) ?? false;
-    if (zero) notes.push("Safe harbour deemed zero");
+    const zero = (flags.harbourIso?.includes(c.iso) || flags.setrIso?.includes(c.iso)) ?? false;
+    if (flags.setrIso?.includes(c.iso)) notes.push("SETR SH deemed zero");
+    if (zero && !flags.setrIso?.includes(c.iso)) notes.push("Safe harbour deemed zero");
     const carry415 = flags.carry415?.includes(c.iso) ?? false;
     if (carry415) notes.push("Art. 4.1.5 carry-forward");
     const tcshElected = flags.tcshElect?.includes(c.iso) ?? false;
-    return restated(c, globeAdj, sbie, zero, notes.join(" · ") || "Default", { carry415, tcshElected });
+    const row = restated(c, globeAdj, sbie, zero, notes.join(" · ") || "Default", { carry415, tcshElected });
+    if (coveredAdj !== 0 && !row.harbour) {
+      const covered = money(row.covered + coveredAdj);
+      const etrComputed = row.globe > 0;
+      const etr = etrComputed ? covered / row.globe : 0;
+      const rateTopUp = etrComputed ? money(Math.max(0, MIN - etr) * row.excess) : 0;
+      const topUp = money(rateTopUp + (row.additionalCurrent ?? 0));
+      const pay = collect(c, topUp, false);
+      return { ...row, covered, etr, topUp, ...pay, note: row.note };
+    }
+    return row;
   });
 }
 
@@ -342,6 +441,17 @@ export function flagsFromOn(
   const harbourIso: string[] = [];
   const carry415: string[] = [];
   const tcshElect: string[] = [];
+  const loss45: string[] = [];
+  const unclaimed447: string[] = [];
+  const immaterial461: string[] = [];
+  const transfer634: string[] = [];
+  const transfer634c: string[] = [];
+  const edts73: string[] = [];
+  const ie75: string[] = [];
+  const ie76: string[] = [];
+  const transition913: string[] = [];
+  const setrIso: string[] = [];
+  const sbtiIso: string[] = [];
   const sbie: Record<string, SbieMode> = { ...sbieClaim };
   for (const [key, isOn] of Object.entries(on)) {
     if (!isOn) continue;
@@ -351,6 +461,17 @@ export function flagsFromOn(
     if (id === "OECD_3.2.2") stock.push(iso);
     else if (id === "OECD_3.2.5") realisation.push(iso);
     else if (id === "OECD_4.1.5") carry415.push(iso);
+    else if (id === "OECD_4.5" || id === "SETR_4.5") loss45.push(iso);
+    else if (id === "OECD_4.4.7_a" || id === "OECD_4.4.7_5") unclaimed447.push(iso);
+    else if (id === "OECD_4.6.1") immaterial461.push(iso);
+    else if (id === "OECD_6.3.4") transfer634.push(iso);
+    else if (id === "OECD_6.3.4c") transfer634c.push(iso);
+    else if (id === "OECD_7.3") edts73.push(iso);
+    else if (id === "OECD_7.5") ie75.push(iso === "GROUP" ? "GROUP" : iso);
+    else if (id === "OECD_7.6") ie76.push(iso);
+    else if (id === "OECD_9.1.3") transition913.push(iso);
+    else if (id === "SH_SETR" || id === "SETR_APPLY") setrIso.push(iso);
+    else if (id === "SH_SBTI" || id === "SETR_SBTI") sbtiIso.push(iso);
     else if (id === "SH_TCSH" || id === "SH_TCSH_DM" || id === "SH_TCSH_ETR" || id === "SH_TCSH_RP") tcshElect.push(iso);
     else if (id === "OECD_5.3.1") {
       if (!sbie[iso]) sbie[iso] = "none";
@@ -360,7 +481,11 @@ export function flagsFromOn(
       } else harbourIso.push(iso);
     }
   }
-  return { stock, realisation, sbie, harbourIso, carry415, tcshElect };
+  return {
+    stock, realisation, sbie, harbourIso, carry415, tcshElect,
+    loss45, unclaimed447, immaterial461, transfer634, transfer634c,
+    edts73, ie75, ie76, transition913, setrIso, sbtiIso,
+  };
 }
 
 export function scoreWorking(

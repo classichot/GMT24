@@ -6,13 +6,14 @@ import { lastLocked } from "@/lib/yearLedger";
 import { useStore } from "@/lib/store";
 
 export function useCalc() {
-  const { groupId, scenario, electionsOn, yearRecords, activeFy } = useStore();
+  const { groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps } = useStore();
   return useMemo(() => {
     const prior = lastLocked(yearRecords, activeFy);
     const calcs = applyScenario(
       calculateGroup(groupId, {
         fy: activeFy,
         electionsOn,
+        approvedMaps,
         tcshPrior: prior
           ? prior.rows.map((r) => ({
             blendKey: r.blendKey ?? r.iso,
@@ -26,5 +27,5 @@ export function useCalc() {
       scenario,
     );
     return { calcs, t: totals(calcs), groupId, scenario };
-  }, [groupId, scenario, electionsOn, yearRecords, activeFy]);
+  }, [groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps]);
 }

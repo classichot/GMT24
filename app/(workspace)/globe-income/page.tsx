@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ENTITIES } from "@/lib/model";
-import { entityCalc, calculateGroup, traceAdj } from "@/lib/engine";
+import { entityCalc, traceAdj } from "@/lib/engine";
 import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
+import { useCalc } from "@/lib/useCalc";
 
 const METHOD = [
   {
@@ -37,8 +38,8 @@ const METHOD = [
   {
     n: "05",
     title: "Engine posts GloBE income",
-    body: "GloBE income = FANIL + Σ Art. 3.2 deltas − Art. 3.4. Jurisdiction GloBE income is the blend of Constituent Entities in that country. That figure is the denominator of the jurisdictional ETR.",
-    refs: ["Art. 3.1", "Art. 3.4", "Art. 5.1.1"],
+    body: "GloBE income = FANIL + approved account postings under Art. 3.2 and PE allocation under Art. 3.5 − Art. 3.4 shipping. Approval changes the engine input and reruns the jurisdictional ETR.",
+    refs: ["Art. 3.1", "Art. 3.2", "Art. 3.4", "Art. 3.5", "Art. 5.1.1"],
   },
 ];
 
@@ -59,17 +60,20 @@ const REFERENCES = [
   { cite: "Art. 3.2.1(f)", work: "Asymmetric Foreign Currency Gains or Losses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.1(g)", work: "Policy Disallowed Expenses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.2", work: "Stock-based compensation election", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+  { cite: "Arts. 3.2.3 / 3.2.4 / 3.2.9", work: "Pension, arm's-length and insurance policyholder-tax account postings", loc: "Books → FANIL posting engine", href: "/mapping" },
   { cite: "Art. 3.4", work: "International Shipping Income exclusion — ISI + QAISI (50% cap); Art. 3.4.5 management test; related tax and SBIE strip", loc: "OECD-SHIP-34 v2026.1", href: "/rulebook" },
+  { cite: "Art. 3.5", work: "Permanent Establishment FANIL allocation — equal and opposite Main Entity / PE postings", loc: "TH001 PE allocation workbook FY2026.xlsx", href: "/mapping" },
   { cite: "Art. 4", work: "Covered Taxes — not a GloBE-income adjustment (recast 15% sits here)", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Covered Taxes ÷ GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
 
 export default function GlobeIncomePage() {
-  const { groupId, ask } = useStore();
+  const { ask, approvedMaps, electionsOn, activeFy } = useStore();
+  const { calcs } = useCalc();
   const router = useRouter();
   const [id, setId] = useState("TH-CE");
-  const row = entityCalc(id);
-  const jur = calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === id));
+  const row = entityCalc(id, { approvedMaps, electionsOn, fy: activeFy });
+  const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
   const f = row.f;
   const ship = row.shipping;
@@ -79,7 +83,7 @@ export default function GlobeIncomePage() {
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Adjustment method.</strong> GloBE income is not a tax computation. It is FANIL restated under Article 3.2, then Article 3.4 shipping, so the ETR in Article 5.1 uses a common base. Formula: <span className="mono">GloBE = FANIL + Σ Art. 3.2 − Art. 3.4</span>.
+          <strong>Books → FANIL → GloBE.</strong> Approved account mappings post Article 3.2 and PE Article 3.5 entries into the engine; Article 3.4 shipping is then excluded. Formula: <span className="mono">GloBE = FANIL + mapped postings − Art. 3.4</span>.
         </div>
         <div className="stack-actions">
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
@@ -113,7 +117,7 @@ export default function GlobeIncomePage() {
       <div className="panel">
         <div className="panel-head">
           <h4>GloBE income waterfall · {row.entity.code}</h4>
-          <span className="text-muted">{row.adjustments.length} Art. 3.2 · {ship.present ? "Art. 3.4 posted" : "no shipping"} · {jur?.name}</span>
+          <span className="text-muted">{row.adjustments.length} mapped postings · {ship.present ? "Art. 3.4 posted" : "no shipping"} · {jur?.name}</span>
         </div>
         <div className="panel-body waterfall">
           <div className="wf-row">
@@ -129,6 +133,9 @@ export default function GlobeIncomePage() {
                   {" "}
                   {ADJ_REF[a.category] && (
                     <Link href="/rulebook" className="tag tag-accent" style={{ fontSize: 10, marginLeft: 6 }}>{ADJ_REF[a.category].article}</Link>
+                  )}
+                  {!ADJ_REF[a.category] && a.article && (
+                    <Link href="/rulebook" className="tag tag-accent" style={{ fontSize: 10, marginLeft: 6 }}>{a.article}</Link>
                   )}
                   <div className="text-muted" style={{ fontSize: 12 }}>
                     Original {eur(a.original)} · delta {eur(a.amount)} · <Link href="/rulebook" className="mono">{a.ruleId}</Link>

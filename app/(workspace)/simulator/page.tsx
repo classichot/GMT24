@@ -4,6 +4,7 @@ import Link from "next/link";
 import { eur } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { chapter6Lines } from "@/lib/chapter6";
 
 export default function SimulatorPage() {
   const { scenario, setScenario } = useStore();
@@ -45,6 +46,28 @@ export default function SimulatorPage() {
               <div className="text-muted" style={{ fontSize: 13 }}>A TP adjustment changes jurisdictional profit, which changes GloBE income, ETR and top-up. This is the long-term GMT24 ↔ TP24 link.</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head"><h4>Chapter 6 — join / leave / reorg / Art. 6.3.4</h4><Link href="/elections" className="btn btn-ghost">6.3.4 election</Link></div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Date</th><th>Event</th><th>Kind</th><th>GloBE gain</th><th>Treatment</th></tr>
+            </thead>
+            <tbody>
+              {chapter6Lines().map((l) => (
+                <tr key={l.id}>
+                  <td className="mono">{l.date}</td>
+                  <td>{l.label}<div className="text-muted" style={{ fontSize: 11 }}>{l.evidence}</div></td>
+                  <td>{l.kind}</td>
+                  <td className="num">{eur(l.globeGain)}</td>
+                  <td style={{ fontSize: 12 }}>{l.treatment}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

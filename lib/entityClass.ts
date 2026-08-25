@@ -122,11 +122,13 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
   const excluded = e.type === "Excluded" || Boolean(e.excludedReason);
   const jv = !excluded && isJvMember(e);
   const investment = e.type === "Investment";
+  const transparent = e.type === "Tax-transparent";
   const stateless = e.type === "Stateless";
   const upe = e.type === "UPE";
   const parentEntity = !excluded && hasCeChild(e.id);
   const moce =
-    !excluded && !upe && !jv && !investment && !stateless && upeOwnership > 0 && upeOwnership <= MOCE_UPE_MAX;
+    !excluded && !upe && !jv && !investment && !transparent && !stateless && upeOwnership > 0 && upeOwnership <= MOCE_UPE_MAX;
+  const isMope = moce && mopeIds.has(e.id);
   const ancestorMope = (() => {
     let cur: Entity | undefined = e.parentId ? byId[e.parentId] : undefined;
     while (cur) {
@@ -135,18 +137,19 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
     }
     return null;
   })();
-  const mosg = moce && Boolean(ancestorMope);
+  const mosg = moce && (isMope || Boolean(ancestorMope));
   const pope = !excluded && !upe && parentEntity && outsiderPct > POPE_OUTSIDER_MIN;
 
   let blendKind: BlendKind = "main";
   if (excluded) blendKind = "excluded";
   else if (stateless) blendKind = "stateless";
   else if (investment) blendKind = "investment";
+  else if (transparent) blendKind = "excluded";
   else if (jv) blendKind = "jv";
   else if (mosg) blendKind = "mosg";
   else if (moce) blendKind = "moce";
 
-  const mopeId = ancestorMope;
+  const mopeId = ancestorMope ?? (isMope ? e.id : null);
   const blendKey =
     blendKind === "excluded" ? `excl:${e.id}`
     : blendKind === "stateless" ? `stateless:${e.id}`
@@ -162,11 +165,13 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
     : blendKind === "mosg" ? `${e.jurisdiction} · MOSG`
     : blendKind === "investment" ? `${e.jurisdiction} · Investment Entity`
     : blendKind === "stateless" ? `Stateless · ${e.code}`
+    : transparent ? `${e.jurisdiction} · Tax-transparent`
     : e.jurisdiction;
 
   const tag = excluded ? "Excluded"
     : upe ? "UPE"
     : pope ? "POPE"
+    : transparent ? "Transparent"
     : moce ? "MOCE"
     : jv ? (e.type === "JV Sub" ? "JV Sub" : "JV")
     : investment ? "Investment"
@@ -177,7 +182,7 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
     { id: "ce", label: "Constituent Entity", pass: !excluded, detail: excluded ? (e.excludedReason ?? "Excluded Entity") : `${e.type} is in the UPE consolidation.` },
     { id: "upe-own", label: "UPE ownership (look-through)", pass: true, detail: `${upeOwnership}% of Ownership Interests held by the UPE.` },
     { id: "moce", label: `MOCE (UPE ≤ ${MOCE_UPE_MAX}%)`, pass: moce, detail: moce ? `UPE ownership ${upeOwnership}% ≤ ${MOCE_UPE_MAX}% — separate ETR from majority CEs in ${e.jurisdiction}.` : `UPE ownership ${upeOwnership}% > ${MOCE_UPE_MAX}% — not a MOCE.` },
-    { id: "mosg", label: "MOSG member", pass: mosg, detail: mosg ? `Blended with other MOCEs under Minority-Owned Parent ${mopeId}.` : "No Minority-Owned Parent Entity on the chain — standalone MOCE or majority CE." },
+    { id: "mosg", label: "MOSG member", pass: mosg, detail: mosg ? `${isMope ? "Minority-Owned Parent and its subsidiaries are" : "Blended"} with other MOCEs under Minority-Owned Parent ${mopeId}.` : "No Minority-Owned Parent Entity on the chain — standalone MOCE or majority CE." },
     { id: "parent", label: "Parent Entity", pass: parentEntity, detail: parentEntity ? "Owns an Ownership Interest in another CE of the group." : "No CE subsidiary — not a Parent Entity." },
     { id: "pope", label: `POPE (outsiders > ${POPE_OUTSIDER_MIN}%)`, pass: pope, detail: pope ? `${outsiderPct}% held outside the group — IIR applies here first with Inclusion Ratio (Art. 2.1.4).` : upe ? "This is the UPE — POPE is a non-UPE Parent." : !parentEntity ? "Not a Parent Entity." : `Outsiders hold ${outsiderPct}% (need more than ${POPE_OUTSIDER_MIN}%). Not a POPE.` },
     { id: "jv", label: "JV Group (Art. 6.4 / 10.1)", pass: jv, detail: jv ? `Equity-accounted in the UPE CFS and UPE ownership ${upeOwnership}% ≥ ${JV_UPE_MIN}% — separate MNE for ETR, not blended with majority CEs.` : `Not a Joint Venture (need equity method in the UPE CFS and UPE ownership ≥ ${JV_UPE_MIN}%).` },
