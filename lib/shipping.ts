@@ -1,92 +1,82 @@
 /**
  * OECD GloBE Model Rules — Article 3.3 International Shipping Income.
  *
- * Legal anchors (Model Rules + Commentary / Illustrative Examples):
- * - Art. 3.3.1 — ISI and QAISI **shall** be excluded (mandatory). Losses likewise
- *   (Example 3.3.1-3).
- * - Art. 3.3.2(a) — transport in international traffic (¶152: not solely domestic places).
- * - Art. 3.3.2(b) — slot-chartering (¶155).
- * - Art. 3.3.2(c) — lease out fully equipped/crewed/supplied (time/voyage charter) for
- *   international traffic (¶156).
- * - Art. 3.3.2(d) — bareboat-out QISI only if lessee is a group CE **and** has ISI (¶157).
- * - Art. 3.3.2 last sentence — inland waterways within same jurisdiction not ISI (¶160).
- * - Art. 3.3.3(a) — third-party bareboat QAISI only if lessee is non-CE shipping enterprise
- *   and charter ≤ 3 years including renewals (¶163–164).
- * - Art. 3.3.4 — jurisdictional QAISI ≤ 50% of jurisdiction ISI (¶172–173; Examples 3.3.1-2).
- * - Art. 3.3.6 — strategic **or** commercial management in CE jurisdiction (¶180–182).
- * - Art. 4.1.3(a) / Commentary ¶148 · ¶9 — Covered Taxes on excluded Ch. 3 income leave
- *   Adjusted Covered Taxes; tax on Art. 3.3.4 spill stays in (proportional method Example 4.1.3-1).
+ * Art. 3.3.5 (Commentary ¶174–179): net ISI / QAISI from gross revenue − direct
+ * costs − indirect allocated by revenue ratio. Costs on Art. 3.3.4 spill QAISI stay
+ * in GloBE (¶178) because only allowable net QAISI is excluded.
  *
- * Hooked from entityGlobe / entityCovered. Coverage only where tests assert it.
+ * Art. 4.1.3(a) (Commentary ¶148 · ¶9): Covered Taxes *associated with* excluded
+ * shipping leave Adjusted Covered Taxes. Identifiable tax preferred; unidentifiable
+ * remainder prorated on (excluded + spill + residual) using current + deferred +
+ * otherCovered. Spill and residual tax stay in ACT.
+ *
+ * Management is Art. 3.3.6 (OR). Cap is Art. 3.3.4. Do not cite 3.3.4 as management.
  */
 
 import { money } from "./format";
 
-/** Art. 3.3.2 — International Shipping Income categories. */
 export type QisiCategory =
-  | "international_transport" // 3.3.2(a)
-  | "slot_charter" // 3.3.2(b)
-  | "time_voyage_charter" // 3.3.2(c) crewed / fully equipped charter-out
-  | "bareboat_charter_intragroup" // 3.3.2(d)
-  | "pool_joint_agency" // 3.3.2(e)
-  | "ship_sale"; // 3.3.2(f)
+  | "international_transport"
+  | "slot_charter"
+  | "time_voyage_charter"
+  | "bareboat_charter_intragroup"
+  | "pool_joint_agency"
+  | "ship_sale";
 
-/** Art. 3.3.3 — Qualified Ancillary categories (inland haulage intentionally absent — ¶171). */
 export type QaisiCategory =
-  | "bareboat_charter_third_party" // 3.3.3(a)
-  | "ticket_domestic_leg" // 3.3.3(b)
-  | "container_leasing" // 3.3.3(c)
-  | "engineering_services" // 3.3.3(d)
-  | "ancillary_investment"; // 3.3.3(e)
+  | "bareboat_charter_third_party"
+  | "ticket_domestic_leg"
+  | "container_leasing"
+  | "engineering_services"
+  | "ancillary_investment";
 
-export type NonQualifyingShippingCategory =
-  | "inland_transport" // ¶171 — not QAISI
-  | "other_non_qualifying";
-
+export type NonQualifyingShippingCategory = "inland_transport" | "other_non_qualifying";
 export type ShippingLineKind = "qisi" | "qaisi" | "non_qualifying";
 
-/** Art. 3.3.2(d) / 3.3.3(a) bareboat fact pack. */
 export type BareboatFacts = {
-  /** Lessee is a Constituent Entity of the same MNE Group (required for 3.3.2(d) QISI). */
   lesseeIsGroupCe?: boolean;
-  /** Lessee has International Shipping Income (required for 3.3.2(d); Commentary ¶157). */
   lesseeHasInternationalShippingIncome?: boolean;
-  /** Lessee is a shipping enterprise that is not a CE (required for 3.3.3(a) QAISI). */
   lesseeIsNonCeShippingEnterprise?: boolean;
-  /** Contracted charter term in years for this arrangement. */
   charterYears?: number;
-  /**
-   * Prior/subsequent related bareboat periods of the same ship that ¶164 requires
-   * aggregating (renewals). Total = charterYears + relatedCharterYears must be ≤ 3
-   * for Art. 3.3.3(a).
-   */
   relatedCharterYears?: number;
 };
 
-/** Commentary ¶152 / ¶156 / ¶160 — traffic and voyage facts. */
 export type VoyageFacts = {
-  /** Ship operated solely between places within a single jurisdiction → not international traffic (¶152). */
   solelyDomesticPlaces?: boolean;
-  /** Transport via inland waterways within the same jurisdiction → not ISI (Art. 3.3.2 last sentence; ¶160). */
   inlandWaterwaysSameJurisdiction?: boolean;
-  /** Art. 3.3.2(c) — ship expected to be used for international traffic (¶156). */
   expectedInternationalTraffic?: boolean;
 };
 
 export type ShippingLine = {
   id: string;
-  /** Declared kind; engine re-classifies from category + facts. */
   kind: ShippingLineKind;
   category: QisiCategory | QaisiCategory | NonQualifyingShippingCategory;
+  /**
+   * Legacy / Example 3.3.1-x precomputed net. Ignored for Art. 3.3.5 when
+   * `revenue` is set; otherwise treated as revenue with zero direct costs.
+   */
   amount: number;
+  /** Art. 3.3.5 — gross revenue from the activity. */
+  revenue?: number;
+  /** Art. 3.3.5 — direct costs attributable on facts and circumstances (¶174). */
+  directCosts?: number;
   flagJurisdiction?: string;
   bareboat?: BareboatFacts;
   voyage?: VoyageFacts;
-  /** Art. 3.3.2(f) — minimum one-year holding (¶159). */
   heldYears?: number;
-  /** Legacy override — prefer structured facts. When false, force non-qualifying. */
   qualifies?: boolean;
   notes?: string;
+};
+
+export type ShippingTaxAssociation = {
+  /** Identifiable current tax on net shipping that will be excluded. */
+  identifiableCurrentOnExcluded?: number;
+  /** Identifiable deferred tax on excluded shipping. */
+  identifiableDeferredOnExcluded?: number;
+  /** Identifiable tax (current and/or deferred) on Art. 3.3.4 spill — STAYS in ACT. */
+  identifiableTaxOnSpill?: number;
+  /** Identifiable tax on residual non-shipping / non-qualifying — STAYS in ACT. */
+  identifiableTaxOnResidual?: number;
 };
 
 export type ShippingFacts = {
@@ -95,13 +85,22 @@ export type ShippingFacts = {
   strategicManagementInCeJur: boolean;
   commercialManagementInCeJur: boolean;
   lines: ShippingLine[];
-  /**
-   * Art. 4.1.3(a) inputs (Example 4.1.3-1 method):
-   * reduction = incomeExcluded / taxableIncome × currentTaxExpense.
-   * Tax on Art. 3.3.4 spill is not in incomeExcluded, so it stays in Covered Taxes.
-   */
+  /** Art. 3.3.5 ¶176 — indirect / overhead pool. */
+  indirectCosts: number;
+  /** Revenue from activities outside shipping lines (non-qualified residual). */
+  residualRevenue: number;
+  /** Current tax expense (Art. 4.1.1 starting point). */
   currentTaxExpense: number;
+  /** Deferred tax in the Covered Tax numerator for this CE. */
+  deferredTaxExpense: number;
+  /** Other covered (Art. 4.2/4.3); follows same association when non-zero. */
+  otherCovered: number;
+  /**
+   * Domestic taxable income (or FANIL proxy) for unidentifiable-tax proration
+   * when residual net is not otherwise known.
+   */
   taxableIncome: number;
+  taxAssociation?: ShippingTaxAssociation;
   sourceDoc: string;
 };
 
@@ -111,6 +110,13 @@ export type ShippingLineTreatment =
   | "capped_out"
   | "non_qualifying"
   | "kept_management_fail";
+
+export type IndirectAllocation = {
+  isi: number;
+  qaisi: number;
+  residual: number;
+  totalRevenue: number;
+};
 
 export type ShippingResult = {
   entityId: string;
@@ -125,10 +131,30 @@ export type ShippingResult = {
   qisiExcluded: number;
   incomeExcluded: number;
   globeDelta: number;
-  /** Art. 4.1.3(a) reduction to Adjusted Covered Taxes. */
   coveredTaxExcluded: number;
   nonQualifyingKept: number;
-  lines: Array<ShippingLine & { treatedAs: ShippingLineTreatment; classifiedAs: ShippingLineKind }>;
+  /** Art. 3.3.5 cost build. */
+  cost: {
+    isiRevenue: number;
+    qaisiRevenue: number;
+    residualRevenue: number;
+    isiDirect: number;
+    qaisiDirect: number;
+    residualDirect: number;
+    indirect: IndirectAllocation;
+    isiNet: number;
+    qaisiNet: number;
+    usedGrossEngine: boolean;
+  };
+  tax: {
+    identifiableExcluded: number;
+    identifiableSpill: number;
+    identifiableResidual: number;
+    unidentifiablePool: number;
+    ratioShare: number;
+    totalPool: number;
+  };
+  lines: Array<ShippingLine & { treatedAs: ShippingLineTreatment; classifiedAs: ShippingLineKind; netAfterCosts: number }>;
   detail: string;
   ruleId: "OECD-SHIP-33";
 };
@@ -150,7 +176,6 @@ const QAISI_CATS: ReadonlySet<string> = new Set([
   "ancillary_investment",
 ]);
 
-/** Art. 3.3.3(a) — total bareboat period including renewals (Commentary ¶164). */
 export function bareboatTotalYears(b: BareboatFacts | undefined): number | null {
   if (!b || b.charterYears == null) return null;
   return money((b.charterYears + (b.relatedCharterYears ?? 0)) * 1000) / 1000;
@@ -161,14 +186,7 @@ export function bareboatWithinThreeYears(b: BareboatFacts | undefined): boolean 
   return total != null && total <= 3;
 }
 
-/**
- * Classify a line under Art. 3.3.2 / 3.3.3 with fact gates.
- * Returns non_qualifying when required facts fail (B2 auditor-grade).
- */
-export function classifyShippingLine(line: ShippingLine): {
-  kind: ShippingLineKind;
-  reason: string;
-} {
+export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKind; reason: string } {
   if (line.qualifies === false || line.category === "inland_transport" || line.category === "other_non_qualifying") {
     return {
       kind: "non_qualifying",
@@ -177,86 +195,90 @@ export function classifyShippingLine(line: ShippingLine): {
         : "Line marked non-qualifying",
     };
   }
-
   const v = line.voyage;
-
-  // Traffic / voyage screens for transport-like QISI (¶152 / ¶160)
-  if (
-    line.category === "international_transport" ||
-    line.category === "slot_charter" ||
-    line.category === "pool_joint_agency"
-  ) {
+  if (line.category === "international_transport" || line.category === "slot_charter" || line.category === "pool_joint_agency") {
     if (v?.solelyDomesticPlaces) {
-      return { kind: "non_qualifying", reason: "Commentary ¶152 — ship operated solely between places in a single jurisdiction (not international traffic)" };
+      return { kind: "non_qualifying", reason: "Commentary ¶152 — solely between places in a single jurisdiction" };
     }
     if (v?.inlandWaterwaysSameJurisdiction) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.2 last sentence / ¶160 — inland waterways within the same jurisdiction" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.2 last sentence / ¶160 — inland waterways same jurisdiction" };
     }
   }
-
-  // Art. 3.3.2(c) — crewed time/voyage charter-out
   if (line.category === "time_voyage_charter") {
     if (v?.expectedInternationalTraffic !== true) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.2(c) / ¶156 — lessor must show ship expected to be used in international traffic" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.2(c) / ¶156 — expected international traffic required" };
     }
     if (v.solelyDomesticPlaces || v.inlandWaterwaysSameJurisdiction) {
       return { kind: "non_qualifying", reason: "Art. 3.3.2(c) — voyage facts fail international traffic" };
     }
-    return { kind: "qisi", reason: "Art. 3.3.2(c) time/voyage charter-out for international traffic" };
+    return { kind: "qisi", reason: "Art. 3.3.2(c) time/voyage charter-out" };
   }
-
-  // Art. 3.3.2(d) — intragroup bareboat → QISI only with lessee CE + lessee ISI
   if (line.category === "bareboat_charter_intragroup") {
     const b = line.bareboat;
     if (!b?.lesseeIsGroupCe) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.2(d) / ¶157 — lessee must be a Constituent Entity of the same MNE Group" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.2(d) / ¶157 — lessee must be a group CE" };
     }
     if (!b.lesseeHasInternationalShippingIncome) {
       return { kind: "non_qualifying", reason: "Art. 3.3.2(d) / ¶157 — lessee must have International Shipping Income" };
     }
-    return { kind: "qisi", reason: "Art. 3.3.2(d) intragroup bareboat-out to CE with ISI" };
+    return { kind: "qisi", reason: "Art. 3.3.2(d) intragroup bareboat-out" };
   }
-
-  // Art. 3.3.3(a) — third-party bareboat → QAISI only with non-CE shipping enterprise + ≤3 years
   if (line.category === "bareboat_charter_third_party") {
     const b = line.bareboat;
     if (!b?.lesseeIsNonCeShippingEnterprise) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.3(a) / ¶163 — lessee must be a shipping enterprise that is not a Constituent Entity" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.3(a) / ¶163 — non-CE shipping enterprise lessee required" };
     }
     if (b.lesseeIsGroupCe) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.3(a) — group-CE lessee belongs under Art. 3.3.2(d), not 3.3.3(a)" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.3(a) — group-CE lessee is Art. 3.3.2(d), not 3.3.3(a)" };
     }
     if (!bareboatWithinThreeYears(b)) {
-      return {
-        kind: "non_qualifying",
-        reason: "Art. 3.3.3(a) / ¶164 — bareboat charter exceeds three years including renewals (or duration facts missing)",
-      };
+      return { kind: "non_qualifying", reason: "Art. 3.3.3(a) / ¶164 — charter > 3 years incl. renewals (or duration missing)" };
     }
-    return { kind: "qaisi", reason: "Art. 3.3.3(a) third-party bareboat-out ≤ 3 years" };
+    return { kind: "qaisi", reason: "Art. 3.3.3(a) third-party bareboat ≤ 3 years" };
   }
-
-  // Art. 3.3.2(f) ship sale — 1-year holding
   if (line.category === "ship_sale") {
     if ((line.heldYears ?? 0) < 1) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.2(f) / ¶159 — ship must be held ≥ 1 year" };
+      return { kind: "non_qualifying", reason: "Art. 3.3.2(f) / ¶159 — held ≥ 1 year required" };
     }
-    return { kind: "qisi", reason: "Art. 3.3.2(f) sale of qualifying ship" };
+    return { kind: "qisi", reason: "Art. 3.3.2(f) ship sale" };
   }
-
-  if (QISI_CATS.has(line.category)) {
-    return { kind: "qisi", reason: `Art. 3.3.2 — ${line.category}` };
-  }
-  if (QAISI_CATS.has(line.category)) {
-    return { kind: "qaisi", reason: `Art. 3.3.3 — ${line.category}` };
-  }
+  if (QISI_CATS.has(line.category)) return { kind: "qisi", reason: `Art. 3.3.2 — ${line.category}` };
+  if (QAISI_CATS.has(line.category)) return { kind: "qaisi", reason: `Art. 3.3.3 — ${line.category}` };
   return { kind: "non_qualifying", reason: "Unrecognised shipping category" };
 }
 
-/** Art. 4.1.3(a) — Example 4.1.3-1 proportional method. */
-export function art413aReduction(incomeExcluded: number, taxableIncome: number, currentTaxExpense: number): number {
-  if (incomeExcluded === 0 || taxableIncome === 0) return 0;
-  // excluded / taxable × current tax (sign follows excluded income for loss cases)
-  return money((incomeExcluded / taxableIncome) * currentTaxExpense);
+/**
+ * Art. 3.3.5 ¶176 — allocate indirect costs by revenue ratio.
+ * Example: ISI 80 + QAISI 20 + residual 20 = 120; indirect 30 → 20 / 5 / 5.
+ */
+export function allocateIndirectCosts(opts: {
+  isiRevenue: number;
+  qaisiRevenue: number;
+  residualRevenue: number;
+  indirectCosts: number;
+}): IndirectAllocation {
+  const totalRevenue = money(opts.isiRevenue + opts.qaisiRevenue + opts.residualRevenue);
+  if (totalRevenue === 0 || opts.indirectCosts === 0) {
+    return { isi: 0, qaisi: 0, residual: 0, totalRevenue };
+  }
+  const isi = money((opts.indirectCosts * opts.isiRevenue) / totalRevenue);
+  const qaisi = money((opts.indirectCosts * opts.qaisiRevenue) / totalRevenue);
+  // Residual takes the remainder so the pool fully allocates (rounding).
+  const residual = money(opts.indirectCosts - isi - qaisi);
+  return { isi, qaisi, residual, totalRevenue };
+}
+
+function lineRevenue(line: ShippingLine): number {
+  return line.revenue != null ? line.revenue : line.amount;
+}
+
+function lineDirect(line: ShippingLine): number {
+  if (line.revenue != null) return line.directCosts ?? 0;
+  return 0;
+}
+
+function lineUsesGross(line: ShippingLine): boolean {
+  return line.revenue != null;
 }
 
 export function qaisiCapOf(qisi: number): number {
@@ -264,23 +286,164 @@ export function qaisiCapOf(qisi: number): number {
   return money(qisi * 0.5);
 }
 
-export function managementTestPass(facts: Pick<ShippingFacts, "strategicManagementInCeJur" | "commercialManagementInCeJur">): boolean {
+export function managementTestPass(
+  facts: Pick<ShippingFacts, "strategicManagementInCeJur" | "commercialManagementInCeJur">,
+): boolean {
   return facts.strategicManagementInCeJur || facts.commercialManagementInCeJur;
 }
 
-function classifiedSums(pack: ShippingFacts) {
-  let qisi = 0;
-  let qaisi = 0;
-  let nonQ = 0;
-  const rows: Array<{ line: ShippingLine; kind: ShippingLineKind; reason: string }> = [];
-  for (const line of pack.lines) {
+type BuiltNets = {
+  isiRevenue: number;
+  qaisiRevenue: number;
+  residualRevenue: number;
+  isiDirect: number;
+  qaisiDirect: number;
+  residualDirect: number;
+  indirect: IndirectAllocation;
+  isiNet: number;
+  qaisiNet: number;
+  nonQNet: number;
+  usedGrossEngine: boolean;
+  rows: Array<{ line: ShippingLine; kind: ShippingLineKind; reason: string; netAfterCosts: number }>;
+};
+
+/**
+ * Art. 3.3.5 — build net ISI / QAISI from gross revenue, direct costs, and
+ * allocated indirect. Non-qualifying line nets stay in GloBE.
+ */
+export function buildShippingNets(pack: ShippingFacts): BuiltNets {
+  let isiRevenue = 0;
+  let qaisiRevenue = 0;
+  let nonQRevenue = 0;
+  let isiDirect = 0;
+  let qaisiDirect = 0;
+  let nonQDirect = 0;
+  let usedGrossEngine = pack.indirectCosts > 0 || pack.lines.some(lineUsesGross);
+
+  const classified = pack.lines.map((line) => {
     const c = classifyShippingLine(line);
-    rows.push({ line, kind: c.kind, reason: c.reason });
-    if (c.kind === "qisi") qisi = money(qisi + line.amount);
-    else if (c.kind === "qaisi") qaisi = money(qaisi + line.amount);
-    else nonQ = money(nonQ + line.amount);
+    const rev = lineRevenue(line);
+    const dir = lineDirect(line);
+    if (c.kind === "qisi") {
+      isiRevenue = money(isiRevenue + rev);
+      isiDirect = money(isiDirect + dir);
+    } else if (c.kind === "qaisi") {
+      qaisiRevenue = money(qaisiRevenue + rev);
+      qaisiDirect = money(qaisiDirect + dir);
+    } else {
+      nonQRevenue = money(nonQRevenue + rev);
+      nonQDirect = money(nonQDirect + dir);
+    }
+    return { line, kind: c.kind, reason: c.reason, rev, dir };
+  });
+
+  const residualRevenue = money(pack.residualRevenue + nonQRevenue);
+  const residualDirect = nonQDirect;
+  const indirect = allocateIndirectCosts({
+    isiRevenue,
+    qaisiRevenue,
+    residualRevenue,
+    indirectCosts: pack.indirectCosts,
+  });
+
+  const isiNet = money(isiRevenue - isiDirect - indirect.isi);
+  const qaisiNet = money(qaisiRevenue - qaisiDirect - indirect.qaisi);
+  // Non-qualifying net after its share of residual indirect (allocated on residualRevenue bucket).
+  // Split residual indirect between line non-Q revenue and pack.residualRevenue by revenue share.
+  let nonQNet = money(nonQRevenue - nonQDirect);
+  if (residualRevenue > 0 && nonQRevenue > 0) {
+    const nonQShareOfResidualIndirect = money((indirect.residual * nonQRevenue) / residualRevenue);
+    nonQNet = money(nonQNet - nonQShareOfResidualIndirect);
   }
-  return { qisi, qaisi, nonQ, rows };
+
+  const rows = classified.map((row) => {
+    let netAfterCosts = money(row.rev - row.dir);
+    if (row.kind === "qisi" && isiRevenue > 0) {
+      netAfterCosts = money(netAfterCosts - (indirect.isi * row.rev) / isiRevenue);
+    } else if (row.kind === "qaisi" && qaisiRevenue > 0) {
+      netAfterCosts = money(netAfterCosts - (indirect.qaisi * row.rev) / qaisiRevenue);
+    } else if (row.kind === "non_qualifying" && residualRevenue > 0) {
+      netAfterCosts = money(netAfterCosts - (indirect.residual * row.rev) / residualRevenue);
+    }
+    return { line: row.line, kind: row.kind, reason: row.reason, netAfterCosts: money(netAfterCosts) };
+  });
+
+  return {
+    isiRevenue,
+    qaisiRevenue,
+    residualRevenue,
+    isiDirect,
+    qaisiDirect,
+    residualDirect,
+    indirect,
+    isiNet,
+    qaisiNet,
+    nonQNet,
+    usedGrossEngine,
+    rows,
+  };
+}
+
+/**
+ * Art. 4.1.3(a) — associate Covered Taxes with excluded shipping.
+ * Identifiable tax on excluded leaves ACT. Identifiable spill/residual stay.
+ * Unidentifiable remainder prorated: excluded / (excluded + spill + residual) × pool,
+ * where pool = current + deferred + otherCovered − identifiable buckets.
+ */
+export function art413aShippingReduction(opts: {
+  incomeExcluded: number;
+  spillNet: number;
+  residualNet: number;
+  currentTaxExpense: number;
+  deferredTaxExpense: number;
+  otherCovered: number;
+  association?: ShippingTaxAssociation;
+}): {
+  reduction: number;
+  identifiableExcluded: number;
+  identifiableSpill: number;
+  identifiableResidual: number;
+  unidentifiablePool: number;
+  ratioShare: number;
+  totalPool: number;
+} {
+  const assoc = opts.association ?? {};
+  const identifiableExcluded = money(
+    (assoc.identifiableCurrentOnExcluded ?? 0) + (assoc.identifiableDeferredOnExcluded ?? 0),
+  );
+  const identifiableSpill = money(assoc.identifiableTaxOnSpill ?? 0);
+  const identifiableResidual = money(assoc.identifiableTaxOnResidual ?? 0);
+  const totalPool = money(opts.currentTaxExpense + opts.deferredTaxExpense + opts.otherCovered);
+  const assigned = money(identifiableExcluded + identifiableSpill + identifiableResidual);
+  const unidentifiablePool = money(Math.max(0, totalPool - assigned));
+
+  const absEx = Math.abs(opts.incomeExcluded);
+  const absSpill = Math.max(0, opts.spillNet);
+  const absRes = Math.max(0, opts.residualNet);
+  const ratioBase = money(absEx + absSpill + absRes);
+
+  let ratioShare = 0;
+  if (unidentifiablePool !== 0 && ratioBase !== 0 && absEx !== 0) {
+    ratioShare = money((unidentifiablePool * absEx) / ratioBase);
+    if (opts.incomeExcluded < 0) ratioShare = money(-ratioShare);
+  }
+
+  const reduction = money(identifiableExcluded + ratioShare);
+  return {
+    reduction,
+    identifiableExcluded,
+    identifiableSpill,
+    identifiableResidual,
+    unidentifiablePool,
+    ratioShare,
+    totalPool,
+  };
+}
+
+/** @deprecated current-only proxy — kept for Example 4.1.3-1 dividend teaching only. */
+export function art413aReduction(incomeExcluded: number, taxableIncome: number, currentTaxExpense: number): number {
+  if (incomeExcluded === 0 || taxableIncome === 0) return 0;
+  return money((incomeExcluded / taxableIncome) * currentTaxExpense);
 }
 
 export function jurisdictionalQaisiCap(
@@ -291,22 +454,32 @@ export function jurisdictionalQaisiCap(
   let jurisdictionQaisi = 0;
   for (const p of allPacks.filter((x) => x.ceJurisdiction === ceJurisdiction)) {
     if (!managementTestPass(p)) continue;
-    const s = classifiedSums(p);
-    jurisdictionQisi = money(jurisdictionQisi + s.qisi);
-    jurisdictionQaisi = money(jurisdictionQaisi + s.qaisi);
+    const n = buildShippingNets(p);
+    jurisdictionQisi = money(jurisdictionQisi + n.isiNet);
+    jurisdictionQaisi = money(jurisdictionQaisi + n.qaisiNet);
   }
   return { jurisdictionQisi, jurisdictionQaisi, cap: qaisiCapOf(jurisdictionQisi) };
 }
 
-/** Live Aetherion seed — Singapore maritime CE (SG-SHIP). */
+/** Live Aetherion seed — gross Art. 3.3.5 lines (nets reconcile to FANIL 8.9m). */
 export const SHIPPING_PACKS: ShippingFacts[] = [
   {
     entityId: "SG-SHIP",
     ceJurisdiction: "SG",
     strategicManagementInCeJur: true,
     commercialManagementInCeJur: true,
+    indirectCosts: 0,
+    residualRevenue: 500_000,
     currentTaxExpense: 1_120_000,
+    deferredTaxExpense: 40_000,
+    otherCovered: 0,
     taxableIncome: 8_900_000,
+    taxAssociation: {
+      identifiableCurrentOnExcluded: 900_000,
+      identifiableDeferredOnExcluded: 30_000,
+      identifiableTaxOnSpill: 0,
+      identifiableTaxOnResidual: 230_000,
+    },
     sourceDoc: "SG-SHIP shipping P&L FY2026.xlsx",
     lines: [
       {
@@ -314,15 +487,19 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         kind: "qisi",
         category: "international_transport",
         amount: 5_200_000,
+        revenue: 9_000_000,
+        directCosts: 3_800_000,
         flagJurisdiction: "LR",
         voyage: { solelyDomesticPlaces: false, inlandWaterwaysSameJurisdiction: false },
-        notes: "Art. 3.3.2(a) · international traffic · Liberian flag; commercial management in SG (Art. 3.3.6)",
+        notes: "Art. 3.3.2(a) · gross 9.0 − direct 3.8",
       },
       {
         id: "SH-02",
         kind: "qaisi",
         category: "bareboat_charter_third_party",
         amount: 800_000,
+        revenue: 1_200_000,
+        directCosts: 400_000,
         flagJurisdiction: "SG",
         bareboat: {
           lesseeIsNonCeShippingEnterprise: true,
@@ -330,28 +507,34 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
           charterYears: 2,
           relatedCharterYears: 0,
         },
-        notes: "Art. 3.3.3(a) third-party bareboat-out · 2 years · non-CE shipping enterprise",
+        notes: "Art. 3.3.3(a) third-party bareboat · 2 years",
       },
       {
         id: "SH-03",
         kind: "qaisi",
         category: "container_leasing",
         amount: 1_400_000,
-        notes: "Art. 3.3.3(c) container leasing / short-term storage",
+        revenue: 2_000_000,
+        directCosts: 600_000,
+        notes: "Art. 3.3.3(c) containers",
       },
       {
         id: "SH-04",
         kind: "non_qualifying",
         category: "inland_transport",
         amount: 400_000,
+        revenue: 700_000,
+        directCosts: 300_000,
         qualifies: false,
-        notes: "Commentary ¶171 — inland haulage not QAISI; remains in GloBE",
+        notes: "Commentary ¶171 — inland haulage not QAISI",
       },
       {
         id: "SH-05",
         kind: "qisi",
         category: "ship_sale",
         amount: 600_000,
+        revenue: 600_000,
+        directCosts: 0,
         flagJurisdiction: "LR",
         heldYears: 4,
         notes: "Art. 3.3.2(f) sale · held 4 years",
@@ -368,10 +551,7 @@ export function shippingPacksInJurisdiction(iso: string, packs = SHIPPING_PACKS)
   return packs.filter((p) => p.ceJurisdiction === iso);
 }
 
-/**
- * Build a one-CE facts pack from OECD Example 3.3.1-n numbers (management passes).
- * Tax fields unused unless the caller sets them for Art. 4.1.3(a) tests.
- */
+/** OECD Example 3.3.1-n — nets only (no Art. 3.3.5 gross; examples publish nets). */
 export function example331Facts(opts: {
   entityId?: string;
   fanil: number;
@@ -379,20 +559,24 @@ export function example331Facts(opts: {
   qisi: number;
   qaisi: number;
   currentTaxExpense?: number;
+  deferredTaxExpense?: number;
+  otherCovered?: number;
   taxableIncome?: number;
+  taxAssociation?: ShippingTaxAssociation;
 }): ShippingFacts {
-  const shippingNet = money(opts.qisi + opts.qaisi);
-  const impliedOther = money(opts.fanil - shippingNet);
-  // otherIncome is documentary; lines carry qisi/qaisi only — residual FANIL handled by caller.
-  void impliedOther;
   void opts.otherIncome;
   return {
     entityId: opts.entityId ?? "EX-331",
     ceJurisdiction: "EX",
     strategicManagementInCeJur: true,
     commercialManagementInCeJur: true,
+    indirectCosts: 0,
+    residualRevenue: 0,
     currentTaxExpense: opts.currentTaxExpense ?? 0,
+    deferredTaxExpense: opts.deferredTaxExpense ?? 0,
+    otherCovered: opts.otherCovered ?? 0,
     taxableIncome: opts.taxableIncome ?? opts.fanil,
+    taxAssociation: opts.taxAssociation,
     sourceDoc: "OECD Illustrative Examples Art. 3.3.1",
     lines: [
       {
@@ -412,6 +596,45 @@ export function example331Facts(opts: {
   };
 }
 
+/**
+ * Commentary ¶179 fixture — ISI rev 200 / costs 130 → 70; QAISI rev 100 / costs 60 → 40;
+ * spill 5; FANIL 110; exclude 105 → GloBE 5. Costs on spill stay in GloBE (¶178).
+ */
+export function commentary179Facts(): ShippingFacts {
+  return {
+    entityId: "EX-179",
+    ceJurisdiction: "EX",
+    strategicManagementInCeJur: true,
+    commercialManagementInCeJur: false,
+    indirectCosts: 0,
+    residualRevenue: 0,
+    currentTaxExpense: 0,
+    deferredTaxExpense: 0,
+    otherCovered: 0,
+    taxableIncome: 110,
+    sourceDoc: "Commentary ¶179",
+    lines: [
+      {
+        id: "isi",
+        kind: "qisi",
+        category: "international_transport",
+        amount: 70,
+        revenue: 200,
+        directCosts: 130,
+        voyage: { solelyDomesticPlaces: false },
+      },
+      {
+        id: "qaisi",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 40,
+        revenue: 100,
+        directCosts: 60,
+      },
+    ],
+  };
+}
+
 export function computeShippingExclusion(
   entityId: string,
   facts?: ShippingFacts,
@@ -422,17 +645,43 @@ export function computeShippingExclusion(
 
   const peerUniverse = opts?.allPacks ?? (SHIPPING_PACKS.some((p) => p.entityId === pack.entityId) ? SHIPPING_PACKS : [pack]);
   const managementPass = managementTestPass(pack);
-  const { qisi: qisiGross, qaisi: qaisiGross, nonQ: nonQualifyingKept, rows } = classifiedSums(pack);
+  const built = buildShippingNets(pack);
+  const qisiGross = built.isiNet;
+  const qaisiGross = built.qaisiNet;
+  const nonQualifyingKept = built.nonQNet;
 
-  const annotated: ShippingResult["lines"] = rows.map(({ line, kind, reason }) => ({
-    ...line,
-    kind,
-    treatedAs: kind === "non_qualifying" ? "non_qualifying" : kind === "qisi" ? "excluded_qisi" : "excluded_qaisi",
-    classifiedAs: kind,
-    notes: line.notes ? `${line.notes} · ${reason}` : reason,
+  const annotated: ShippingResult["lines"] = built.rows.map((r) => ({
+    ...r.line,
+    kind: r.kind,
+    treatedAs: (r.kind === "non_qualifying" ? "non_qualifying" : r.kind === "qisi" ? "excluded_qisi" : "excluded_qaisi") as ShippingLineTreatment,
+    classifiedAs: r.kind,
+    netAfterCosts: r.netAfterCosts,
+    notes: r.line.notes ? `${r.line.notes} · ${r.reason}` : r.reason,
   }));
 
   const { cap: qaisiCap, jurisdictionQisi } = jurisdictionalQaisiCap(pack.ceJurisdiction, peerUniverse);
+
+  const emptyTax = {
+    identifiableExcluded: 0,
+    identifiableSpill: 0,
+    identifiableResidual: 0,
+    unidentifiablePool: 0,
+    ratioShare: 0,
+    totalPool: money(pack.currentTaxExpense + pack.deferredTaxExpense + pack.otherCovered),
+  };
+
+  const costBlock = {
+    isiRevenue: built.isiRevenue,
+    qaisiRevenue: built.qaisiRevenue,
+    residualRevenue: built.residualRevenue,
+    isiDirect: built.isiDirect,
+    qaisiDirect: built.qaisiDirect,
+    residualDirect: built.residualDirect,
+    indirect: built.indirect,
+    isiNet: built.isiNet,
+    qaisiNet: built.qaisiNet,
+    usedGrossEngine: built.usedGrossEngine,
+  };
 
   if (!managementPass) {
     const why =
@@ -454,21 +703,20 @@ export function computeShippingExclusion(
       globeDelta: 0,
       coveredTaxExcluded: 0,
       nonQualifyingKept,
+      cost: costBlock,
+      tax: emptyTax,
       lines: annotated.map((l) => ({
         ...l,
         treatedAs: l.classifiedAs === "non_qualifying" ? "non_qualifying" : "kept_management_fail",
       })),
-      detail: `${why} International Shipping Income and QAISI remain in GloBE Income; no Art. 4.1.3(a) reduction.`,
+      detail: `${why} No Art. 3.3.1 exclusion; no Art. 4.1.3(a) reduction.`,
       ruleId: "OECD-SHIP-33",
     };
   }
 
   const peersPassing = peerUniverse.filter((p) => p.ceJurisdiction === pack.ceJurisdiction && managementTestPass(p));
   const jurQaisiPositive = money(
-    peersPassing.reduce((a, p) => {
-      const q = classifiedSums(p).qaisi;
-      return a + Math.max(0, q);
-    }, 0),
+    peersPassing.reduce((a, p) => a + Math.max(0, buildShippingNets(p).qaisiNet), 0),
   );
 
   let thisCeQaisiRoom = 0;
@@ -483,8 +731,7 @@ export function computeShippingExclusion(
   let qaisiExcludedSigned = 0;
   let qaisiCappedOut = 0;
   if (qaisiGross < 0) {
-    // Example 3.3.1-3 — QAISI loss is excluded under Art. 3.3.1 (cap does not block losses).
-    qaisiExcludedSigned = qaisiGross;
+    qaisiExcludedSigned = qaisiGross; // Example 3.3.1-3
     qaisiCappedOut = 0;
   } else if (qaisiGross === 0) {
     qaisiExcludedSigned = 0;
@@ -497,7 +744,23 @@ export function computeShippingExclusion(
   const qisiExcluded = qisiGross;
   const incomeExcluded = money(qisiExcluded + qaisiExcludedSigned);
   const globeDelta = money(-incomeExcluded);
-  const coveredTaxExcluded = art413aReduction(incomeExcluded, pack.taxableIncome, pack.currentTaxExpense);
+
+  // Residual net for tax association: non-qualifying shipping + pack residual after its costs.
+  // Pack residual revenue share of indirect already in residual bucket; net residual income
+  // ≈ taxableIncome − isiNet − qaisiNet when taxableIncome tracks FANIL (seed).
+  const residualForTax = money(
+    Math.max(0, pack.taxableIncome - qisiGross - qaisiGross),
+  );
+
+  const tax = art413aShippingReduction({
+    incomeExcluded,
+    spillNet: qaisiCappedOut,
+    residualNet: residualForTax,
+    currentTaxExpense: pack.currentTaxExpense,
+    deferredTaxExpense: pack.deferredTaxExpense,
+    otherCovered: pack.otherCovered,
+    association: pack.taxAssociation,
+  });
 
   const linesOut: ShippingResult["lines"] = [];
   let qaisiRunning = 0;
@@ -510,7 +773,6 @@ export function computeShippingExclusion(
       linesOut.push({ ...line, treatedAs: "excluded_qisi" });
       continue;
     }
-    // qaisi
     if (qaisiGross < 0) {
       linesOut.push({ ...line, treatedAs: "excluded_qaisi" });
       continue;
@@ -519,28 +781,29 @@ export function computeShippingExclusion(
       linesOut.push({ ...line, treatedAs: "capped_out" });
       continue;
     }
-    if (line.amount <= 0) {
+    const lineNet = line.netAfterCosts;
+    if (lineNet <= 0) {
       linesOut.push({ ...line, treatedAs: "excluded_qaisi" });
       continue;
     }
     const room = money(qaisiExcludedSigned - qaisiRunning);
     if (room <= 0) {
       linesOut.push({ ...line, treatedAs: "capped_out" });
-    } else if (line.amount <= room) {
-      qaisiRunning = money(qaisiRunning + line.amount);
+    } else if (lineNet <= room) {
+      qaisiRunning = money(qaisiRunning + lineNet);
       linesOut.push({ ...line, treatedAs: "excluded_qaisi" });
     } else {
       qaisiRunning = qaisiExcludedSigned;
       linesOut.push({
         ...line,
         treatedAs: "capped_out",
-        notes: `${line.notes ?? ""} · Art. 3.3.4 jurisdictional 50% cap — ${room.toLocaleString("en-GB")} of ${line.amount.toLocaleString("en-GB")} excluded`.trim(),
+        notes: `${line.notes ?? ""} · Art. 3.3.4 spill — costs on spill stay in GloBE (¶178)`.trim(),
       });
     }
   }
 
   const flagNote = pack.lines.some((l) => l.flagJurisdiction && l.flagJurisdiction !== pack.ceJurisdiction)
-    ? " Flag ≠ CE location — Art. 3.3.6 looks to management, not flag (¶182)."
+    ? " Flag ≠ CE location — Art. 3.3.6 looks to management (¶182)."
     : "";
 
   return {
@@ -556,10 +819,19 @@ export function computeShippingExclusion(
     qisiExcluded,
     incomeExcluded,
     globeDelta,
-    coveredTaxExcluded,
+    coveredTaxExcluded: tax.reduction,
     nonQualifyingKept,
+    cost: costBlock,
+    tax: {
+      identifiableExcluded: tax.identifiableExcluded,
+      identifiableSpill: tax.identifiableSpill,
+      identifiableResidual: tax.identifiableResidual,
+      unidentifiablePool: tax.unidentifiablePool,
+      ratioShare: tax.ratioShare,
+      totalPool: tax.totalPool,
+    },
     lines: linesOut,
-    detail: `Art. 3.3.1 mandatory exclusion — QISI ${qisiExcluded.toLocaleString("en-GB")} + QAISI ${qaisiExcludedSigned.toLocaleString("en-GB")} (Art. 3.3.4 jurisdictional cap ${qaisiCap.toLocaleString("en-GB")} = 50% of jurisdiction QISI ${jurisdictionQisi.toLocaleString("en-GB")}). Art. 3.3.6 OR management passes. Art. 4.1.3(a) Covered Tax reduction ${coveredTaxExcluded.toLocaleString("en-GB")} (= excluded ${incomeExcluded.toLocaleString("en-GB")} ÷ taxable ${pack.taxableIncome.toLocaleString("en-GB")} × current tax ${pack.currentTaxExpense.toLocaleString("en-GB")}).${flagNote}`,
+    detail: `Art. 3.3.1 exclusion — QISI ${qisiExcluded.toLocaleString("en-GB")} + QAISI ${qaisiExcludedSigned.toLocaleString("en-GB")} (Art. 3.3.4 cap ${qaisiCap.toLocaleString("en-GB")}; spill ${qaisiCappedOut.toLocaleString("en-GB")} stays in GloBE with its costs ¶178). Art. 3.3.5 nets from gross/direct/indirect. Art. 3.3.6 OR management passes. Art. 4.1.3(a) reduction ${tax.reduction.toLocaleString("en-GB")} (identifiable excluded ${tax.identifiableExcluded.toLocaleString("en-GB")} + ratio ${tax.ratioShare.toLocaleString("en-GB")}; spill tax ${tax.identifiableSpill.toLocaleString("en-GB")} and residual tax ${tax.identifiableResidual.toLocaleString("en-GB")} stay in ACT).${flagNote}`,
     ruleId: "OECD-SHIP-33",
   };
 }

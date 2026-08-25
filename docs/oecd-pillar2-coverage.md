@@ -20,9 +20,10 @@ Statuses: **implemented** · **partial** · **missing** · **election-only** · 
 | B2 | Third-party bareboat tag split only | **CLEARED (second-read)** — lessee-ISI (3.3.2(d) ¶157) + ≤3-year duration engine incl. renewals (3.3.3(a) ¶164); failing tests when facts absent |
 | M2 | Two-CE Art. 3.3.4 jurisdictional cap | **CLEARED** — tested |
 | M3 | OECD Examples 3.3.1-1 / -2 / -3 | **CLEARED** — numeric tests |
-| M4 | Art. 4.1.3(a) Covered Tax split | **CLEARED** — Example 4.1.3-1 proportional method; tax on 3.3.4 spill stays in |
+| M4 | Art. 4.1.3(a) Covered Tax association | **CLEARED (third-read)** — identifiable current+deferred+otherCovered; spill/residual tax stay in ACT; ratio only on unidentifiable remainder (not current-only proxy) |
 | M5 | Traffic / voyage tests | **CLEARED** — ¶152 solely-domestic; ¶160 inland waterways |
 | M7 | Art. 3.3.2(c) crewed time/voyage charter | **CLEARED** — category + expected-international-traffic gate |
+| Art. 3.3.5 | Cost attribution (¶174–179) | **CLEARED (third-read)** — gross revenue + direct + indirect-by-revenue; ¶176 / ¶179 numbers; spill costs stay in GloBE |
 
 No finding discarded without citation.
 
@@ -40,9 +41,9 @@ No finding discarded without citation.
 | Third-party bareboat | Art. 3.3.3(a) · ¶163–164 | **implemented** | duration engine | Non-CE shipping enterprise + `charterYears` (+ renewals) ≤ 3; missing/over-limit fails |
 | Inland haulage (land) | ¶171 | **implemented** | `inland_transport` | Stays in GloBE |
 | QAISI 50% cap | Art. 3.3.4 | **implemented** | two-CE test + Example 3.3.1-2 | Jurisdictional aggregation + pro-rata; not a live multi-CE seed |
+| Cost attribution | Art. 3.3.5 | **implemented** | `buildShippingNets` · `allocateIndirectCosts` | ¶176 (80+20+20 / 30 → 20/5/5); ¶179 spill costs stay; SG-SHIP gross lines |
 | Management | Art. 3.3.6 | **implemented** | OR test | — |
-| Covered Tax reduction | Art. 4.1.3(a) | **implemented** (shipping path) | `art413aReduction` | `excluded/taxable×current tax`; spill tax remains |
-| Cost attribution | Art. 3.3.5 | **missing** | — | Net amounts assumed pre-computed — **hook stop**; needs revenue/cost split rewrite |
+| Covered Tax association | Art. 4.1.3(a) | **implemented** (shipping path) | `art413aShippingReduction` | Identifiable current+deferred+otherCovered; spill/residual stay; ratio on unidentifiable remainder only |
 
 ### Hook
 
@@ -52,20 +53,26 @@ FANIL (Art. 3.1)
   + Art. 3.3.1 globeDelta           ← lib/shipping.ts (if Art. 3.3.6 passes)
 = GloBE Income
 
+Art. 3.3.5 nets
+  = shippingRevenue − directCosts − indirect×(lineRev / totalRev)
+  · only allowable QAISI net excluded; spill QAISI (and its costs) stay ¶178
+
 Adjusted Covered Taxes
   = current + Art. 4.4 deferred + other
-  − Art. 4.1.3(a) reduction         ← incomeExcluded / taxableIncome × currentTaxExpense
+  − Art. 4.1.3(a) associated tax on excluded shipping
+    · prefer identifiable; else (excluded / (excluded+spill+residual)) × unidentifiable pool
+    · pool = current + deferred + otherCovered
 ```
 
-Live seed: **SG-SHIP**. Rule id: `OECD-SHIP-33`.  
-Verify: `npm run test:shipping` (58 assertions on second-read suite).
+Live seed: **SG-SHIP** (gross Art. 3.3.5 lines; identifiable tax association). Rule id: `OECD-SHIP-33`.  
+Verify: `npm run test:shipping`.
 
 ### Not claimed
 
-- Full Art. 3.3.5 direct/indirect cost allocation (document hook: would need gross revenue + cost lines per activity, not net pack amounts)
-- Broader Art. 4.3 CFC/PE/hybrid Covered Tax allocation (only shipping 4.1.3(a) proportional method)
+- Broader Art. 4.3 CFC/PE/hybrid Covered Tax allocation (shipping Art. 4.1.3(a) only)
+- General Art. 4.1.3(a) for all Ch. 3 excluded items (dividends etc.) beyond the shipping path
 - Shipping inside Simplified ETR beyond `SETR_SHIP` label
-
+- Art. 3.3 as a whole “7L Approve” — draft PR only; independent auditor re-read still owed on 3.3.5 / 4.1.3(a) leftovers
 ---
 
 ## 2. Coverage matrix (Model Rules chapters)
@@ -99,7 +106,7 @@ Verify: `npm run test:shipping` (58 assertions on second-read suite).
 | Art. 3.2.1(a)–(i) catalogue | **partial** | Few seeded deltas | **Largest remaining GloBE-income gap** — pension, insurance 3.2.9, equity gains default, etc. absent |
 | Art. 3.2.2 SBC | **partial** | Election + optimizer overlay | TH overlay; IE static row |
 | Art. 3.2.5 / 3.2.6 / 3.2.8 | **election-only** | Register | No realisation / aggregate-gain / intra-group engines |
-| **Art. 3.3 shipping** | **partial → core rules + B2/M2–M7 tested** | `lib/shipping.ts` · `test-shipping.ts` | Art. 3.3.5 costs still missing |
+| **Art. 3.3 shipping** | **implemented** (shipping path; draft) | `lib/shipping.ts` · `test:shipping` | Ship-sale PPE/inventory classifier still partial; not a 7L Approve |
 | Art. 3.4 Allocation to PEs | **partial** | TH-PE separate CE row | No PE profit attribution engine |
 
 ### Ch 4 — Covered Taxes
@@ -107,7 +114,7 @@ Verify: `npm run test:shipping` (58 assertions on second-read suite).
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
 | Art. 4.1 Adjusted Covered Taxes | **partial** | `entityCovered` | CFC / hybrid / push-down largely stub |
-| Art. 4.1.3(a) reduction for excluded Ch. 3 income | **partial** | Shipping path `art413aReduction` | Proved for shipping + Example 4.1.3-1 method; not a general excluded-dividend / all Ch. 3 engine |
+| Art. 4.1.3(a) reduction for excluded Ch. 3 income | **partial** | Shipping path `art413aShippingReduction` | Shipping: identifiable + deferred + otherCovered association tested; **not** a general excluded-dividend / all Ch. 3 engine |
 | **Art. 4.3 allocation** of Covered Taxes | **missing** / **partial** | `otherCovered` stub | CFC, Hybrid, Main Entity ↔ PE, cross-border allocation not computed |
 | Art. 4.1.5 → ACTTT | **partial** | LU seed posts ACTTT when globe ≤ 0 and covered < 0 | Carry-forward utilisation across years not ledger-proven; do **not** read as full Art. 4.1.5 machinery |
 | Art. 4.4 DT recast / recapture | **partial** | `lib/deferredTax.ts` | Origin-year reopen not auto-refiled |
@@ -178,11 +185,9 @@ Verify: `npm run test:shipping` (58 assertions on second-read suite).
 | **6** | Investment Entity methods | 7.5–7.6 | Wrong blend / ETR | **Partial** |
 | **7** | FX tables beyond TH | 3.1.3 / local | Presentation / QDMTT FX | **Partial** |
 | **8** | FANIL local GAAP default path | 3.1.2–3.1.3 | Starting point | **Partial** |
-| **9** | Art. 3.3.5 shipping cost attribution | 3.3.5 | Net shipping income assumed pre-baked — rewrite of pack shape | **Missing** (hook documented) |
-| **10** | Look-through % on graph edges | 10.1 | UX / audit clarity | **Partial** |
+| **9** | Look-through % on graph edges | 10.1 | UX / audit clarity | **Partial** |
 
-Art. 3.3 core (3.3.1 / 3.3.2(a)–(d),(f) / 3.3.3(a) / 3.3.4 / 3.3.6 + ¶152/160/171 + Art. 4.1.3(a) shipping) is tested on this branch. Residual shipping work is Art. 3.3.5 (#9).
-
+Art. 3.3 shipping path (3.3.1–3.3.6 + Art. 4.1.3(a) association on the FANIL → entityGlobe / entityCovered hook) is tested on this branch, including Art. 3.3.5 ¶176/¶179. Draft stays draft — nothing is a 7L Approve.
 ---
 
 ## 4. How to verify Art. 3.3
