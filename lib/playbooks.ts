@@ -60,7 +60,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "Preparer, then reviewer",
     steps: [
       { n: "01", title: "Confirm scope, harbours and elections", body: "Do not compute a full GloBE file if a transitional harbour already takes the jurisdiction out. Then run the Election Engine — stock compensation, realisation, SBIE max/partial/none and Simplified ETR inner options can change the answer before anyone files GIR section D.", href: "/elections", hrefLabel: "Elections" },
-      { n: "02", title: "Build the ETR", body: "GloBE income (FANIL engine) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/deferred-tax", hrefLabel: "Deferred tax" },
+      { n: "02", title: "Build the ETR", body: "GloBE income (FANIL + Art. 3.2 − Art. 3.4 shipping) then covered taxes, including the Deferred Tax Intelligence Engine (recast, Art. 4.4.5 exceptions, five-year recapture). Then jurisdictional ETR.", href: "/globe-income", hrefLabel: "GloBE income" },
       { n: "03", title: "Top-up and collection", body: "SBIE, excess, top-up tax, then who pays — QDMTT first, residual IIR, then UTPR. For Thailand open the Thai Liability Dashboard; do not stop at the global allocation screen.", href: "/thailand/liability", hrefLabel: "Thai liability" },
     ],
   },

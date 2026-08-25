@@ -23,6 +23,7 @@ import {
   type BlendKind,
 } from "./entityClass";
 import { fxRate, gaapScreen, usdFromFc } from "./fx";
+import { eligibleAssets, eligiblePayroll, shippingPost } from "./shipping";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -156,12 +157,12 @@ function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
   const e = ENTITIES.find((x) => x.id === entityId);
   const fanil = e ? fanilUsd(e, f, ctx) : f.fanil;
   const adj = sum(ADJUSTMENTS.filter((a) => a.entityId === entityId).map((a) => a.amount));
-  return money(fanil + adj);
+  return money(fanil + adj - shippingPost(entityId).excludedIncome);
 }
 
 function entityCovered(f: Financials) {
   const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
-  return money(f.currentTax + deferred + f.otherCovered);
+  return money(f.currentTax + deferred + f.otherCovered - shippingPost(f.entityId).excludedTax);
 }
 
 function sourceNode(id: string, file: string, detail: string): AuditNode {
@@ -211,21 +212,59 @@ export function traceFanil(entityId: string, ctx?: CalcCtx): AuditNode | null {
   };
 }
 
+export function traceShipping(entityId: string): AuditNode | null {
+  const s = shippingPost(entityId);
+  if (!s.present) return null;
+  return {
+    id: `${entityId}-ship`,
+    label: s.managementOk ? "International shipping exclusion" : "International shipping (not excluded)",
+    amount: s.managementOk ? -s.excludedIncome : 0,
+    kind: "formula",
+    ruleId: "OECD-SHIP-34",
+    ruleVersion: "2026.1",
+    sourceFile: s.sourceDoc,
+    detail: s.detail,
+    children: [
+      { id: `${entityId}-ship-isi`, label: "Art. 3.4.2 International Shipping Income (net)", amount: s.isi, kind: "account", detail: s.articleSource, sourceFile: s.sourceDoc },
+      { id: `${entityId}-ship-anc`, label: "Art. 3.4.3 ancillary (before cap)", amount: s.ancillary, kind: "formula", detail: `50% cap ${s.ancillaryCap.toLocaleString("en-GB")} · QAISI ${s.qaisi.toLocaleString("en-GB")} · excess ${s.excessAncillary.toLocaleString("en-GB")} remains in GloBE` },
+      { id: `${entityId}-ship-mgt`, label: "Art. 3.4.5 strategic / commercial management", kind: "test", detail: s.managementOk ? "Effectively carried on from this jurisdiction — exclusion applies." : "Not met — exclusion does not apply." },
+    ],
+  };
+}
+
+export function traceShippingTax(entityId: string): AuditNode | null {
+  const s = shippingPost(entityId);
+  if (!s.present) return null;
+  return {
+    id: `${entityId}-ship-tax`,
+    label: "Art. 4.1.3 tax on excluded shipping",
+    amount: s.managementOk ? -s.excludedTax : 0,
+    kind: "formula",
+    ruleId: "OECD-SHIP-34",
+    ruleVersion: "2026.1",
+    sourceFile: s.sourceDoc,
+    detail: s.managementOk
+      ? `Covered Taxes attributable to Art. 3.4 excluded income ${s.excludedTax.toLocaleString("en-GB")} reduced from Adjusted Covered Taxes.`
+      : "No shipping exclusion — related tax stays in Adjusted Covered Taxes.",
+  };
+}
+
 export function traceGlobeEntity(entityId: string, ctx?: CalcCtx): AuditNode | null {
   const e = ENTITIES.find((x) => x.id === entityId);
   const f = FINANCIALS.find((x) => x.entityId === entityId);
   const fanil = traceFanil(entityId, ctx);
   if (!e || !f || !fanil) return null;
   const adjs = ADJUSTMENTS.filter((a) => a.entityId === entityId);
+  const ship = traceShipping(entityId);
   return {
     id: `${e.id}-globe`,
     label: `GloBE income · ${e.code}`,
     amount: entityGlobe(f, entityId, ctx),
     kind: "formula",
-    ruleId: "OECD-GloBE-15",
+    ruleId: ship ? "OECD-SHIP-34" : "OECD-GloBE-15",
     ruleVersion: "2026.1",
-    detail: "GloBE = FANIL + Σ Art. 3.2 deltas. Engine posted; LLM did not.",
-    children: [fanil, ...adjs.map(traceAdj)],
+    detail: "GloBE = FANIL + Σ Art. 3.2 deltas − Art. 3.4 (if Art. 3.4.5 met). Engine posted; LLM did not.",
+    children: [fanil, ...adjs.map(traceAdj), ...(ship ? [ship] : [])],
   };
 }
 
@@ -293,6 +332,7 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
   const f = FINANCIALS.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const deferred = traceDeferredEntity(entityId);
+  const shipTax = traceShippingTax(entityId);
   const file = `${e.code} Trial Balance FY2026.xlsx`;
   return {
     id: `${e.id}-ct`,
@@ -301,7 +341,7 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
     kind: "entity",
     ruleId: "OECD-GloBE-15",
     ruleVersion: "2026.1",
-    detail: "Current Covered Tax + Art. 4.4 deferred (recast) + other covered. Non-covered excluded.",
+    detail: "Current Covered Tax + Art. 4.4 deferred (recast) + other covered − Art. 4.1.3 tax on excluded shipping. Non-covered excluded.",
     children: [
       {
         id: `${e.id}-current`,
@@ -322,6 +362,7 @@ export function traceCoveredEntity(entityId: string): AuditNode | null {
         kind: "formula",
         detail: "Art. 4.2 / 4.3 in-lieu, PE, CFC, hybrid, distributions",
       },
+      ...(shipTax ? [shipTax] : []),
       {
         id: `${e.id}-non`,
         label: "Non-covered (excluded)",
@@ -502,8 +543,8 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const coveredTax = money(sum(fins.map(entityCovered)));
     const etrComputed = globeIncome > 0;
     const etr = etrComputed ? coveredTax / globeIncome : 0;
-    const payroll = sum(fins.map((f) => f.payrollEligible));
-    const assets = sum(fins.map((f) => f.tangibleEligible));
+    const payroll = sum(fins.map((f) => eligiblePayroll(f.entityId, f.payrollEligible)));
+    const assets = sum(fins.map((f) => eligibleAssets(f.entityId, f.tangibleEligible)));
     const payrollCarve = money(payroll * PAYROLL_RATE);
     const assetCarve = money(assets * ASSET_RATE);
     const sbie = money(payrollCarve + assetCarve);
@@ -611,7 +652,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       kind: "formula",
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
-      detail: `Σ FANIL ± Art. 3.2 of CEs in this blend (${blendKind}) — not mixed with other Art. 5.1.3 / 6.4 groups in ${entities[0].jurisdiction}`,
+      detail: `Σ FANIL ± Art. 3.2 − Art. 3.4 of CEs in this blend (${blendKind}) — not mixed with other Art. 5.1.3 / 6.4 groups in ${entities[0].jurisdiction}`,
       children: entities.map((e) => traceGlobeEntity(e.id, ctx)).filter(Boolean) as AuditNode[],
     };
     const coveredTrace: AuditNode = {
@@ -621,7 +662,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       kind: "formula",
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
-      detail: "Current + deferred (Art. 4.4 recast) + other covered − non-covered",
+      detail: "Current + deferred (Art. 4.4 recast) + other covered − Art. 4.1.3 tax on excluded shipping − non-covered",
       children: entities.map((e) => traceCoveredEntity(e.id)).filter(Boolean) as AuditNode[],
     };
     const payrollTrace: AuditNode = {
@@ -632,7 +673,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       ruleId: "OECD-SBIE-2026",
       ruleVersion: "2026.1",
       sourceFile: "Payroll_TH_FY2026.csv",
-      detail: `Art. 5.3.3 / 9.2 · ${PAYROLL_RATE * 100}% × eligible payroll ${payroll.toLocaleString("en-GB")}`,
+      detail: `Art. 5.3.3 / 9.2 · ${PAYROLL_RATE * 100}% × eligible payroll ${payroll.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).payrollStrip) ? " · Art. 3.4 shipping payroll stripped" : ""}`,
     };
     const assetTrace: AuditNode = {
       id: `${aid}-assets`,
@@ -642,7 +683,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       ruleId: "OECD-SBIE-2026",
       ruleVersion: "2026.1",
       sourceFile: "Fixed_asset_register_TH.xlsx",
-      detail: `Art. 5.3.4 / 9.2 · ${ASSET_RATE * 100}% × eligible tangible assets ${assets.toLocaleString("en-GB")}`,
+      detail: `Art. 5.3.4 / 9.2 · ${ASSET_RATE * 100}% × eligible tangible assets ${assets.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).assetStrip) ? " · Art. 3.4 shipping assets stripped" : ""}`,
     };
     const sbieTrace: AuditNode = {
       id: `${aid}-sbie`,
@@ -911,6 +952,7 @@ export function entityCalc(entityId: string) {
     covered,
     etr: globe > 0 ? covered / globe : 0,
     adjustments: adjs,
+    shipping: shippingPost(entityId),
     trace: {
       fanil: traceFanil(entityId)!,
       globe: traceGlobeEntity(entityId)!,
@@ -919,6 +961,8 @@ export function entityCalc(entityId: string) {
       deferred: traceDeferredEntity(entityId),
       other: coveredTrace.children?.find((c) => c.id === `${entityId}-other`),
       nonCovered: coveredTrace.children?.find((c) => c.id === `${entityId}-non`),
+      shipping: traceShipping(entityId),
+      shippingTax: traceShippingTax(entityId),
       adj: adjs.map(traceAdj),
     },
   };

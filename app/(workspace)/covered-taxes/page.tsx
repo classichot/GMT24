@@ -48,7 +48,7 @@ const REFERENCES = [
   { cite: "OECD (2021)", work: "Tax Challenges Arising from the Digitalisation of the Economy – Global Anti-Base Erosion Model Rules (Pillar Two)", loc: "Chapter 4, Computation of Adjusted Covered Taxes", href: "/rulebook" },
   { cite: "OECD (2026)", work: "Consolidated Commentary to the GloBE Model Rules", loc: "Arts. 4.1–4.4 and 5.1", href: "/rulebook" },
   { cite: "Art. 4.1.1", work: "Adjusted Covered Taxes = current tax expense on Covered Taxes ± additions/reductions + Total Deferred Tax Adjustment Amount", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
-  { cite: "Art. 4.1.2–4.1.3", work: "Additions to and Reductions from Covered Taxes (excluded-item tax, uncertain positions, amounts not paid within three years)", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4.1.2–4.1.3", work: "Additions to and Reductions from Covered Taxes (excluded-item tax including Art. 3.4 shipping, uncertain positions, amounts not paid within three years)", loc: "OECD-GloBE-15 / OECD-SHIP-34 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.2", work: "Definition of Covered Taxes — income/profits, in-lieu CIT, Eligible Distribution Tax System; excludes IIR / QDMTT / UTPR", loc: "Model Rules Ch. 4", href: "/rulebook" },
   { cite: "Art. 4.3", work: "Allocation of Covered Taxes — PE, tax-transparent, Hybrid, CFC, distributions", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.4.1", work: "Total Deferred Tax Adjustment Amount — recast at the Minimum Rate", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
@@ -134,6 +134,20 @@ export default function CoveredTaxesPage() {
               </span>
               <Amount n={f.otherCovered} audit={row.trace.other} />
             </div>
+            {row.shipping.present && (
+              <div className="wf-row">
+                <span>
+                  − Tax on excluded shipping
+                  <div className="text-muted" style={{ fontSize: 12 }}>
+                    Art. 4.1.3 reduction for Covered Taxes on Art. 3.4 excluded income
+                    {row.shipping.managementOk ? ` · ${eur(row.shipping.excludedTax)}` : " · Art. 3.4.5 failed — $0"}
+                    {" · "}
+                    <Link href="/rulebook">OECD-SHIP-34</Link>
+                  </div>
+                </span>
+                <Amount n={-row.shipping.excludedTax} audit={row.trace.shippingTax ?? undefined} />
+              </div>
+            )}
             <div className="wf-row">
               <span>
                 Non-covered (excluded)

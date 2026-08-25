@@ -1,6 +1,7 @@
 import { money } from "./format";
 import type { AuditNode, JurCalc } from "./engine";
 import { allocateCollection, totals, uniqueIsoCalcs } from "./engine";
+import { shippingFactsForEntities } from "./shipping";
 import {
   ELECTIONS,
   REALISATION_FV,
@@ -255,6 +256,18 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
       } else if (e.id === "SETR_PE") {
         status = c.iso === "TH" ? "review" : "n/a";
         reason = "Rayong PE is blended in Thailand. PE simplification is annual with continuation rules if a PE loss was absorbed in the main entity.";
+      } else if (e.id === "SETR_SHIP") {
+        const facts = shippingFactsForEntities(calcs.filter((x) => x.iso === c.iso).flatMap((x) => x.entities.map((ent) => ent.id)));
+        if (!facts.length) {
+          status = "n/a";
+          reason = "No International Shipping Income facts on this blend.";
+        } else if (facts.some((s) => s.managementOk)) {
+          status = "review";
+          reason = "Core Art. 3.4 already excludes qualifying ISI / QAISI. SETR opt-out would retain shipping only inside Simplified ETR — it does not unwind Core.";
+        } else {
+          status = "review";
+          reason = "Shipping facts exist but Art. 3.4.5 management is not in this jurisdiction. Core posts no exclusion. SETR shipping opt-out stays Review.";
+        }
       } else if (e.id === "OECD_7.5" || e.id === "OECD_7.6") {
         const ie = calcs.some((x) => x.iso === c.iso && x.blendKind === "investment");
         status = ie ? "review" : "n/a";

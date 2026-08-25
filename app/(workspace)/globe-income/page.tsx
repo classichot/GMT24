@@ -30,9 +30,15 @@ const METHOD = [
   },
   {
     n: "04",
+    title: "Exclude International Shipping Income",
+    body: "Art. 3.4 is not an election. If strategic or commercial management of the ships is effectively carried on from the CE’s jurisdiction (Art. 3.4.5), net International Shipping Income and Qualified Ancillary International Shipping Income (capped at 50% of ISI) come out of GloBE. Related Covered Taxes and SBIE payroll/assets used in that activity come out with them. Excess ancillary stays in GloBE.",
+    refs: ["Art. 3.4.1", "Art. 3.4.3", "Art. 3.4.5"],
+  },
+  {
+    n: "05",
     title: "Engine posts GloBE income",
-    body: "GloBE income = FANIL + Σ deltas. Jurisdiction GloBE income is the blend of Constituent Entities in that country. That figure is the denominator of the jurisdictional ETR.",
-    refs: ["Art. 3.1", "Art. 5.1.1"],
+    body: "GloBE income = FANIL + Σ Art. 3.2 deltas − Art. 3.4. Jurisdiction GloBE income is the blend of Constituent Entities in that country. That figure is the denominator of the jurisdictional ETR.",
+    refs: ["Art. 3.1", "Art. 3.4", "Art. 5.1.1"],
   },
 ];
 
@@ -53,6 +59,7 @@ const REFERENCES = [
   { cite: "Art. 3.2.1(f)", work: "Asymmetric Foreign Currency Gains or Losses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.1(g)", work: "Policy Disallowed Expenses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.2", work: "Stock-based compensation election", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+  { cite: "Art. 3.4", work: "International Shipping Income exclusion — ISI + QAISI (50% cap); Art. 3.4.5 management test; related tax and SBIE strip", loc: "OECD-SHIP-34 v2026.1", href: "/rulebook" },
   { cite: "Art. 4", work: "Covered Taxes — not a GloBE-income adjustment (recast 15% sits here)", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Covered Taxes ÷ GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
@@ -65,19 +72,20 @@ export default function GlobeIncomePage() {
   const jur = calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
   const f = row.f;
-  let running = f.fanil;
+  const ship = row.shipping;
+  let running = row.trace.fanil.amount ?? f.fanil;
 
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Adjustment method.</strong> GloBE income is not a tax computation. It is FANIL restated under Article 3.2 so the ETR in Article 5.1 uses a common base. Formula: <span className="mono">GloBE = FANIL + Σ Art. 3.2 deltas</span>.
+          <strong>Adjustment method.</strong> GloBE income is not a tax computation. It is FANIL restated under Article 3.2, then Article 3.4 shipping, so the ETR in Article 5.1 uses a common base. Formula: <span className="mono">GloBE = FANIL + Σ Art. 3.2 − Art. 3.4</span>.
         </div>
         <div className="stack-actions">
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
           <Link href="/fx" className="btn btn-secondary">FX / GAAP</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
-          <button className="btn btn-primary" onClick={() => ask("Explain TH001 excluded dividends")}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(ship.present ? "Explain Art. 3.4 shipping exclusion" : "Explain TH001 excluded dividends")}>Ask GMT24</button>
         </div>
       </div>
 
@@ -105,7 +113,7 @@ export default function GlobeIncomePage() {
       <div className="panel">
         <div className="panel-head">
           <h4>GloBE income waterfall · {row.entity.code}</h4>
-          <span className="text-muted">{row.adjustments.length} adjustments · {jur?.name}</span>
+          <span className="text-muted">{row.adjustments.length} Art. 3.2 · {ship.present ? "Art. 3.4 posted" : "no shipping"} · {jur?.name}</span>
         </div>
         <div className="panel-body waterfall">
           <div className="wf-row">
@@ -134,14 +142,32 @@ export default function GlobeIncomePage() {
               </div>
             );
           })}
-          {row.adjustments.length === 0 && (
+          {row.adjustments.length === 0 && !ship.present && (
             <div className="wf-row">
-              <span className="text-muted">No Art. 3.2 adjustments on this entity. FANIL equals GloBE income.</span>
+              <span className="text-muted">No Art. 3.2 or Art. 3.4 adjustments on this entity. FANIL equals GloBE income.</span>
               <span>—</span>
             </div>
           )}
+          {ship.present && (
+            <div className="wf-row">
+              <span>
+                International shipping
+                {" "}
+                <Link href="/rulebook" className="tag tag-accent" style={{ fontSize: 10, marginLeft: 6 }}>Art. 3.4</Link>
+                <div className="text-muted" style={{ fontSize: 12 }}>
+                  ISI {eur(ship.isi)} · ancillary {eur(ship.ancillary)} · QAISI cap {eur(ship.ancillaryCap)} · excluded {eur(ship.excludedIncome)}
+                  {ship.excessAncillary ? <> · excess ancillary {eur(ship.excessAncillary)} stays in GloBE</> : null}
+                  {" · "}
+                  <Link href="/rulebook" className="mono">OECD-SHIP-34</Link>
+                  <br />
+                  {ship.detail}
+                </div>
+              </span>
+              <Amount n={-ship.excludedIncome} audit={row.trace.shipping ?? undefined} />
+            </div>
+          )}
           <div className="wf-row total">
-            <span>GloBE income (Art. 3.1 + 3.2)</span>
+            <span>GloBE income (Art. 3.1 + 3.2{ship.present ? " − 3.4" : ""})</span>
             <Amount n={row.globe} audit={row.trace.globe} />
           </div>
         </div>

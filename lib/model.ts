@@ -436,6 +436,18 @@ export const RULES: Rule[] = [
     status: "active",
   },
   {
+    id: "OECD-SHIP-34",
+    jurisdiction: "OECD",
+    ruleType: "globe-adjustment",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 3.4 International Shipping Income exclusion · Art. 4.1.3 related Covered Taxes · Art. 5.3 payroll/assets used in excluded shipping",
+    version: "2026.1",
+    formula: "exclude ISI + min(ancillary, 50% of ISI) from GloBE if Art. 3.4.5 management test passes; strip related Covered Taxes; strip SBIE payroll and tangible assets used in the excluded activity",
+    parameters: { ancillaryCap: 0.5 },
+    status: "active",
+  },
+  {
     id: "OECD-MOCE-513",
     jurisdiction: "OECD",
     ruleType: "entity-test",
@@ -590,11 +602,12 @@ export const ENTITIES: Entity[] = [
   { id: "XX-ST", code: "XX-ST1", name: "Aetherion Regional Sales (stateless CE)", jurisdiction: "Stateless", iso: "XX", type: "Stateless", parentId: "JP-UPE", ownership: 100, gaap: "IFRS", fx: "USD", acquired: "2025-01-01", incentiveIds: [], completeness: 70, review: "Imported", graph: { x: 400, y: 90 } },
   { id: "LU-CE", code: "LU001", name: "Aetherion Luxembourg S.à r.l.", jurisdiction: "Luxembourg", iso: "LU", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "Lux GAAP/IFRS", fx: "EUR", acquired: "2020-03-01", incentiveIds: [], completeness: 90, review: "Prepared", graph: { x: 860, y: 340 } },
   { id: "HK-CE", code: "HK001", name: "Aetherion Hong Kong Ltd.", jurisdiction: "Hong Kong", iso: "HK", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "HKFRS", fx: "HKD", acquired: "2017-08-01", incentiveIds: [], completeness: 87, review: "Validated", graph: { x: 140, y: 80 } },
+  { id: "SG-SHIP", code: "SG020", name: "Aetherion Marine Pte. Ltd.", jurisdiction: "Singapore", iso: "SG", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "SFRS(I)", fx: "SGD", acquired: "2019-11-01", incentiveIds: [], completeness: 91, review: "Prepared", graph: { x: 300, y: 80 } },
 ];
 
 export const FINANCIALS: Financials[] = [
   { entityId: "JP-UPE", revenue: 210_000_000, fanil: 148_200_000, fanilFc: 23_297_040_000, currentTax: 36_100_000, deferredTax: 1_400_000, otherCovered: 0, nonCovered: 420_000, payrollEligible: 62_000_000, employees: 1840, tangibleEligible: 84_000_000, cbcrRevenue: 210_400_000, cbcrProfit: 149_000_000, cbcrTax: 36_800_000, priorDta: 4_200_000, priorDtl: 6_100_000 },
-  { entityId: "SG-HC", revenue: 18_000_000, fanil: 71_400_000, fanilFc: 96_461_400, currentTax: 10_900_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 90_000, payrollEligible: 9_400_000, employees: 62, tangibleEligible: 2_100_000, cbcrRevenue: 88_000_000, cbcrProfit: 72_200_000, cbcrTax: 11_400_000, priorDta: 210_000, priorDtl: 640_000 },
+  { entityId: "SG-HC", revenue: 18_000_000, fanil: 71_400_000, fanilFc: 96_461_400, currentTax: 10_900_000, deferredTax: 380_000, otherCovered: 0, nonCovered: 90_000, payrollEligible: 9_400_000, employees: 62, tangibleEligible: 2_100_000, cbcrRevenue: 74_000_000, cbcrProfit: 63_800_000, cbcrTax: 10_560_000, priorDta: 210_000, priorDtl: 640_000 },
   { entityId: "TH-CE", revenue: 96_400_000, fanil: 44_820_000, fanilFc: 1_723_329_000, currentTax: 4_120_000, deferredTax: 610_000, otherCovered: 0, nonCovered: 80_000, payrollEligible: 31_800_000, employees: 1240, tangibleEligible: 42_600_000, cbcrRevenue: 97_100_000, cbcrProfit: 45_200_000, cbcrTax: 4_280_000, priorDta: 1_120_000, priorDtl: 880_000 },
   { entityId: "VN-CE", revenue: 54_000_000, fanil: 31_250_000, fanilFc: 795_312_500_000, currentTax: 3_620_000, deferredTax: 410_000, otherCovered: 0, nonCovered: 40_000, payrollEligible: 22_400_000, employees: 980, tangibleEligible: 28_900_000, cbcrRevenue: 54_600_000, cbcrProfit: 31_800_000, cbcrTax: 3_710_000, priorDta: 0, priorDtl: 310_000 },
   { entityId: "MY-CE", revenue: 41_000_000, fanil: 17_800_000, fanilFc: 79_566_000, currentTax: 4_180_000, deferredTax: 210_000, otherCovered: 0, nonCovered: 20_000, payrollEligible: 11_200_000, employees: 410, tangibleEligible: 14_400_000, cbcrRevenue: 41_200_000, cbcrProfit: 18_000_000, cbcrTax: 4_250_000, priorDta: 180_000, priorDtl: 240_000 },
@@ -614,6 +627,7 @@ export const FINANCIALS: Financials[] = [
   { entityId: "XX-ST", revenue: 900_000, fanil: 180_000, fanilFc: 180_000, currentTax: 0, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 2, tangibleEligible: 0, cbcrRevenue: 900_000, cbcrProfit: 180_000, cbcrTax: 0, priorDta: 0, priorDtl: 0 },
   { entityId: "LU-CE", revenue: 1_100_000, fanil: -4_200_000, fanilFc: -4_032_000, currentTax: -840_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 8, tangibleEligible: 120_000, cbcrRevenue: 1_100_000, cbcrProfit: -4_200_000, cbcrTax: -840_000, priorDta: 210_000, priorDtl: 0 },
   { entityId: "HK-CE", revenue: 3_200_000, fanil: 800_000, fanilFc: 6_224_000, currentTax: -120_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 180_000, employees: 14, tangibleEligible: 90_000, cbcrRevenue: 3_200_000, cbcrProfit: 800_000, cbcrTax: -120_000, priorDta: 0, priorDtl: 0 },
+  { entityId: "SG-SHIP", revenue: 14_000_000, fanil: 8_400_000, fanilFc: 11_348_400, currentTax: 840_000, deferredTax: 20_000, otherCovered: 0, nonCovered: 0, payrollEligible: 2_800_000, employees: 38, tangibleEligible: 16_400_000, cbcrRevenue: 14_000_000, cbcrProfit: 8_400_000, cbcrTax: 840_000, priorDta: 0, priorDtl: 40_000 },
 ];
 
 export const ADJUSTMENTS: Adjustment[] = [
@@ -637,6 +651,11 @@ export const ACCOUNTS: AccountMap[] = [
   { account: "720080", name: "Local business tax", entityId: "TH-CE", financial: "Other tax", globe: "Non-covered tax", coveredTax: "Non-covered", confidence: 88, approved: true, amount: 80_000 },
   { account: "410000", name: "Revenue — domestic", entityId: "TH-CE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 71_200_000 },
   { account: "420000", name: "Revenue — export", entityId: "TH-CE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 25_200_000 },
+  { account: "410100", name: "Revenue — international freight", entityId: "SG-SHIP", financial: "Revenue", globe: "Art. 3.4.2 International Shipping Income", adjustment: "Art. 3.4.1 exclusion", confidence: 96, approved: true, amount: 11_200_000 },
+  { account: "410200", name: "Revenue — ancillary port / agency", entityId: "SG-SHIP", financial: "Revenue", globe: "Art. 3.4.3 ancillary shipping", adjustment: "QAISI 50% cap", confidence: 91, approved: true, amount: 2_800_000 },
+  { account: "610100", name: "Crew / marine payroll", entityId: "SG-SHIP", financial: "Payroll", globe: "FANIL — opex (excluded shipping)", adjustment: "Art. 3.4.4 costs", sbie: "Stripped — used in excluded shipping", confidence: 94, approved: true, amount: 2_100_000 },
+  { account: "150200", name: "Vessels & marine ROU", entityId: "SG-SHIP", financial: "PPE", globe: "Eligible tangible — shipping", sbie: "Stripped — used in excluded shipping", confidence: 95, approved: true, amount: 14_000_000 },
+  { account: "720150", name: "Singapore CIT on shipping", entityId: "SG-SHIP", financial: "Current tax", globe: "Covered tax — Art. 4.1.3 shipping", coveredTax: "Reduced (excluded shipping)", confidence: 93, approved: true, amount: 750_000 },
 ];
 
 export const FILES: SourceFile[] = [
@@ -653,6 +672,8 @@ export const FILES: SourceFile[] = [
   { id: "F10", name: "Deferred_tax_rollforward.xlsx", kind: "Deferred tax", size: "980 KB", uploaded: "11 Aug 2026", by: "Group Tax", status: "Validated" },
   { id: "F11", name: "TP_Master_File_2026.pdf", kind: "TP report", size: "12 MB", uploaded: "07 Aug 2026", by: "A. Rivera", status: "Imported" },
   { id: "F12", name: "Prior_GIR_FY2025.xml", kind: "Previous GIR", size: "420 KB", uploaded: "06 Aug 2026", by: "M. Sato", status: "Imported" },
+  { id: "F14", name: "SG020 Trial Balance FY2026.xlsx", kind: "Trial balance", entity: "SG-SHIP", size: "510 KB", uploaded: "11 Aug 2026", by: "L. Tan", status: "Mapped", rows: 420 },
+  { id: "F15", name: "HK001 TB FY2026.xlsx", kind: "Trial balance", entity: "HK-CE", size: "280 KB", uploaded: "11 Aug 2026", by: "Group Finance", status: "Mapped", rows: 186 },
 ];
 
 export const ISSUES: Issue[] = [
@@ -668,6 +689,8 @@ export const ISSUES: Issue[] = [
   { id: "IQ-10", severity: "info", area: "Ownership", entity: "SG-JV", jurisdiction: "Singapore", title: "JV Group from Art. 10.1 facts", detail: "Keppel Logistics is equity-accounted in the UPE CFS and UPE ownership is 50% (≥ 50%). Entity test: Joint Venture (Art. 6.4 / 10.1) — separate ETR from Singapore HoldCo. The legal-entity type label is not the test.", owner: "Group Tax" },
   { id: "IQ-11", severity: "info", area: "Covered tax", entity: "LU-CE", jurisdiction: "Luxembourg", title: "Art. 4.1.5 — Net GloBE Loss and negative Covered Taxes", detail: "Luxembourg has a Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax equal to the negative tax. Elect OECD_4.1.5 to carry the amount forward instead.", owner: "Group Tax" },
   { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.1.2 — positive Net GloBE Income, negative Covered Taxes", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up Tax Percentage exceeds 15% (Art. 5.2.1). No ETR is computed when Net GloBE Income is zero or negative.", owner: "Group Tax" },
+  { id: "IQ-13", severity: "info", area: "GloBE income", entity: "SG-SHIP", jurisdiction: "Singapore", title: "Art. 3.4 — International Shipping Income excluded", detail: "SG020 posts Art. 3.4.2 ISI $5.0M and Art. 3.4.3 ancillary $3.2M. QAISI is capped at 50% of ISI ($2.5M); $0.7M excess ancillary stays in GloBE. Related Covered Taxes $0.75M and shipping payroll/assets come out of SBIE. Management test (Art. 3.4.5) is met in Singapore.", owner: "L. Tan" },
+  { id: "IQ-14", severity: "info", area: "GloBE income", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 3.4.5 — shipping not excluded", detail: "HK001 has feeder shipping income in FANIL. Strategic and commercial management of the ships is in Singapore, not Hong Kong. Art. 3.4.5 fails; ISI and ancillary stay in GloBE. Hong Kong Art. 5.1.2 teaching numbers are unchanged.", owner: "Group Tax" },
 ];
 
 export const INCENTIVES: Incentive[] = [
@@ -696,7 +719,7 @@ export const FILINGS: Filing[] = [
 export const JURISDICTION_PACKS = [
   { iso: "JP", name: "Japan", iir: true, qdmtt: false, qdmttSH: false, utpr: true, from: "2024-04-01", qualified: "Transitional qualified IIR", filing: "IIR return + central GIR", fx: "JPY", notes: "UPE jurisdiction. IIR collects residual after foreign QDMTT." },
   { iso: "TH", name: "Thailand", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT return · pack TH-PACK-2567", fx: "THB", notes: "Thai Jurisdiction Pack overlays GloBE Core (situs, SBIE No. 4, BOT FX, liability ordering). Filing schema pending. Open /thailand." },
-  { iso: "SG", name: "Singapore", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "GIR notification + MTT", fx: "SGD", notes: "HoldCo jurisdiction. DEI incentive in force." },
+  { iso: "SG", name: "Singapore", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "GIR notification + MTT", fx: "SGD", notes: "HoldCo jurisdiction. DEI incentive in force. Art. 3.4 teaching CE: Aetherion Marine (SG020) — ISI + ancillary cap + management test." },
   { iso: "VN", name: "Vietnam", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "VND", notes: "No QDMTT in demo pack — residual to JP IIR." },
   { iso: "IE", name: "Ireland", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2024-01-01", qualified: "Transitional qualified QDMTT/IIR", filing: "QDMTT + GIR", fx: "EUR", notes: "KDB is not SBTISH-eligible in this pack." },
   { iso: "US", name: "United States", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "2026-01-01", qualified: "Qualified SbS (demo pack)", filing: "SbS / UTPR SH", fx: "USD", notes: "Side-by-Side / Transitional UTPR Safe Harbour path." },
@@ -709,7 +732,7 @@ export const JURISDICTION_PACKS = [
   { iso: "MY", name: "Malaysia", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "QDMTT", fx: "MYR", notes: "" },
   { iso: "ID", name: "Indonesia", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT", fx: "IDR", notes: "" },
   { iso: "LU", name: "Luxembourg", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2024-01-01", qualified: "Transitional qualified", filing: "QDMTT + GIR", fx: "EUR", notes: "Art. 4.1.5 teaching case — Net GloBE Loss and negative Covered Taxes." },
-  { iso: "HK", name: "Hong Kong", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "HKD", notes: "Art. 5.1.2 teaching case — positive Net GloBE Income and negative Covered Taxes. Residual to JP IIR." },
+  { iso: "HK", name: "Hong Kong", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "HKD", notes: "Art. 5.1.2 teaching case — positive Net GloBE Income and negative Covered Taxes. Residual to JP IIR. Art. 3.4.5 fail: feeder shipping in FANIL is not excluded (ships managed from Singapore)." },
   { iso: "XX", name: "Stateless", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "n/a", filing: "Allocated with UPE IIR / UTPR", fx: "USD", notes: "Each Stateless CE is its own jurisdiction (Art. 10.3.4)." },
 ];
 

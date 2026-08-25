@@ -1,5 +1,6 @@
 import { ACCOUNTS, ENTITIES, INCENTIVES, ISSUES, RULES } from "./model";
-import { calculateGroup, calcForIso, type JurCalc } from "./engine";
+import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
+import { shippingPost } from "./shipping";
 import { eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
 import { optimizeBoi } from "./boiOptimizer";
@@ -306,6 +307,23 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     }),
   },
   {
+    match: /shipp|3\.4|international shipping|qaisi|tonnage|marine/i,
+    answer: () => {
+      const sg = shippingPost("SG-SHIP");
+      const hk = shippingPost("HK-CE");
+      const marine = entityCalc("SG-SHIP");
+      return {
+        role: "assistant",
+        text: `Art. 3.4 is Core, not an election. Qualifying International Shipping Income and Qualified Ancillary International Shipping Income (capped at 50% of ISI) are excluded from GloBE if Art. 3.4.5 is met — strategic or commercial management of the ships effectively carried on from the CE’s jurisdiction. Related Covered Taxes come out of the numerator (Art. 4.1.3). Payroll and tangible assets used in that activity come out of SBIE.\n\nSG020 (pass): ISI ${eur(sg.isi)} · ancillary ${eur(sg.ancillary)} · QAISI ${eur(sg.qaisi)} (cap ${eur(sg.ancillaryCap)}) · excess ancillary ${eur(sg.excessAncillary)} stays in GloBE · excluded income ${eur(sg.excludedIncome)} · related tax ${eur(sg.excludedTax)} stripped. GloBE ${marine ? eur(marine.globe) : "n/a"}.\n\nHK001 (fail): Art. 3.4.5 not met — ships managed from Singapore. ISI ${eur(hk.isi)} stays in FANIL. Hong Kong Art. 5.1.2 numbers are unchanged.\n\nSETR_SHIP is a Simplified ETR opt-out only. It does not unwind Core Art. 3.4.\n\nRule OECD-SHIP-34 v2026.1.`,
+        cites: [
+          { label: "SG020 GloBE income", href: "/globe-income" },
+          { label: "OECD-SHIP-34", href: "/rulebook" },
+          { label: "Covered taxes", href: "/covered-taxes" },
+        ],
+      };
+    },
+  },
+  {
     match: /adjustment|810020|dividend/i,
     answer: () => ({
       role: "assistant",
@@ -332,6 +350,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
 • OECD-POPE-214 — POPE IIR first (outsiders > 20% of a non-UPE Parent)
 • OECD-IR-222 — Inclusion Ratio
 • OECD-JV-64 — JV Group separate ETR
+• OECD-SHIP-34 — Art. 3.4 International Shipping Income exclusion (ISI + 50% QAISI cap; Art. 3.4.5 management test)
 • Jurisdictional packs from the OECD Central Record (demo dated 2026-08)\n\nAnswers are retrieved from this pack + the calculation snapshot, not from general model memory.`,
       cites: RULES.slice(0, 6).map((r) => ({ label: `${r.id} ${r.version}` })),
     }),

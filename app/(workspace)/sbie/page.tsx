@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { PAYROLL_RATE, ASSET_RATE, pickCalc } from "@/lib/engine";
+import { shippingPost } from "@/lib/shipping";
 import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
@@ -19,13 +20,13 @@ const METHOD = [
   {
     n: "02",
     title: "Identify eligible payroll",
-    body: "Eligible payroll is the compensation of Eligible Employees performing activities for the MNE in that jurisdiction. Mapped payroll accounts (approved once) feed the engine. Headcount location, not the payroll company, drives the carve-out. Payroll capitalised into eligible PPE is excluded here and taken in the asset carve-out.",
+    body: "Eligible payroll is the compensation of Eligible Employees performing activities for the MNE in that jurisdiction. Mapped payroll accounts (approved once) feed the engine. Headcount location, not the payroll company, drives the carve-out. Payroll capitalised into eligible PPE is excluded here and taken in the asset carve-out. Payroll used in generating Art. 3.4 excluded shipping income is stripped.",
     refs: ["Art. 5.3.3"],
   },
   {
     n: "03",
     title: "Identify eligible tangible assets",
-    body: "Eligible tangible assets are PPE, natural resources, lessee ROU assets, and certain government licences located in the jurisdiction. Carrying value is the average of opening and closing book value from the UPE consolidation. Intangibles, cash and financial assets are out.",
+    body: "Eligible tangible assets are PPE, natural resources, lessee ROU assets, and certain government licences located in the jurisdiction. Carrying value is the average of opening and closing book value from the UPE consolidation. Intangibles, cash and financial assets are out. Assets used in generating Art. 3.4 excluded shipping income (ships, marine ROU) are stripped.",
     refs: ["Art. 5.3.4", "Art. 5.3.5"],
   },
   {
@@ -43,7 +44,7 @@ const REFERENCES = [
   { cite: "Art. 5.3.2", work: "SBIE = payroll carve-out + tangible-asset carve-out (Investment Entities excluded)", loc: "OECD-SBIE-2026 v2026.1", href: "/rulebook" },
   { cite: "Art. 5.3.3", work: "Payroll carve-out — 5% of Eligible Payroll Costs of Eligible Employees in the jurisdiction", loc: "OECD-SBIE-2026 v2026.1", href: "/mapping" },
   { cite: "Art. 5.3.4", work: "Tangible-asset carve-out — 5% of carrying value of Eligible Tangible Assets located in the jurisdiction", loc: "OECD-SBIE-2026 v2026.1", href: "/mapping" },
-  { cite: "Art. 5.3.5", work: "Carrying value = average of opening and closing book value in the UPE consolidation", loc: "OECD-SBIE-2026 v2026.1", href: "/mapping" },
+  { cite: "Art. 3.4 / 5.3", work: "Payroll and tangible assets used in generating excluded International Shipping Income are not Eligible Payroll Costs or Eligible Tangible Assets", loc: "OECD-SHIP-34 v2026.1", href: "/globe-income" },
   { cite: "Art. 9.2", work: "Transitional SBIE rates. Payroll 10% → 5% and assets 8% → 5%. FY2026: 9.4% / 7.4%", loc: "OECD-SBIE-2026 v2026.1", href: "/rulebook" },
   { cite: "Art. 5.2.2", work: "Excess Profit = Net GloBE Income − Substance-based Income Exclusion (not below zero)", loc: "Model Rules Ch. 5", href: "/top-up" },
   { cite: "Art. 5.2.3", work: "Jurisdictional Top-up Tax = Top-up Tax Percentage × Excess Profit (after SBIE)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
@@ -58,6 +59,8 @@ function Inner() {
   const sel = pickCalc(calcs, iso, blend) ?? pickCalc(calcs, "TH") ?? calcs[0];
   const pr = pct(PAYROLL_RATE, 1);
   const ar = pct(ASSET_RATE, 1);
+  const shipPayroll = sel.entities.some((e) => shippingPost(e.id).payrollStrip > 0);
+  const shipAssets = sel.entities.some((e) => shippingPost(e.id).assetStrip > 0);
 
   return (
     <div>
@@ -111,6 +114,7 @@ function Inner() {
                 − Payroll carve-out
                 <div className="text-muted" style={{ fontSize: 12 }}>
                   {pr} × Eligible Payroll Costs · <Link href="/rulebook">Art. 5.3.3</Link> / <Link href="/rulebook">Art. 9.2</Link>
+                  {shipPayroll ? " · Art. 3.4 shipping payroll stripped" : ""}
                 </div>
               </span>
               <Amount n={sel.payrollCarve} audit={sel.trace.payroll} />
@@ -120,6 +124,7 @@ function Inner() {
                 − Tangible-asset carve-out
                 <div className="text-muted" style={{ fontSize: 12 }}>
                   {ar} × average carrying value of Eligible Tangible Assets · <Link href="/rulebook">Art. 5.3.4</Link> / <Link href="/rulebook">Art. 5.3.5</Link> / <Link href="/rulebook">Art. 9.2</Link>
+                  {shipAssets ? " · Art. 3.4 shipping assets stripped" : ""}
                 </div>
               </span>
               <Amount n={sel.assetCarve} audit={sel.trace.assets} />
