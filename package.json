@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:shipping": "npx --yes tsx scripts/test-shipping.ts"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",
