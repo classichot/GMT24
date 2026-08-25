@@ -436,6 +436,18 @@ export const RULES: Rule[] = [
     status: "active",
   },
   {
+    id: "OECD-SHIP-33",
+    jurisdiction: "OECD",
+    ruleType: "globe-adjustment",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    source: "GloBE Model Rules Art. 3.3 — International Shipping Income",
+    version: "2026.1",
+    formula: "Art. 3.3.1 shall exclude QISI + QAISI (Art. 3.3.4 jurisdictional 50% cap) when Art. 3.3.6 strategic OR commercial management is in the CE jurisdiction; exclude attributable Covered Taxes",
+    parameters: { qaisiCapRate: 0.5 },
+    status: "active",
+  },
+  {
     id: "OECD-MOCE-513",
     jurisdiction: "OECD",
     ruleType: "entity-test",
@@ -590,6 +602,7 @@ export const ENTITIES: Entity[] = [
   { id: "XX-ST", code: "XX-ST1", name: "Aetherion Regional Sales (stateless CE)", jurisdiction: "Stateless", iso: "XX", type: "Stateless", parentId: "JP-UPE", ownership: 100, gaap: "IFRS", fx: "USD", acquired: "2025-01-01", incentiveIds: [], completeness: 70, review: "Imported", graph: { x: 400, y: 90 } },
   { id: "LU-CE", code: "LU001", name: "Aetherion Luxembourg S.à r.l.", jurisdiction: "Luxembourg", iso: "LU", type: "CE", parentId: "UK-HC", ownership: 100, gaap: "Lux GAAP/IFRS", fx: "EUR", acquired: "2020-03-01", incentiveIds: [], completeness: 90, review: "Prepared", graph: { x: 860, y: 340 } },
   { id: "HK-CE", code: "HK001", name: "Aetherion Hong Kong Ltd.", jurisdiction: "Hong Kong", iso: "HK", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "HKFRS", fx: "HKD", acquired: "2017-08-01", incentiveIds: [], completeness: 87, review: "Validated", graph: { x: 140, y: 80 } },
+  { id: "SG-SHIP", code: "SG040", name: "Aetherion Maritime Pte. Ltd.", jurisdiction: "Singapore", iso: "SG", type: "CE", parentId: "SG-HC", ownership: 100, gaap: "SFRS(I)", fx: "SGD", acquired: "2020-09-01", incentiveIds: [], completeness: 91, review: "Prepared", graph: { x: 100, y: 140 } },
 ];
 
 export const FINANCIALS: Financials[] = [
@@ -614,6 +627,8 @@ export const FINANCIALS: Financials[] = [
   { entityId: "XX-ST", revenue: 900_000, fanil: 180_000, fanilFc: 180_000, currentTax: 0, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 2, tangibleEligible: 0, cbcrRevenue: 900_000, cbcrProfit: 180_000, cbcrTax: 0, priorDta: 0, priorDtl: 0 },
   { entityId: "LU-CE", revenue: 1_100_000, fanil: -4_200_000, fanilFc: -4_032_000, currentTax: -840_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 0, employees: 8, tangibleEligible: 120_000, cbcrRevenue: 1_100_000, cbcrProfit: -4_200_000, cbcrTax: -840_000, priorDta: 210_000, priorDtl: 0 },
   { entityId: "HK-CE", revenue: 3_200_000, fanil: 800_000, fanilFc: 6_224_000, currentTax: -120_000, deferredTax: 0, otherCovered: 0, nonCovered: 0, payrollEligible: 180_000, employees: 14, tangibleEligible: 90_000, cbcrRevenue: 3_200_000, cbcrProfit: 800_000, cbcrTax: -120_000, priorDta: 0, priorDtl: 0 },
+  /** FANIL 8.9m = Art. 3.3 shipping lines 8.4m + 0.5m non-shipping. Engine excludes QISI/QAISI via lib/shipping.ts. */
+  { entityId: "SG-SHIP", revenue: 24_000_000, fanil: 8_900_000, fanilFc: 12_023_900, currentTax: 1_120_000, deferredTax: 40_000, otherCovered: 0, nonCovered: 0, payrollEligible: 3_200_000, employees: 48, tangibleEligible: 18_400_000, cbcrRevenue: 24_000_000, cbcrProfit: 8_900_000, cbcrTax: 1_160_000, priorDta: 0, priorDtl: 80_000 },
 ];
 
 export const ADJUSTMENTS: Adjustment[] = [
@@ -668,6 +683,7 @@ export const ISSUES: Issue[] = [
   { id: "IQ-10", severity: "info", area: "Ownership", entity: "SG-JV", jurisdiction: "Singapore", title: "JV Group from Art. 10.1 facts", detail: "Keppel Logistics is equity-accounted in the UPE CFS and UPE ownership is 50% (≥ 50%). Entity test: Joint Venture (Art. 6.4 / 10.1) — separate ETR from Singapore HoldCo. The legal-entity type label is not the test.", owner: "Group Tax" },
   { id: "IQ-11", severity: "info", area: "Covered tax", entity: "LU-CE", jurisdiction: "Luxembourg", title: "Art. 4.1.5 — Net GloBE Loss and negative Covered Taxes", detail: "Luxembourg has a Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax equal to the negative tax. Elect OECD_4.1.5 to carry the amount forward instead.", owner: "Group Tax" },
   { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.1.2 — positive Net GloBE Income, negative Covered Taxes", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up Tax Percentage exceeds 15% (Art. 5.2.1). No ETR is computed when Net GloBE Income is zero or negative.", owner: "Group Tax" },
+  { id: "IQ-13", severity: "info", area: "GloBE income", entity: "SG-SHIP", jurisdiction: "Singapore", title: "Art. 3.3 — International Shipping Income exclusion (mandatory)", detail: "Aetherion Maritime has International Shipping Income. Art. 3.3.1 requires exclusion of QISI and QAISI (Art. 3.3.4 jurisdictional 50% cap). Art. 3.3.6: strategic or commercial management is in Singapore. Third-party bareboat-out is QAISI (Art. 3.3.3(a)), not QISI. Inland haulage stays in GloBE (Commentary ¶171). Liberian flag alone does not fail Art. 3.3.6 (¶182).", owner: "Group Tax" },
 ];
 
 export const INCENTIVES: Incentive[] = [

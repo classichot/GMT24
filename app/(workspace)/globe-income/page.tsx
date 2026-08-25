@@ -30,9 +30,15 @@ const METHOD = [
   },
   {
     n: "04",
+    title: "Art. 3.3 International Shipping (mandatory where conditions met)",
+    body: "Art. 3.3.1 requires exclusion of International Shipping Income and Qualified Ancillary International Shipping Income when Art. 3.3.6 is met (strategic or commercial management of the ships effectively carried on in the CE’s jurisdiction). Art. 3.3.4 caps aggregated QAISI at 50% of the jurisdiction’s International Shipping Income. Inland haulage is not QAISI (Commentary ¶171). Third-party bareboat-out is QAISI (Art. 3.3.3(a)), not QISI. Covered Taxes attributable to excluded shipping income leave Adjusted Covered Taxes.",
+    refs: ["Art. 3.3.1", "Art. 3.3.4", "Art. 3.3.6"],
+  },
+  {
+    n: "05",
     title: "Engine posts GloBE income",
-    body: "GloBE income = FANIL + Σ deltas. Jurisdiction GloBE income is the blend of Constituent Entities in that country. That figure is the denominator of the jurisdictional ETR.",
-    refs: ["Art. 3.1", "Art. 5.1.1"],
+    body: "GloBE income = FANIL + Σ Art. 3.2 deltas ± Art. 3.3 shipping exclusion. Jurisdiction GloBE income is the blend of Constituent Entities in that country. That figure is the denominator of the jurisdictional ETR.",
+    refs: ["Art. 3.1", "Art. 3.3", "Art. 5.1.1"],
   },
 ];
 
@@ -42,6 +48,7 @@ const ADJ_REF: Record<string, { article: string; note: string }> = {
   "FX / as-if": { article: "Art. 3.2.1(f)", note: "Asymmetric foreign currency gain or loss" },
   "Stock-based compensation": { article: "Art. 3.2.2", note: "Election: replace accounting cost with tax deduction" },
   "Policy disallowed": { article: "Art. 3.2.1(g)", note: "Illegal payments and fines add-back" },
+  "International shipping (Art. 3.3)": { article: "Art. 3.3.1", note: "Mandatory · Art. 3.3.4 QAISI cap · Art. 3.3.6 strategic or commercial management" },
 };
 
 const REFERENCES = [
@@ -53,7 +60,10 @@ const REFERENCES = [
   { cite: "Art. 3.2.1(f)", work: "Asymmetric Foreign Currency Gains or Losses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.1(g)", work: "Policy Disallowed Expenses", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 3.2.2", work: "Stock-based compensation election", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
-  { cite: "Art. 4", work: "Covered Taxes — not a GloBE-income adjustment (recast 15% sits here)", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
+  { cite: "Art. 3.3.1 / 3.3.2 / 3.3.3", work: "International Shipping Income and QAISI — mandatory exclusion from GloBE Income (bareboat-out to third parties is QAISI, not QISI; inland haulage not QAISI — Commentary ¶171)", loc: "OECD-SHIP-33 v2026.1", href: "/rulebook" },
+  { cite: "Art. 3.3.4", work: "Jurisdictional QAISI cap — aggregated QAISI ≤ 50% of jurisdiction International Shipping Income", loc: "OECD-SHIP-33 v2026.1", href: "/rulebook" },
+  { cite: "Art. 3.3.6", work: "Strategic or commercial management effectively carried on in the CE jurisdiction (OR test)", loc: "OECD-SHIP-33 v2026.1", href: "/rulebook" },
+  { cite: "Art. 4", work: "Covered Taxes — not a GloBE-income adjustment (recast 15% sits here); shipping Covered Taxes leave the numerator when Art. 3.3 excludes the income", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Covered Taxes ÷ GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
 
@@ -71,7 +81,7 @@ export default function GlobeIncomePage() {
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <strong>Adjustment method.</strong> GloBE income is not a tax computation. It is FANIL restated under Article 3.2 so the ETR in Article 5.1 uses a common base. Formula: <span className="mono">GloBE = FANIL + Σ Art. 3.2 deltas</span>.
+          <strong>Adjustment method.</strong> GloBE income is not a tax computation. It is FANIL restated under Articles 3.2 and 3.3 so the ETR in Article 5.1 uses a common base. Formula: <span className="mono">GloBE = FANIL + Σ Art. 3.2 deltas ± Art. 3.3 shipping</span>.
         </div>
         <div className="stack-actions">
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
@@ -141,7 +151,7 @@ export default function GlobeIncomePage() {
             </div>
           )}
           <div className="wf-row total">
-            <span>GloBE income (Art. 3.1 + 3.2)</span>
+            <span>GloBE income (Art. 3.1 + 3.2 + 3.3)</span>
             <Amount n={row.globe} audit={row.trace.globe} />
           </div>
         </div>
