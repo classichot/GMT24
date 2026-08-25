@@ -18,6 +18,19 @@ function th() {
 
 const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   {
+    match: /evidence history|immutable (log|chronicle)|who (changed|approved|commented)|chronicle|evidence locker/i,
+    answer: () => ({
+      role: "assistant",
+      text: "Evidence history is the group chronicle: documents ingested, mapping and election changes, engine calculation snapshots, user sessions/actions, and comments — in time order.\n\nEach row stores a hash of the previous row (GMT24-EH-v1). Immutability is on by default: existing rows cannot be edited or deleted; new rows still append (WORM). Turn it off in Settings or on the history page to delete or reset a working log; turning it off is itself logged.\n\nThe Evidence locker is the file list. The Audit trail is amount → OECD rule → source file. Evidence history is who did what, when, on which document or calc.\n\nOpen Evidence history.",
+      cites: [
+        { label: "Evidence history", href: "/evidence-history" },
+        { label: "Evidence locker", href: "/evidence" },
+        { label: "Settings", href: "/settings" },
+        { label: "Audit trail", href: "/audit" },
+      ],
+    }),
+  },
+  {
     match: /year record|prior year|previous year|next year|fy2027|election compare|consistenc|carried lock|lock (the )?year/i,
     answer: () => ({
       role: "assistant",
@@ -361,6 +374,7 @@ export const SUGGESTIONS = [
   "How does the entity test treat MOCE and POPE?",
   "Where is Additional Current Top-up Tax?",
   "Does once out, always out bar Thailand next year?",
+  "How does evidence history stay immutable?",
   "Show the OECD basis for this treatment.",
 ];
 

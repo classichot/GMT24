@@ -39,6 +39,7 @@ export default function DataHubPage() {
         <Link href="/mapping" className="btn btn-primary">Account mapping</Link>
         <Link href="/quality" className="btn btn-secondary">Data quality</Link>
         <Link href="/evidence" className="btn btn-secondary">Evidence locker</Link>
+        <Link href="/evidence-history" className="btn btn-secondary">Evidence history</Link>
         {mode === "advisor" && <StartEngage />}
       </div>
       <div className="panel">

@@ -292,6 +292,8 @@ export default function ApprovalsPage() {
         {" · "}
         <Link href="/audit">Audit trail</Link>
         {" · "}
+        <Link href="/evidence-history">Evidence history</Link>
+        {" · "}
         <Link href="/filings">Filings</Link>
         {" · "}
         <Link href="/host">Host desk</Link>

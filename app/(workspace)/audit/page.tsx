@@ -4,6 +4,7 @@ import { calculateGroup } from "@/lib/engine";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
 import { eur } from "@/lib/format";
+import Link from "next/link";
 
 export default function AuditPage() {
   const { groupId } = useStore();
@@ -12,6 +13,7 @@ export default function AuditPage() {
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>
         Every calculated amount in GMT24 is clickable. The trail walks amount → OECD rule (id + version) → entity → account → uploaded source file. The engine posts the number; the LLM does not.
+        {" "}Who posted, who approved, and who commented sits on <Link href="/evidence-history">Evidence history</Link>.
       </div>
       {calcs.map((c) => (
         <div key={c.blendKey} className="panel" style={{ marginBottom: 12 }}>

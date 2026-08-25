@@ -398,6 +398,7 @@ export const DEFENCE_CHAPTERS = [
   { n: "10", title: "BOI–Pillar Two optimizer", href: "/thailand/boi" },
   { n: "11", title: "Filings & payment", href: "/thailand/filing" },
   { n: "12", title: "Evidence locker", href: "/evidence" },
+  { n: "13", title: "Evidence history", href: "/evidence-history" },
 ];
 
 export function thaiEntities() {

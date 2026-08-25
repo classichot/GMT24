@@ -6,11 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { THEMES, normalizeTheme, type ThemeKey } from "./format";
-import { GROUPS, type Group, type ProductMode } from "./model";
+import { ADVISOR_USER, GROUPS, INHOUSE_USER, type Group, type ProductMode } from "./model";
 import type { AuditNode } from "./engine";
 import {
   ENGAGEMENT_KEY,
@@ -34,6 +35,20 @@ import {
   storageKeys,
   type YearRecord,
 } from "./yearLedger";
+import {
+  appendEvent,
+  deleteEvent,
+  labelElection,
+  loadLedger,
+  resetLedger,
+  saveLedger,
+  sessionLabel,
+  setImmutable,
+  verifyChain,
+  type HistoryDraft,
+  type HistoryEvent,
+  type HistoryLedger,
+} from "./evidenceHistory";
 
 type Store = {
   ready: boolean;
@@ -85,6 +100,13 @@ type Store = {
   lockCurrentYear: (restates: Restate[], note?: string) => YearRecord;
   openNextYear: () => string;
   setActiveFy: (fy: string) => void;
+  historyEvents: HistoryEvent[];
+  historyImmutable: boolean;
+  historyChainOk: boolean;
+  appendHistory: (draft: HistoryDraft) => HistoryEvent | null;
+  setHistoryImmutable: (on: boolean) => void;
+  deleteHistoryEvent: (id: string) => string | null;
+  resetHistory: (mode: "working" | "seed") => string | null;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -114,6 +136,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sbieClaim, setSbieClaimState] = useState<Record<string, SbieMode>>({});
   const [activeFy, setActiveFyState] = useState("FY2026");
   const [yearRecords, setYearRecords] = useState<YearRecord[]>([]);
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [historyImmutable, setHistoryImmutableState] = useState(true);
+  const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
+  const modeRef = useRef(mode);
+  const fyRef = useRef(activeFy);
+  modeRef.current = mode;
+  fyRef.current = activeFy;
+
+  const applyLedger = useCallback((led: HistoryLedger) => {
+    ledgerRef.current = led;
+    saveLedger(led);
+    setHistoryEvents(led.events);
+    setHistoryImmutableState(led.immutable);
+  }, []);
+
+  const actorNow = useCallback(() => (modeRef.current === "advisor" ? ADVISOR_USER : INHOUSE_USER), []);
+
+  const appendHistory = useCallback((draft: HistoryDraft) => {
+    const actor = actorNow();
+    const next = appendEvent(ledgerRef.current, {
+      ...draft,
+      actor: draft.actor ?? actor.name,
+      role: draft.role ?? actor.role,
+      fy: draft.fy ?? fyRef.current,
+    });
+    applyLedger(next);
+    return next.events[next.events.length - 1] ?? null;
+  }, [actorNow, applyLedger]);
 
   useEffect(() => {
     setAuthed(localStorage.getItem("gmt24_auth") === "1");
@@ -131,8 +181,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
+    applyLedger(loadLedger(startGroup));
     setReady(true);
-  }, []);
+  }, [applyLedger]);
 
   const login = useCallback((m: ProductMode, opts?: { invite?: boolean }) => {
     if (!opts?.invite) clearInviteSession();
@@ -140,6 +191,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAuthed(true);
     localStorage.setItem("gmt24_auth", "1");
     localStorage.setItem("gmt24_mode", m);
+    const actor = m === "advisor" ? ADVISOR_USER : INHOUSE_USER;
     if (m === "inhouse") {
       setGroupIdState("aetherion");
       localStorage.setItem("gmt24_group", "aetherion");
@@ -148,14 +200,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setYearRecords(loaded.records);
       setElectionsOn(loaded.elections);
       setSbieClaimState(loaded.sbie);
+      applyLedger(loadLedger("aetherion"));
     }
-  }, []);
+    const next = appendEvent(ledgerRef.current, {
+      kind: "action",
+      title: "Session started",
+      detail: `${sessionLabel(m)} · ${actor.name} · ${actor.role}`,
+      actor: actor.name,
+      role: actor.role,
+      fy: fyRef.current,
+      href: "/evidence-history",
+      ref: "session",
+    });
+    applyLedger(next);
+  }, [applyLedger]);
 
   const logout = useCallback(() => {
+    const actor = actorNow();
+    const next = appendEvent(ledgerRef.current, {
+      kind: "action",
+      title: "Session ended",
+      detail: `${actor.name} signed out.`,
+      actor: actor.name,
+      role: actor.role,
+      fy: fyRef.current,
+      href: "/evidence-history",
+      ref: "session",
+    });
+    applyLedger(next);
     setAuthed(false);
     localStorage.removeItem("gmt24_auth");
     clearInviteSession();
-  }, []);
+  }, [actorNow, applyLedger]);
 
   const setTheme = useCallback((k: ThemeKey) => {
     setThemeState(k);
@@ -165,7 +241,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setMode = useCallback((m: ProductMode) => {
     setModeState(m);
     localStorage.setItem("gmt24_mode", m);
-  }, []);
+    const actor = m === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+    const next = appendEvent(ledgerRef.current, {
+      kind: "action",
+      title: `Operating mode → ${sessionLabel(m)}`,
+      detail: `${actor.name} switched the workspace to ${sessionLabel(m)}.`,
+      actor: actor.name,
+      role: actor.role,
+      fy: fyRef.current,
+      href: "/settings",
+      ref: m,
+    });
+    applyLedger(next);
+  }, [applyLedger]);
 
   const flash = useCallback((m: string) => {
     setToast(m);
@@ -183,7 +271,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
-  }, []);
+    applyLedger(loadLedger(id));
+  }, [applyLedger]);
 
   const addEngagement = useCallback((draft: EngagementDraft) => {
     if (mode !== "advisor") {
@@ -215,9 +304,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setYearRecords(loaded.records);
     setElectionsOn(loaded.elections);
     setSbieClaimState(loaded.sbie);
+    applyLedger(loadLedger(row.id));
+    const opened = appendEvent(ledgerRef.current, {
+      kind: "action",
+      title: `Engagement opened · ${row.name}`,
+      detail: `UPE ${row.upe}. Chronicle started for this client ledger.`,
+      actor: ADVISOR_USER.name,
+      role: ADVISOR_USER.role,
+      fy: row.fy,
+      href: "/onboard",
+      ref: row.id,
+    });
+    applyLedger(opened);
     flash(`${row.name} added. Next: drop the close pack on Data Hub.`);
     return row.id;
-  }, [mode, extraGroups, flash]);
+  }, [mode, extraGroups, flash, applyLedger]);
 
   const ask = useCallback((q: string) => {
     setPendingAsk(q);
@@ -232,7 +333,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const approveMap = useCallback((account: string) => {
     setApprovedMaps((p) => ({ ...p, [account]: true }));
-  }, []);
+    appendHistory({
+      kind: "change",
+      title: `Account mapping approved · ${account}`,
+      detail: "Mapping stored for subsequent years. Source trail: Data Hub → mapping → evidence history.",
+      href: "/mapping",
+      ref: account,
+    });
+  }, [appendHistory]);
 
   const setScenario = useCallback((p: Partial<Store["scenario"]>) => {
     setScenarioState((s) => ({ ...s, ...p }));
@@ -240,7 +348,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const patchWorkflow = useCallback((p: Partial<Store["workflow"]>) => {
     setWorkflow((w) => ({ ...w, ...p, sentRequests: p.sentRequests ? { ...w.sentRequests, ...p.sentRequests } : w.sentRequests }));
-  }, []);
+    if (p.girValidated) {
+      appendHistory({ kind: "action", title: "GIR schema validated", detail: "XML schema passed. Warnings remain on VN DTA.", href: "/gir", ref: "gir-validate" });
+    }
+    if (p.girExported) {
+      appendHistory({ kind: "doc", title: "GIR pack exported", detail: "XML + PDF + evidence zip written to the filing pack.", href: "/gir", ref: "gir-export" });
+    }
+    if (p.snapshotApproved === true) {
+      appendHistory({ kind: "action", title: "FY calculation snapshot approved", detail: "Reviewer lock on the working package. Does not file.", href: "/approvals", ref: "snapshot" });
+    }
+    if (p.snapshotApproved === false) {
+      appendHistory({ kind: "comment", title: "Snapshot returned to preparer", detail: "Reviewer returned the FY package with comments.", href: "/approvals", ref: "snapshot" });
+    }
+    if (p.reviewerRan) {
+      appendHistory({ kind: "action", title: "AI Pillar Two Reviewer run", detail: "Second-level review against the current calculation snapshot.", href: "/issues", ref: "reviewer" });
+    }
+    if (p.sentRequests) {
+      const ids = Object.keys(p.sentRequests).filter((k) => p.sentRequests?.[k]);
+      if (ids.length) {
+        appendHistory({
+          kind: "action",
+          title: `Data request sent · ${ids.join(", ")}`,
+          detail: "Gap Hunter queued a request. Logged for the evidence chronicle.",
+          href: "/requests",
+          ref: ids[0],
+        });
+      }
+    }
+  }, [appendHistory]);
 
   const persistYears = useCallback((rows: YearRecord[], gid = groupId) => {
     setYearRecords(rows);
@@ -265,8 +400,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistElections(next, sbieClaim);
       return next;
     });
+    appendHistory({
+      kind: "change",
+      title: `Election ${on ? "on" : "off"} · ${labelElection(key)}`,
+      detail: `${key} ${on ? "elected" : "cleared"} on the ${activeFy} working package.`,
+      href: "/elections",
+      ref: key,
+    });
     return null;
-  }, [yearRecords, activeFy, electionsOn, persistElections, sbieClaim]);
+  }, [yearRecords, activeFy, electionsOn, persistElections, sbieClaim, appendHistory]);
 
   const resetElections = useCallback(() => {
     const prior = lastLocked(yearRecords, activeFy);
@@ -276,7 +418,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setElectionsOn(carry.electionsOn);
     setSbieClaimState(carry.sbieClaim);
     persistElections(carry.electionsOn, carry.sbieClaim);
-  }, [yearRecords, activeFy, persistElections]);
+    appendHistory({
+      kind: "change",
+      title: "Elections reset to Core",
+      detail: prior
+        ? `Working package restored to carried locks from ${prior.fy}.`
+        : "Working package cleared to GloBE Core (no prior lock).",
+      href: "/elections",
+      ref: "reset",
+    });
+  }, [yearRecords, activeFy, persistElections, appendHistory]);
 
   const setSbieClaim = useCallback((iso: string, mode: SbieMode) => {
     setSbieClaimState((p) => {
@@ -293,7 +444,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       return sbie;
     });
-  }, [persistElections]);
+    appendHistory({
+      kind: "change",
+      title: `SBIE claim · ${iso} → ${mode}`,
+      detail: `Art. 5.3.1 substance-based income exclusion claim set to ${mode} for ${iso}.`,
+      href: "/sbie",
+      ref: `OECD_5.3.1@${iso}`,
+    });
+  }, [persistElections, appendHistory]);
 
   const lockCurrentYear = useCallback((restates: Restate[], note = "") => {
     const rec = makeYearRecord({
@@ -306,8 +464,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       note: note || `${activeFy} final close — ${groupId} · calc + elections`,
     });
     persistYears([...yearRecords.filter((r) => r.fy !== activeFy), rec]);
+    appendHistory({
+      kind: "calc",
+      title: `${rec.fy} locked`,
+      detail: rec.note,
+      href: "/years",
+      ref: rec.fy,
+      fy: rec.fy,
+      amount: rec.groupTopUp,
+    });
     return rec;
-  }, [activeFy, electionsOn, sbieClaim, yearRecords, persistYears, groupId]);
+  }, [activeFy, electionsOn, sbieClaim, yearRecords, persistYears, groupId, appendHistory]);
 
   const openNextYear = useCallback(() => {
     const lock = lockedFor(yearRecords, activeFy);
@@ -320,8 +487,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setElectionsOn(carry.electionsOn);
     setSbieClaimState(carry.sbieClaim);
     persistElections(carry.electionsOn, carry.sbieClaim);
+    appendHistory({
+      kind: "action",
+      title: `${fy} opened`,
+      detail: `Next Fiscal Year opened from the ${activeFy} lock. Five-year and first-GIR elections carried.`,
+      href: "/years",
+      ref: fy,
+      fy,
+    });
     return fy;
-  }, [yearRecords, activeFy, persistElections, groupId]);
+  }, [yearRecords, activeFy, persistElections, groupId, appendHistory]);
 
   const setActiveFy = useCallback((fy: string) => {
     setActiveFyState(fy);
@@ -333,6 +508,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistElections(lock.electionsOn, lock.sbieClaim);
     }
   }, [yearRecords, persistElections, groupId]);
+
+  const setHistoryImmutable = useCallback((on: boolean) => {
+    const actor = actorNow();
+    applyLedger(setImmutable(ledgerRef.current, on, { name: actor.name, role: actor.role }, fyRef.current));
+  }, [actorNow, applyLedger]);
+
+  const deleteHistoryEvent = useCallback((id: string) => {
+    const next = deleteEvent(ledgerRef.current, id);
+    if (typeof next === "string") return next;
+    applyLedger(next);
+    return null;
+  }, [applyLedger]);
+
+  const resetHistory = useCallback((mode: "working" | "seed") => {
+    const next = resetLedger(ledgerRef.current, mode);
+    if (typeof next === "string") return next;
+    applyLedger(next);
+    return null;
+  }, [applyLedger]);
+
+  const historyChainOk = useMemo(() => verifyChain(historyEvents).ok, [historyEvents]);
 
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
@@ -381,8 +577,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lockCurrentYear,
       openNextYear,
       setActiveFy,
+      historyEvents,
+      historyImmutable,
+      historyChainOk,
+      appendHistory,
+      setHistoryImmutable,
+      deleteHistoryEvent,
+      resetHistory,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

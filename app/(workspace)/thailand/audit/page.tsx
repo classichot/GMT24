@@ -32,6 +32,7 @@ export default function ThaiAuditPage() {
           <Link href="/thailand/gap" className="btn btn-secondary">OECD vs RD gap</Link>
           <Link href="/audit" className="btn btn-secondary">Calc trail</Link>
           <Link href="/evidence" className="btn btn-secondary">Evidence</Link>
+          <Link href="/evidence-history" className="btn btn-secondary">Evidence history</Link>
         </div>
       </div>
 
