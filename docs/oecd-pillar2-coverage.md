@@ -1,8 +1,8 @@
 # OECD Pillar 2 (GloBE) coverage — GMT24
 
 **Snapshot:** GMT24-CALC 2026.2 · Aetherion seed group  
-**Rule pack:** OECD Model Rules + 2026 Consolidated Commentary references cited in code  
-**Honesty rule:** Status is *implemented* only where the engine posts a number and a test (or a seeded live path with an explicit audit trail) proves it. Citation / UI copy alone is *partial* or *method text*.
+**Legal sources:** OECD GloBE Model Rules (2021); Consolidated Commentary to the GloBE Model Rules; Agreed Administrative Guidance where cited in code  
+**Honesty rule:** Status is *implemented* only where the engine posts a number **and** a test (or an equivalent scripted assertion) proves it. UI copy, election-register labels, and teaching seeds without scenario tests are *partial*, *election-only*, or *method text*.
 
 Statuses: **implemented** · **partial** · **missing** · **election-only** · **method text**
 
@@ -10,50 +10,53 @@ Statuses: **implemented** · **partial** · **missing** · **election-only** · 
 
 ## 1. Art. 3.3 International Shipping Income (deep-dive)
 
-### Verdict
+### Auditor remediation (Model Rules verification)
 
-**Previously missing** (only `SETR_SHIP` Simplified-ETR opt-out text in `lib/elections.ts`).  
-**Now: implemented** on the existing GloBE income path (`FANIL + Art. 3.2` → plus Art. 3.3), with unit + engine tests.
+| Finding | Legal text | Disposition |
+| --- | --- | --- |
+| Management test is OR; cite 3.3.6 not 3.3.4 | Art. 3.3.6: “strategic **or** commercial management”; Art. 3.3.4 is the QAISI 50% cap (Commentary ¶172–173, ¶180) | **Confirmed — fixed** |
+| Third-party bareboat is not QISI | Art. 3.3.2(d) / Commentary ¶157: bareboat-out is QISI only if lessee is another CE of the same MNE Group; Art. 3.3.3(a) / ¶163: third-party bareboat-out is QAISI (≤ 3 years) | **Confirmed — fixed** |
+| Inland haulage is not QAISI | Commentary ¶171: inland transportation is **not** a qualified ancillary activity under Art. 3.3.3 — remains in GloBE Income | **Confirmed — fixed** (auditor’s “included” = included in GloBE, not in QAISI) |
+| Art. 3.3.1 is mandatory | Art. 3.3.1: income/loss “**shall** be excluded” | **Confirmed — fixed** (removed election gate; removed `OECD_3.3` election row) |
 
-| Topic | OECD | Status | Where | What the code does |
+No finding was discarded.
+
+### Current status
+
+| Topic | OECD | Status | Where | What the code does / what tests prove |
 | --- | --- | --- | --- | --- |
-| QISI exclusion from GloBE Income | Art. 3.3.1–3.3.2 | **implemented** | `lib/shipping.ts` → `entityGlobe` in `lib/engine.ts` | Qualifying QISI lines are subtracted from FANIL when elected and management tests pass |
-| QAISI + 50% of QISI cap | Art. 3.3.3 | **implemented** | `qaisiCapOf` / `computeShippingExclusion` | Positive QAISI excluded up to 50% of QISI; spill stays in GloBE. If QISI ≤ 0, no QAISI exclusion |
-| Strategic & commercial management in CE jurisdiction | Art. 3.3.4 | **implemented** | `ShippingFacts.strategicManagementInCeJur` / `commercialManagementInCeJur` | Either fail → full disqualification (no income or Covered Tax exclusion) |
-| Ownership / bareboat / slot / inland / container leasing | Art. 3.3.2–3.3.3 | **implemented** (category gates) | `QisiCategory` / `QaisiCategory` | Categories classified; `qualifies: false` keeps line in GloBE (e.g. ship-sale holding-period gate) |
-| Recapture / disqualification if management fails | Art. 3.3.4 | **implemented** | `disqualified` path in `computeShippingExclusion` | Shipping income remains in GloBE; no tax exclusion |
-| Covered Taxes on shipping income | Art. 3.3 Commentary ↔ Art. 4 | **implemented** (attributable amount) | `shippingCoveredTaxExcluded` → `entityCovered` | Pack field `coveredTaxesOnShipping` leaves Adjusted Covered Taxes when income is excluded |
-| Allocation across CEs / jurisdictions | Art. 3.3 + 5.1.1 | **partial** | Per-CE exclusion, then existing blend | Exclusion is CE-level; jurisdictional ETR uses post-exclusion blend. No separate shipping blend |
-| Mixed shipping + non-shipping in one CE | — | **implemented** | Residual FANIL − shipping lines | Non-shipping residual stays in GloBE (SG-SHIP seed: $0.5m) |
-| JV / look-through | Art. 6.4 / 10.1 | **partial** | Same module if a pack is attached | No auto look-through. SG-JV has no pack (test proves inert). JV blend already separate via `entityClass` |
-| Loss-making shipping | Art. 3.3.1 | **implemented** | Tests | Excluding a QISI loss increases GloBE Income; QAISI blocked when QISI ≤ 0 |
-| Sale of a ship | Art. 3.3.2 | **partial** | `ship_sale` + `qualifies` flag | Gate is a boolean fact, not a computed holding-period / use history engine |
-| Flag vs management jurisdiction mismatch | Art. 3.3.4 | **implemented** | Flag on line; management on pack | Flag ≠ CE location does **not** fail; management location does |
+| Mandatory exclusion | Art. 3.3.1 | **implemented** | `lib/shipping.ts` → `entityGlobe` | Exclusion runs when Art. 3.3.6 passes; no election switch |
+| QISI categories | Art. 3.3.2 | **partial** | Category set + tests | Transport, intragroup bareboat-out, slot, pool/agency, ship sale. Holding-period / use-history for ship sale is a boolean fact, not computed |
+| Third-party bareboat | Art. 3.3.3(a) · ¶163 | **implemented** | `bareboat_charter_third_party` as QAISI | Seed + tests; mis-labelled QISI rejected |
+| Intragroup bareboat | Art. 3.3.2(d) · ¶157 | **implemented** | `bareboat_charter_intragroup` as QISI | Test-only fixture (not on live seed) |
+| Inland haulage | Commentary ¶171 | **implemented** | `inland_transport` → non-qualifying | Stays in GloBE; SG-SHIP keeps $0.4m |
+| QAISI 50% cap | **Art. 3.3.4** | **partial** | `jurisdictionalQaisiCap` | Jurisdictional aggregation + pro-rata spill; multi-CE same-jurisdiction stress beyond one seed is thin |
+| Management test | **Art. 3.3.6** | **implemented** | `managementTestPass` (OR) | Strategic-only pass; commercial-only pass; both-fail disqualify |
+| Covered Taxes on excluded shipping | Commentary ↔ Art. 4 | **partial** | Pack `coveredTaxesOnShipping` | Attributable amount is a fact input, not an Art. 4.3 allocation engine |
+| Cost attribution | Art. 3.3.5 | **missing** | — | Net amounts assumed pre-computed in the shipping pack |
+| Flag vs management | ¶182 | **implemented** | Tests | Flag alone does not fail 3.3.6 |
 
-### Hook (no parallel engine)
+### Hook
 
 ```
 FANIL (Art. 3.1)
   + Σ Art. 3.2 adjustments          ← ADJUSTMENTS[]
-  + Art. 3.3 globeDelta             ← lib/shipping.ts
+  + Art. 3.3.1 globeDelta           ← lib/shipping.ts (if Art. 3.3.6 passes)
 = GloBE Income
 
 Covered Taxes
   = current + Art. 4.4 deferred + other
-  − Art. 3.3 coveredTaxesOnShipping
+  − Covered Taxes attributable to excluded shipping (pack fact)
 ```
 
-Live seed: **SG-SHIP** (`Aetherion Maritime Pte. Ltd.`) in Singapore main blend.  
-Election register: `OECD_3.3` (CE / annual). Seed pack sets `electExclusion: true`.  
-Rule id: `OECD-SHIP-33`.  
-Tests: `npx tsx scripts/test-shipping.ts` (42 assertions).
+Live seed: **SG-SHIP**. Rule id: `OECD-SHIP-33`.  
+Verify: `npm run test:shipping`.
 
 ### Not claimed
 
-- Multi-year management-failure recapture across fiscal years (year ledger)
-- Automatic allocation of Covered Taxes to shipping vs non-shipping beyond the pack’s attributable amount
-- Shipping income inside Simplified ETR beyond the existing `SETR_SHIP` election label
-- Full Commentary examples (pool / agency economics, tonnage-tax interactions)
+- Full Art. 3.3.5 direct/indirect cost allocation engine
+- Multi-year management-failure / evidence pack beyond boolean facts
+- Shipping inside Simplified ETR beyond the existing `SETR_SHIP` label (SETR package — distinct from Art. 3.3.1)
 
 ---
 
@@ -63,146 +66,124 @@ Tests: `npx tsx scripts/test-shipping.ts` (42 assertions).
 
 | Article / topic | Status | Code | Scenarios tests do **not** cover |
 | --- | --- | --- | --- |
-| Art. 1.1 EUR 750m / 2-of-4 | **implemented** | `scopeTest` · `OECD-SCOPE-750` · `/scope` | Mid-year joins, FX to EUR for threshold, Excluded Entity revenue carve-out math |
-| Art. 1.2–1.3 MNE / CE | **partial** | `ENTITIES` + `entityClass` | Flow-through / transparent CE edge cases beyond labels |
-| Art. 1.4 UPE | **implemented** | `type: "UPE"` · `upeEntity()` | Dual-listed / dual-UPE structures |
-| Art. 1.5 Excluded Entities | **partial** | `type: "Excluded"` · election `OECD_1.5.3` | Live seed has Thai memo excluded entity; opt-in election not engine-driven on Aetherion |
-| Stateless CE | **partial** | `XX-ST` blend | Stateless top-up allocation nuances |
+| Art. 1.1 EUR 750m / 2-of-4 | **partial** | `scopeTest` · `OECD-SCOPE-750` | No dedicated unit test file; mid-year joins; FX to EUR; Excluded Entity revenue carve-out |
+| Art. 1.2–1.3 MNE / CE | **partial** | `ENTITIES` + `entityClass` | Flow-through / transparent CE edges |
+| Art. 1.4 UPE | **partial** | `type: "UPE"` · `upeEntity()` | Dual-listed / dual-UPE; no isolated UPE unit tests |
+| Art. 1.5 Excluded Entities | **partial** | Labels · `OECD_1.5.3` | Opt-in election not engine-driven on Aetherion |
+| Stateless CE | **partial** | `XX-ST` blend | Stateless top-up allocation |
 | JV (Art. 6.4 / 10.1) | **implemented** | `equityMethod` + UPE ≥ 50% · separate blend | Multi-tier JV subgroups |
 
 ### Ch 2 — Charging provisions
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 2.1 IIR | **implemented** | `allocateCollection` | Intermediate Parent IIR chains beyond POPE → UPE |
-| Art. 2.1.4 POPE | **implemented** | `OECD-POPE-214` · UK-HC seed | POPE without QDMTT on low-tax children with residual IIR math stress tests |
-| Art. 2.2 Inclusion Ratio | **implemented** | `inclusionRatio` | Preferred shares / different classes of Ownership Interests |
-| Art. 2.4–2.6 UTPR | **partial** | Residual UTPR bucket | UTPR allocation key by employees/assets across UTPR jurisdictions not computed |
-| QDMTT priority | **implemented** | Jurisdiction pack `qdmtt` | Domestic QDMTT income definition divergence (except Thailand pack overlays) |
+| Art. 2.1 IIR (incl. POPE path) | **partial** | `allocateCollection` · POPE → UPE | Teaching waterfall on seed; Intermediate Parent chains and non-QDMTT residual IIR stress **not** unit-tested as Model Rules coverage |
+| Art. 2.2 Inclusion Ratio | **partial** | `inclusionRatio` | Ownership % only; preferred shares / class differences absent |
+| Art. 2.4–2.6 UTPR | **partial** | Residual UTPR bucket | No employees/assets UTPR allocation key |
+| QDMTT priority | **partial** | Pack `qdmtt` flag | Domestic QDMTT income-definition divergence (Thai pack is separate overlay) |
 
 ### Ch 3 — GloBE Income
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 3.1.1 FANIL (UPE CFS) | **implemented** | `fanilUsd` / `traceFanil` | — |
-| Art. 3.1.2 / 3.1.3 local GAAP | **partial** | `OECD_3.1.3` · `gaapScreen` · TH `fanilLocal` | Not elected by default on live path; material-difference screens exist |
-| Art. 3.2.1(a)–(i) adjustments | **partial** | Seeded dividends, net tax, FX stub, policy disallowed, SBC | Many 3.2.1 categories absent (pension, insurance 3.2.9, equity gains default, etc.) |
-| Art. 3.2.2 stock-based compensation | **partial** | Election + optimizer overlay | Live IE adjustment is static; TH election via `electionEngine` |
-| Art. 3.2.5 / 3.2.6 / 3.2.8 | **election-only** | Register + optimizer stubs | No full realisation / aggregate-gain / intra-group engines |
-| **Art. 3.3 shipping** | **implemented** | `lib/shipping.ts` · tests | See §1 |
+| Art. 3.1.1 FANIL (UPE CFS) | **partial** | `fanilUsd` / `traceFanil` | Seeded path; no FANIL unit suite |
+| Art. 3.1.2 / 3.1.3 local GAAP | **partial** | `OECD_3.1.3` · `gaapScreen` | Electable; not default live path |
+| Art. 3.2.1(a)–(i) catalogue | **partial** | Few seeded deltas | **Largest remaining GloBE-income gap** — pension, insurance 3.2.9, equity gains default, etc. absent |
+| Art. 3.2.2 SBC | **partial** | Election + optimizer overlay | TH overlay; IE static row |
+| Art. 3.2.5 / 3.2.6 / 3.2.8 | **election-only** | Register | No realisation / aggregate-gain / intra-group engines |
+| **Art. 3.3 shipping** | **partial → core rules implemented** | `lib/shipping.ts` · `test-shipping.ts` | See §1 — 3.3.5 costs still missing |
 | Art. 3.4 Allocation to PEs | **partial** | TH-PE separate CE row | No PE profit attribution engine |
 
 ### Ch 4 — Covered Taxes
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 4.1 Adjusted Covered Taxes | **partial** | `entityCovered` | CFC / hybrid / push-down allocations largely stub (`otherCovered`) |
-| Art. 4.1.5 Net GloBE Loss + negative tax → ACTTT | **implemented** | `calculateGroup` ACTTT branch · LU seed · `OECD_4.1.5` | Carry-forward utilisation in later years not fully ledgered |
-| Art. 4.4 deferred tax recast / recapture | **partial** | `lib/deferredTax.ts` · OECD-DT-441…445 | Full five-year recapture re-open of origin-year ETR is monitored, not auto-refiled |
-| Art. 4.5 GloBE Loss Election | **election-only** | Register + year-ledger locks | Deemed DTA substitute method not fully computed |
-| Cross-border DT allocation | **election-only** | `OECD_4_nbdt` | — |
+| Art. 4.1 Adjusted Covered Taxes | **partial** | `entityCovered` | CFC / hybrid / push-down largely stub |
+| **Art. 4.3 allocation** of Covered Taxes | **missing** / **partial** | `otherCovered` stub | CFC, Hybrid, Main Entity ↔ PE, cross-border allocation not computed |
+| Art. 4.1.5 → ACTTT | **partial** | LU seed posts ACTTT when globe ≤ 0 and covered < 0 | Carry-forward utilisation across years not ledger-proven; do **not** read as full Art. 4.1.5 machinery |
+| Art. 4.4 DT recast / recapture | **partial** | `lib/deferredTax.ts` | Origin-year reopen not auto-refiled |
+| Art. 4.5 GloBE Loss Election | **election-only** | Register + year-ledger locks | Deemed DTA method not fully computed |
 
 ### Ch 5 — ETR & Top-up
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 5.1.1 jurisdictional ETR | **implemented** | `calculateGroup` | — |
-| Art. 5.1.2 / 5.1.3 blending (incl. MOCE) | **implemented** | `entityClass` blends · HK 5.1.2 teaching | Profit CE − Loss CE netting text vs multi-CE loss blending edge cases |
-| Art. 5.2.1 Top-up % | **implemented** | `topUpRate` | — |
-| Art. 5.2.2 Excess Profit | **implemented** | `excess` | — |
-| Art. 5.2.3 Top-up + **Additional Current Top-up** | **implemented** | `rateTopUp + additionalCurrentTopUp` | Prior-year recalculation ACTTT (post-filing adjustments) not a full reopen engine |
-| Art. 5.3 SBIE | **partial** | Transitional rates · Thai pack override | Substance attribution across PEs / mobile employees incomplete |
-| Art. 5.5 De minimis | **partial** | TCSH de minimis + `OECD_5.5` election | Standalone Art. 5.5 (non-TCSH) path lightly wired |
+| Art. 5.1.1 jurisdictional ETR | **partial** | `calculateGroup` | Live calc; no isolated ETR unit suite beyond shipping/engine smoke |
+| Art. 5.1.2 / 5.1.3 blending | **partial** | `entityClass` · HK teaching | HK negative-tax teaching case; not a full Art. 5.1.2 scenario matrix |
+| Art. 5.2.1–5.2.2 | **partial** | `topUpRate` · `excess` | Posted on seed; limited scenario tests |
+| Art. 5.2.3 + ACTTT line | **partial** | `rateTopUp + additionalCurrentTopUp` | Formula posts on LU (4.1.5 path). **Not** a full Additional Current Top-up engine for prior-year recalculations / all Art. 5.2.3 triggers |
+| Art. 5.3 SBIE | **partial** | Transitional rates · Thai override | PE / mobile employee substance incomplete |
+| Art. 5.5 De minimis | **election-only** / **method text** | `OECD_5.5` + TCSH de minimis proxy | Standalone Art. 5.5 (non-TCSH) is **not** proven; do not treat TCSH de minimis as Art. 5.5 coverage |
 
 ### Ch 6 — Reorganisations & transfers
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 6.1–6.3 transfers / joining / leaving | **missing** / **election-only** | `OECD_6.3.4` register only | No GloBE carrying-value transfer engine |
-| Art. 6.4 JV Group | **implemented** | Separate SG-JV blend | JV subsidiaries chain |
+| Art. 6.1–6.3 joining / leaving / transfers | **missing** | `OECD_6.3.4` register only | No GloBE carrying-value transfer engine |
+| **Art. 6.4 JV Group** | **implemented** | Separate SG-JV blend · entity test | JV subsidiaries chain beyond one JV root |
+| Art. 6.5 Multi-Parented MNE Groups | **missing** | — | — |
 
 ### Ch 7 — Tax neutrality & distribution regimes
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 7.1–7.2 flow-through / tax transparent UPE | **missing** | Labels only | — |
+| Art. 7.1–7.2 | **missing** | Labels | — |
 | Art. 7.3 EDTS | **election-only** | `OECD_7.3` | No deemed distribution tax computation |
-| Art. 7.4–7.6 Investment Entities | **partial** | SG-IE separate blend · elections 7.5 / 7.6 | Transparency / taxable distribution methods not computed |
-| Art. 7 Insurance / other | **missing** | — | — |
+| Art. 7.4–7.6 Investment Entities | **partial** | SG-IE separate blend | Transparency / taxable distribution methods not computed |
 
 ### Ch 8 — Administration
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| GIR / filings | **partial** | `/gir` · `/filings` · election GIR fields | XML schema generation is prototype, not filing-grade |
-| Soft-landing / penalties | **missing** | — | — |
+| GIR / filings | **partial** | `/gir` · `/filings` | Prototype, not filing-grade XML |
 
 ### Ch 9 — Transition
 
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
-| Art. 9.1 deferred tax attributes at transition | **partial** | DT opening balances · `OECD_9.1.3` | Full transition DTA/DTL limitations |
-| Transitional CbCR Safe Harbour | **implemented** | `OECD-TCSH-2026` · navigator | Simplified ETR inner SETR options mostly election labels |
-| **Once out, always out** | **implemented** | `tcshBarredByPrior` · year ledger `tcshFailed` / `tcshUsed` | Cross-group / restructure resets not modelled |
+| Art. 9.1 transition attributes | **partial** | DT openings · `OECD_9.1.3` | Full transition limitations |
+| Transitional CbCR Safe Harbour | **partial** | Navigator + `tcshBarredByPrior` | Routine profits is a demo proxy; SETR inner options mostly labels |
+| Once out, always out | **partial** | Year ledger flags | Cross-group / restructure resets not modelled; limited scripted proof |
 
-### Safe harbours (beyond Ch 8/9)
+### Safe harbours / FX / elections
 
-| Harbour | Status | Code | Gaps |
-| --- | --- | --- | --- |
-| TCSH (de minimis / simplified ETR / routine profits) | **implemented** | `calculateGroup` SH block | Routine profits is a demo proxy (`10% × CbCR revenue`) |
-| QDMTT Safe Harbour | **partial** | Pack flags + Central Record memo | Not a full AG qualification engine |
-| Simplified Calculations / NMCE | **election-only** | Register | — |
-| SBTI / Side-by-Side / UPE SH / UTPR SH | **partial** | US seed Pass; others Review/N/A | Substance tracing for SBTI incomplete |
-| HoldCo vs JV separate SH | **implemented** | Per-`blendKey` navigator | — |
-
-### FX / functional currency
-
-| Topic | Status | Code | Gaps |
-| --- | --- | --- | --- |
-| Presentation USD + locked FX table | **partial** | `lib/fx.ts` | Thailand BOT archive strongest; JP/SG/VN not full jurisdictional FX libraries |
-| QDMTT currency election | **election-only** | `OECD_QDMTT_FX` · Thai pack | — |
-
-### Elections that change computation
-
-| Election | Computational effect today |
-| --- | --- |
-| `OECD_3.2.2` | Yes — optimizer / electionEngine overlay |
-| `OECD_3.1.3` | Yes — local FANIL if screens pass |
-| `OECD_4.1.5` | Yes — suppresses ACTTT |
-| `OECD_5.3.1` / SBIE max·partial·none | Yes — overlay |
-| `SH_TCSH` | Yes — zeros top-up when tests pass |
-| `OECD_3.3` | Yes — via shipping pack `electExclusion` (register present; seed pack elected) |
-| Most other register rows | Eligibility / scenario text only |
+| Topic | Status | Note |
+| --- | --- | --- |
+| TCSH three tests | **partial** | Computed on seed; routine-profits proxy |
+| QDMTT / SBTI / SbS / UTPR SH | **partial** | Pack flags / US Pass teaching |
+| HoldCo vs JV separate SH | **implemented** | Per-`blendKey` |
+| FX beyond TH | **partial** | `lib/fx.ts` |
+| Elections that change numbers | See register | `OECD_3.2.2`, `OECD_3.1.3`, `OECD_4.1.5`, SBIE overlays, `SH_TCSH` move amounts; most other rows are eligibility text only |
 
 ---
 
-## 3. Known product gaps (P2 question table) — ranked by computation impact
+## 3. Remaining gaps ranked by computation impact
 
-| Rank | Gap | OECD | Impact if wrong | Status in GMT24 now |
+| Rank | Gap | OECD | Why this rank | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Art. 3.3 shipping | 3.3 | Inflated GloBE / wrong ETR for shipping groups | **Closed** (this PR) |
-| 2 | Ch 6 reorganisations / carrying values | 6.x | Wrong GloBE basis after M&A | **Missing** |
-| 3 | UTPR allocation keys | 2.6 | Wrong residual charging | **Partial** |
-| 4 | Full Art. 3.2 catalogue | 3.2.1+ | Systematic GloBE misstatement | **Partial** |
-| 5 | Art. 4.5 deemed loss DTA method | 4.5 | Covered tax timing | **Election-only** |
-| 6 | Investment Entity methods | 7.5–7.6 | Wrong blend / ETR | **Partial** |
-| 7 | FX tables beyond TH | 3.1.3 / local | Presentation / QDMTT FX | **Partial** |
-| 8 | FANIL local GAAP switch | 3.1.2–3.1.3 | Starting point | **Partial** (electable) |
-| 9 | Look-through % on graph edges | 10.1 | UX / audit clarity | **Partial** (computed, not drawn) |
-| 10 | SETR inner elections | 2026 SETR | Simplified harbour income | **Mostly labels** |
+| **1** | Full Art. 3.2 adjustment catalogue | 3.2.1+ | Systematic GloBE Income misstatement for non-shipping groups | **Partial** |
+| **2** | Reorganisations / transfers / multi-parented groups | **6.1–6.3, 6.5** | Wrong GloBE carrying values after M&A (Art. **6.4 JV split out** — works) | **Missing** |
+| **3** | Covered Tax allocation | **Art. 4.3** | CFC / PE / hybrid / cross-border Covered Taxes not allocated | **Missing** / stub |
+| **4** | Charging cluster (IIR depth + UTPR 2.6 keys) | 2.1–2.6 | Residual charging and UTPR allocation incomplete | **Partial** |
+| **5** | Art. 4.5 deemed loss DTA method | 4.5 | Covered-tax timing | **Election-only** |
+| **6** | Investment Entity methods | 7.5–7.6 | Wrong blend / ETR | **Partial** |
+| **7** | FX tables beyond TH | 3.1.3 / local | Presentation / QDMTT FX | **Partial** |
+| **8** | FANIL local GAAP default path | 3.1.2–3.1.3 | Starting point | **Partial** |
+| **9** | Art. 3.3.5 shipping cost attribution | 3.3.5 | Net shipping income assumed pre-baked | **Missing** |
+| **10** | Look-through % on graph edges | 10.1 | UX / audit clarity | **Partial** |
 
-Historical P2 rows (ACTTT 5.2.3, Art. 4.1.5, Art. 5.1.2, once-out-always-out, SG HoldCo vs JV) are **implemented** on the live engine path with teaching seeds (LU, HK, year ledger, SG blends) — still limited by the scenarios noted above.
+Art. 3.3 core (3.3.1 / 3.3.4 / 3.3.6 + Commentary bareboat / inland) is **no longer** on this ranked leftover list as an open shipping-classification gap; residual shipping work is Art. 3.3.5 (#9).
 
 ---
 
 ## 4. How to verify Art. 3.3
 
 ```bash
-npx tsx scripts/test-shipping.ts
+npm run test:shipping
 ```
 
-UI: `/globe-income` → select **Aetherion Maritime Pte. Ltd.** — waterfall shows Art. 3.3 exclusion; Covered Taxes audit shows shipping tax stripped.
+UI: `/globe-income` → **Aetherion Maritime Pte. Ltd.** — Art. 3.3.1 exclusion; inland line remains in residual GloBE; audit cites Art. 3.3.4 (cap) and Art. 3.3.6 (management).
 
 ---
 
-*Generated for the Art. 3.3 shipping gap closure. Do not treat UI citations as coverage without a matching row in §2–§3.*
+*Do not treat UI citations or teaching seeds as Model Rules coverage without a matching row above and a proving test.*

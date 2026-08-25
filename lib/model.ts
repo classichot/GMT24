@@ -443,7 +443,7 @@ export const RULES: Rule[] = [
     effectiveTo: null,
     source: "GloBE Model Rules Art. 3.3 — International Shipping Income",
     version: "2026.1",
-    formula: "exclude QISI + min(QAISI, 50%×QISI) when Art. 3.3.4 management tests pass and election is on; exclude attributable Covered Taxes",
+    formula: "Art. 3.3.1 shall exclude QISI + QAISI (Art. 3.3.4 jurisdictional 50% cap) when Art. 3.3.6 strategic OR commercial management is in the CE jurisdiction; exclude attributable Covered Taxes",
     parameters: { qaisiCapRate: 0.5 },
     status: "active",
   },
@@ -683,7 +683,7 @@ export const ISSUES: Issue[] = [
   { id: "IQ-10", severity: "info", area: "Ownership", entity: "SG-JV", jurisdiction: "Singapore", title: "JV Group from Art. 10.1 facts", detail: "Keppel Logistics is equity-accounted in the UPE CFS and UPE ownership is 50% (≥ 50%). Entity test: Joint Venture (Art. 6.4 / 10.1) — separate ETR from Singapore HoldCo. The legal-entity type label is not the test.", owner: "Group Tax" },
   { id: "IQ-11", severity: "info", area: "Covered tax", entity: "LU-CE", jurisdiction: "Luxembourg", title: "Art. 4.1.5 — Net GloBE Loss and negative Covered Taxes", detail: "Luxembourg has a Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax equal to the negative tax. Elect OECD_4.1.5 to carry the amount forward instead.", owner: "Group Tax" },
   { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.1.2 — positive Net GloBE Income, negative Covered Taxes", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up Tax Percentage exceeds 15% (Art. 5.2.1). No ETR is computed when Net GloBE Income is zero or negative.", owner: "Group Tax" },
-  { id: "IQ-13", severity: "info", area: "GloBE income", entity: "SG-SHIP", jurisdiction: "Singapore", title: "Art. 3.3 — International Shipping Income exclusion", detail: "Aetherion Maritime elects Art. 3.3. Strategic and commercial management are in Singapore. QISI + QAISI (capped at 50% of QISI) are excluded from GloBE Income; attributable Covered Taxes are excluded from Adjusted Covered Taxes. Liberian-flag tonnage does not fail the test — management location does.", owner: "Group Tax" },
+  { id: "IQ-13", severity: "info", area: "GloBE income", entity: "SG-SHIP", jurisdiction: "Singapore", title: "Art. 3.3 — International Shipping Income exclusion (mandatory)", detail: "Aetherion Maritime has International Shipping Income. Art. 3.3.1 requires exclusion of QISI and QAISI (Art. 3.3.4 jurisdictional 50% cap). Art. 3.3.6: strategic or commercial management is in Singapore. Third-party bareboat-out is QAISI (Art. 3.3.3(a)), not QISI. Inland haulage stays in GloBE (Commentary ¶171). Liberian flag alone does not fail Art. 3.3.6 (¶182).", owner: "Group Tax" },
 ];
 
 export const INCENTIVES: Incentive[] = [

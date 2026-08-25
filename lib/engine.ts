@@ -162,14 +162,14 @@ function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
   const e = ENTITIES.find((x) => x.id === entityId);
   const fanil = e ? fanilUsd(e, f, ctx) : f.fanil;
   const adj = sum(ADJUSTMENTS.filter((a) => a.entityId === entityId).map((a) => a.amount));
-  // Art. 3.3 — QISI / QAISI exclusion (lib/shipping.ts). Election lives on the shipping pack.
+  // Art. 3.3.1 — mandatory QISI / QAISI exclusion when Art. 3.3.6 passes (lib/shipping.ts).
   const ship = shippingGlobeDelta(entityId);
   return money(fanil + adj + ship);
 }
 
 function entityCovered(f: Financials) {
   const deferred = deferredTaxAdjustment(f.entityId) ?? f.deferredTax;
-  // Art. 3.3 / Commentary — Covered Taxes attributable to excluded shipping income leave Adjusted Covered Taxes.
+  // Commentary to Art. 3.3 ↔ Art. 4 — Covered Taxes attributable to excluded shipping income leave Adjusted Covered Taxes.
   const shipTax = shippingCoveredTaxExcluded(f.entityId);
   return money(f.currentTax + deferred + f.otherCovered - shipTax);
 }
