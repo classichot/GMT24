@@ -12,7 +12,7 @@ import { useCalc } from "@/lib/useCalc";
 import { etrHref, summarizeByIso } from "@/lib/engine";
 
 export default function OverviewPage() {
-  const { mode, ask, scenario, group } = useStore();
+  const { mode, ask, scenario, group, ingestStatus } = useStore();
   const router = useRouter();
   const { calcs, t } = useCalc();
   const th = calcs.find((c) => c.iso === "TH");
@@ -21,6 +21,12 @@ export default function OverviewPage() {
   return (
     <div>
       <FlowBar iso="TH" />
+      {ingestStatus !== "ready" && (
+        <div className="callout" style={{ marginBottom: 16 }}>
+          <strong>Ingest not complete.</strong> Load the demo close pack or drop sample files on Data Hub before reviewing mapped sources. Calculation anchors below still run on the teaching snapshot.{" "}
+          <Link href="/review-guide">Review guide →</Link>
+        </div>
+      )}
       {scenarioOn && (
         <div className="callout" style={{ marginBottom: 16 }}>
           <strong>Scenario active.</strong> Dashboard numbers include simulator assumptions.{" "}

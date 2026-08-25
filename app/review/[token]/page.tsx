@@ -79,7 +79,7 @@ export default function ReviewInvitePage() {
     if (!payload) return;
     saveInviteSession(payload, raw);
     login(payload.mode, { invite: true });
-    router.push(payload.mode === "advisor" ? "/clients" : "/overview");
+    router.push("/review-guide");
   }
 
   if (!ready || state === "checking") {
@@ -147,10 +147,10 @@ export default function ReviewInvitePage() {
       <p className="eyebrow" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{payload.label || "Aetherion Group demo"}</p>
       <h2>Welcome{existing ? " back" : ""}</h2>
       <p className="text-muted login-card-note">
-        You are in a time-limited {payload.mode === "advisor" ? "advisor" : "in-house"} review. Open Aetherion Group. The engine calculated the figures; this is a demo, not a filing.
+        You are in a time-limited {payload.mode === "advisor" ? "advisor" : "in-house"} review. The review guide walks ingest → mapping → calculation checks. Demo only — not a filing.
       </p>
       <button className="btn btn-primary btn-block" type="button" onClick={enter}>
-        Enter {payload.mode === "advisor" ? "advisory workspace" : "group workspace"}
+        Start review walkthrough
       </button>
     </Shell>
   );

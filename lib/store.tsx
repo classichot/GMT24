@@ -49,6 +49,13 @@ import {
   type HistoryEvent,
   type HistoryLedger,
 } from "./evidenceHistory";
+import {
+  defaultIngestStatus,
+  readIngestStatus,
+  runIngestSimulation,
+  writeIngestStatus,
+  type IngestStatus,
+} from "./ingestSim";
 
 type Store = {
   ready: boolean;
@@ -107,6 +114,11 @@ type Store = {
   setHistoryImmutable: (on: boolean) => void;
   deleteHistoryEvent: (id: string) => string | null;
   resetHistory: (mode: "working" | "seed") => string | null;
+  ingestStatus: IngestStatus;
+  ingestProgress: { current: number; total: number; file: string } | null;
+  loadDemoPack: () => Promise<void>;
+  resetIngest: () => void;
+  noteFileDrop: (name: string) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -146,6 +158,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [yearRecords, setYearRecords] = useState<YearRecord[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [historyImmutable, setHistoryImmutableState] = useState(true);
+  const [ingestStatus, setIngestStatus] = useState<IngestStatus>("ready");
+  const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
   const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
@@ -191,8 +205,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSbieClaimState(loaded.sbie);
     setApprovedMaps(loadApprovedMaps(startGroup));
     applyLedger(loadLedger(startGroup));
+    const invite = localStorage.getItem("gmt24_invite_auth") === "1";
+    const storedIngest = readIngestStatus(startGroup);
+    setIngestStatus(storedIngest ?? defaultIngestStatus(startGroup, invite));
     setReady(true);
   }, [applyLedger]);
+
+  const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
+    const stored = readIngestStatus(gid);
+    setIngestStatus(stored ?? defaultIngestStatus(gid, inviteReview));
+    setIngestProgress(null);
+  }, []);
 
   const login = useCallback((m: ProductMode, opts?: { invite?: boolean }) => {
     if (!opts?.invite) clearInviteSession();
@@ -201,7 +224,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("gmt24_auth", "1");
     localStorage.setItem("gmt24_mode", m);
     const actor = m === "advisor" ? ADVISOR_USER : INHOUSE_USER;
-    if (m === "inhouse") {
+    if (m === "inhouse" || opts?.invite) {
       setGroupIdState("aetherion");
       localStorage.setItem("gmt24_group", "aetherion");
       const loaded = loadGroupLedger("aetherion");
@@ -211,6 +234,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSbieClaimState(loaded.sbie);
       setApprovedMaps(loadApprovedMaps("aetherion"));
       applyLedger(loadLedger("aetherion"));
+      if (opts?.invite) {
+        writeIngestStatus("aetherion", "empty");
+        setIngestStatus("empty");
+        setIngestProgress(null);
+      } else {
+        applyIngestForGroup("aetherion", false);
+      }
     }
     const next = appendEvent(ledgerRef.current, {
       kind: "action",
@@ -223,7 +253,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ref: "session",
     });
     applyLedger(next);
-  }, [applyLedger]);
+  }, [applyLedger, applyIngestForGroup]);
 
   const logout = useCallback(() => {
     const actor = actorNow();
@@ -283,7 +313,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSbieClaimState(loaded.sbie);
     setApprovedMaps(loadApprovedMaps(id));
     applyLedger(loadLedger(id));
-  }, [applyLedger]);
+    applyIngestForGroup(id, false);
+  }, [applyLedger, applyIngestForGroup]);
 
   const addEngagement = useCallback((draft: EngagementDraft) => {
     if (mode !== "advisor") {
@@ -317,6 +348,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSbieClaimState(loaded.sbie);
     setApprovedMaps(loadApprovedMaps(row.id));
     applyLedger(loadLedger(row.id));
+    writeIngestStatus(row.id, "empty");
+    setIngestStatus("empty");
+    setIngestProgress(null);
     const opened = appendEvent(ledgerRef.current, {
       kind: "action",
       title: `Engagement opened · ${row.name}`,
@@ -551,6 +585,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const historyChainOk = useMemo(() => verifyChain(historyEvents).ok, [historyEvents]);
 
+  const loadDemoPack = useCallback(async () => {
+    if (ingestStatus === "running") return;
+    setIngestStatus("running");
+    writeIngestStatus(groupId, "running");
+    setIngestProgress({ current: 0, total: 0, file: "Starting classification…" });
+    await runIngestSimulation((current, total, file) => {
+      setIngestProgress({ current, total, file });
+    });
+    setIngestStatus("ready");
+    writeIngestStatus(groupId, "ready");
+    setIngestProgress(null);
+    appendHistory({
+      kind: "doc",
+      title: "Close pack ingested",
+      detail: "Aetherion FY2026 demo pack classified and posted to the canonical model. Next: approve mappings on Account mapping.",
+      href: "/data",
+      ref: "ingest-pack",
+    });
+    flash("Close pack ingested · open Account mapping");
+  }, [ingestStatus, groupId, appendHistory, flash]);
+
+  const resetIngest = useCallback(() => {
+    writeIngestStatus(groupId, "empty");
+    setIngestStatus("empty");
+    setIngestProgress(null);
+    flash("Ingest reset — load the demo pack again");
+  }, [groupId, flash]);
+
+  const noteFileDrop = useCallback((name: string) => {
+    appendHistory({
+      kind: "doc",
+      title: `File received · ${name}`,
+      detail: "Prototype classifier queued the drop. Load the full demo pack to post all sources, or continue with sample CSVs.",
+      href: "/data",
+      ref: name.slice(0, 40),
+    });
+  }, [appendHistory]);
+
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
   const value = useMemo(
@@ -605,8 +677,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setHistoryImmutable,
       deleteHistoryEvent,
       resetHistory,
+      ingestStatus,
+      ingestProgress,
+      loadDemoPack,
+      resetIngest,
+      noteFileDrop,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

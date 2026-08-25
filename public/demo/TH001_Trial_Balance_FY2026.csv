@@ -1,0 +1,13 @@
+account,name,debit,credit,balance,entity
+810020,Intra-group dividend income,0,1840000,-1840000,TH-CE
+720050,Tax expense - business tax,280000,0,280000,TH-CE
+830010,Unrealised FX gain - EUR loan,410000,0,410000,TH-CE
+610010,Revenue - finished goods,0,44200000,-44200000,TH-CE
+720010,Current tax expense,4730000,0,4730000,TH-CE
+720020,Deferred tax expense,320000,0,320000,TH-CE
+150010,Property plant and equipment,12800000,0,12800000,TH-CE
+210010,Trade payables,0,3200000,-3200000,TH-CE
+610020,Cost of sales,28400000,0,28400000,TH-CE
+720030,BOI tax holiday benefit,0,4450000,-4450000,TH-CE
+510010,Eligible payroll expense,8200000,0,8200000,TH-CE
+810010,Shipping revenue - international,0,2100000,-2100000,SG-SHIP

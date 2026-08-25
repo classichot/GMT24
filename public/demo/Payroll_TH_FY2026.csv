@@ -1,0 +1,9 @@
+employee_id,entity,eligible_months,payroll_usd,role
+TH-E001,TH-CE,12,420000,Manufacturing
+TH-E002,TH-CE,12,380000,Engineering
+TH-E003,TH-CE,11,360000,Finance
+TH-E004,TH-PE,12,290000,Plant operations
+TH-E005,TH-CE,12,310000,Quality
+TH-E006,TH-CE,12,275000,Logistics
+TH-E007,TH-CE,12,265000,HR
+TH-E008,TH-CE,12,240000,IT

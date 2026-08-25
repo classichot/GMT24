@@ -17,6 +17,7 @@ export default function MappingPage() {
           <strong>Books → FANIL posting engine</strong> — Account → financial category → GloBE rule → computed debit/credit. Approval writes the Art. 3.2 / 3.5 posting into the live calculation context, reruns every jurisdiction and keeps the map for subsequent years.
         </div>
         <div className="stack-actions">
+          <Link href="/review-guide" className="btn btn-secondary">Review guide</Link>
           <Link href="/data" className="btn btn-secondary">Data Hub</Link>
           <Link href="/quality" className="btn btn-primary">Data quality</Link>
         </div>

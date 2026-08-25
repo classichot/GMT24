@@ -108,6 +108,7 @@ const NAV = [
     { href: "/playbook/compliance", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Review", items: [
+    { href: "/review-guide", label: "Review guide", icon: ClipboardList },
     { href: "/issues", label: "Issues", icon: Shield },
     { href: "/audit", label: "Audit trail", icon: GitBranch },
     { href: "/evidence", label: "Evidence", icon: FileText },
@@ -177,6 +178,7 @@ const TITLES: Record<string, [string, string]> = {
   "/notifications": ["Compliance", "Notifications"],
   "/archive": ["Compliance", "Filing archive"],
   "/issues": ["Review", "Issues & AI reviewer"],
+  "/review-guide": ["Review", "App reviewer walkthrough"],
   "/audit": ["Killer feature", "Calculation-to-ledger trail"],
   "/evidence": ["Review", "Evidence locker"],
   "/evidence-history": ["Review", "Evidence history"],
@@ -298,9 +300,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>
         {invite && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", fontSize: 12, fontWeight: 700 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", fontSize: 12, fontWeight: 700, flexWrap: "wrap" }}>
             <Timer size={13} />
             Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
+            <Link href="/review-guide" className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>Review guide</Link>
           </div>
         )}
         <div className="workspace">

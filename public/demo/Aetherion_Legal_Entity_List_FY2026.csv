@@ -1,0 +1,7 @@
+code,name,jurisdiction,type,parent,ownership_pct,gaap,acquired
+JP001,Nippon Aether Holdings K.K.,Japan,UPE,,100,IFRS,1998-04-01
+SG010,Aetherion Singapore Pte. Ltd.,Singapore,HoldCo,JP001,100,SFRS(I),2009-07-01
+TH001,Aetherion (Thailand) Ltd.,Thailand,CE,SG010,100,TFRS,2012-03-15
+VN001,Aetherion Vietnam Co. Ltd.,Vietnam,CE,SG010,100,VAS/IFRS,2016-09-01
+IE001,Aetherion Ireland Ltd.,Ireland,CE,JP001,100,IFRS,2013-04-01
+SG020,Aetherion Marine Pte. Ltd.,Singapore,CE,SG010,100,SFRS(I),2019-11-01
