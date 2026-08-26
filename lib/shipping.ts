@@ -23,14 +23,21 @@ export type QisiCategory =
   | "pool_joint_agency"
   | "ship_sale";
 
+/** Art. 3.3.3(a)–(e) closed list only — no open “other ancillary”. */
 export type QaisiCategory =
-  | "bareboat_charter_third_party"
-  | "ticket_domestic_leg"
-  | "container_leasing"
-  | "engineering_services"
-  | "ancillary_investment";
+  | "bareboat_charter_third_party" // 3.3.3(a)
+  | "ticket_domestic_leg" // 3.3.3(b)
+  | "container_leasing" // 3.3.3(c)
+  | "engineering_services" // 3.3.3(d)
+  | "ancillary_investment"; // 3.3.3(e)
 
-export type NonQualifyingShippingCategory = "inland_transport" | "other_non_qualifying";
+export type NonQualifyingShippingCategory =
+  | "inland_transport"
+  | "other_non_qualifying"
+  | "treasury_interest"
+  | "other_ancillary"
+  | "towing_dredging";
+
 export type ShippingLineKind = "qisi" | "qaisi" | "non_qualifying";
 
 export type BareboatFacts = {
@@ -47,8 +54,18 @@ export type VoyageFacts = {
   expectedInternationalTraffic?: boolean;
 };
 
+/** Art. 3.3.3(b) — tickets issued by *other* shipping enterprises. */
+export type TicketFacts = {
+  issuedByOtherShippingEnterprise?: boolean;
+  domesticLegOfInternationalVoyage?: boolean;
+};
+
 export type ShippingLine = {
   id: string;
+  /**
+   * Preparer hint only — classification comes from category + OECD facts.
+   * A `kind: "qaisi"` tag does **not** satisfy the Art. 3.3.3 chapeau.
+   */
   kind: ShippingLineKind;
   category: QisiCategory | QaisiCategory | NonQualifyingShippingCategory;
   /**
@@ -60,23 +77,40 @@ export type ShippingLine = {
   revenue?: number;
   /** Art. 3.3.5 — direct costs attributable on facts and circumstances (¶174). */
   directCosts?: number;
+  /**
+   * Art. 4.1.3(a) — current tax expense attributable to this line (engine fact).
+   * Identifiable association reads these fields; pack labels alone do not.
+   */
+  currentTax?: number;
+  /** Art. 4.1.3(a) — deferred tax attributable to this line. */
+  deferredTax?: number;
   flagJurisdiction?: string;
   bareboat?: BareboatFacts;
   voyage?: VoyageFacts;
+  ticket?: TicketFacts;
   heldYears?: number;
+  /**
+   * Art. 3.3.3 chapeau — activity performed primarily in connection with
+   * transportation of passengers or cargo by ships in international traffic.
+   * Required for every QAISI line; false/omitted → residual GloBE.
+   */
+  primarilyInConnectionWithInternationalTraffic?: boolean;
+  /**
+   * Art. 3.3.3(e) / ¶170 — investment income integral to operating the ships
+   * (working capital, statutory bonds, emissions permits). Not group treasury.
+   */
+  integralToShipOperations?: boolean;
+  /** Commentary ¶166 — short-term container storage (~5 days). */
+  containerStorageDays?: number;
   qualifies?: boolean;
   notes?: string;
 };
 
 export type ShippingTaxAssociation = {
-  /** Identifiable current tax on net shipping that will be excluded. */
-  identifiableCurrentOnExcluded?: number;
-  /** Identifiable deferred tax on excluded shipping. */
-  identifiableDeferredOnExcluded?: number;
-  /** Identifiable tax (current and/or deferred) on Art. 3.3.4 spill — STAYS in ACT. */
-  identifiableTaxOnSpill?: number;
-  /** Identifiable tax on residual non-shipping / non-qualifying — STAYS in ACT. */
-  identifiableTaxOnResidual?: number;
+  identifiableCurrentOnExcluded: number;
+  identifiableDeferredOnExcluded: number;
+  identifiableTaxOnSpill: number;
+  identifiableTaxOnResidual: number;
 };
 
 export type ShippingFacts = {
@@ -89,9 +123,9 @@ export type ShippingFacts = {
   indirectCosts: number;
   /** Revenue from activities outside shipping lines (non-qualified residual). */
   residualRevenue: number;
-  /** Current tax expense (Art. 4.1.1 starting point). */
+  /** Current tax expense (Art. 4.1.1 / FINANCIALS.currentTax). */
   currentTaxExpense: number;
-  /** Deferred tax in the Covered Tax numerator for this CE. */
+  /** Deferred tax in the Covered Tax numerator (FINANCIALS.deferredTax). */
   deferredTaxExpense: number;
   /** Other covered (Art. 4.2/4.3); follows same association when non-zero. */
   otherCovered: number;
@@ -100,7 +134,12 @@ export type ShippingFacts = {
    * when residual net is not otherwise known.
    */
   taxableIncome: number;
-  taxAssociation?: ShippingTaxAssociation;
+  /**
+   * Optional CE *actual* shipping-activity tax rate (not a hardcoded 15%).
+   * Used only to derive line tax from 3.3.5 net when that line has no
+   * `currentTax`/`deferredTax` facts.
+   */
+  shippingActivityTaxRate?: number;
   sourceDoc: string;
 };
 
@@ -168,7 +207,8 @@ const QISI_CATS: ReadonlySet<string> = new Set([
   "ship_sale",
 ]);
 
-const QAISI_CATS: ReadonlySet<string> = new Set([
+/** Art. 3.3.3(a)–(e) closed list. */
+const QAISI_CLOSED: ReadonlySet<string> = new Set([
   "bareboat_charter_third_party",
   "ticket_domestic_leg",
   "container_leasing",
@@ -186,24 +226,71 @@ export function bareboatWithinThreeYears(b: BareboatFacts | undefined): boolean 
   return total != null && total <= 3;
 }
 
-export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKind; reason: string } {
-  if (line.qualifies === false || line.category === "inland_transport" || line.category === "other_non_qualifying") {
-    return {
-      kind: "non_qualifying",
-      reason: line.category === "inland_transport"
-        ? "Commentary ¶171 — inland transportation is not QAISI"
-        : "Line marked non-qualifying",
-    };
+function qaisiChapeauFail(line: ShippingLine): string | null {
+  if (line.primarilyInConnectionWithInternationalTraffic !== true) {
+    return "Art. 3.3.3 chapeau — primarily in connection with international traffic required (false or omitted)";
   }
+  return null;
+}
+
+/**
+ * Classify a shipping line from category + OECD facts.
+ * Preparer `kind` is ignored for gate outcomes.
+ */
+export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKind; reason: string } {
+  if (
+    line.qualifies === false ||
+    line.category === "inland_transport" ||
+    line.category === "other_non_qualifying" ||
+    line.category === "treasury_interest" ||
+    line.category === "other_ancillary" ||
+    line.category === "towing_dredging"
+  ) {
+    const reason =
+      line.category === "inland_transport"
+        ? "Commentary ¶171 — inland transportation is not QAISI"
+        : line.category === "treasury_interest"
+          ? "Commentary ¶170 — group treasury / surplus-cash interest is not Art. 3.3.3(e)"
+          : line.category === "other_ancillary"
+            ? "Art. 3.3.3 closed list — other_ancillary is not QAISI"
+            : line.category === "towing_dredging"
+              ? "Commentary ¶153 — towing/dredging is not transportation of passengers or cargo"
+              : "Line marked non-qualifying";
+    return { kind: "non_qualifying", reason };
+  }
+
   const v = line.voyage;
-  if (line.category === "international_transport" || line.category === "slot_charter" || line.category === "pool_joint_agency") {
-    if (v?.solelyDomesticPlaces) {
+
+  // Art. 3.3.2(a) — fail-closed: voyage facts required; omit → not ISI.
+  if (line.category === "international_transport") {
+    if (!v) {
+      return { kind: "non_qualifying", reason: "Art. 3.3.2(a) / ¶152 — voyage facts required (fail-closed)" };
+    }
+    if (v.solelyDomesticPlaces === true) {
       return { kind: "non_qualifying", reason: "Commentary ¶152 — solely between places in a single jurisdiction" };
     }
-    if (v?.inlandWaterwaysSameJurisdiction) {
+    if (v.inlandWaterwaysSameJurisdiction === true) {
       return { kind: "non_qualifying", reason: "Art. 3.3.2 last sentence / ¶160 — inland waterways same jurisdiction" };
     }
+    if (v.solelyDomesticPlaces !== false) {
+      return {
+        kind: "non_qualifying",
+        reason: "Art. 3.3.2(a) / ¶152 — must affirm not solely domestic (solelyDomesticPlaces: false)",
+      };
+    }
+    return { kind: "qisi", reason: "Art. 3.3.2(a) international transport in international traffic" };
   }
+
+  if (line.category === "slot_charter" || line.category === "pool_joint_agency") {
+    if (v?.solelyDomesticPlaces === true) {
+      return { kind: "non_qualifying", reason: "Commentary ¶152 — solely between places in a single jurisdiction" };
+    }
+    if (v?.inlandWaterwaysSameJurisdiction === true) {
+      return { kind: "non_qualifying", reason: "Art. 3.3.2 last sentence / ¶160 — inland waterways same jurisdiction" };
+    }
+    return { kind: "qisi", reason: `Art. 3.3.2 — ${line.category}` };
+  }
+
   if (line.category === "time_voyage_charter") {
     if (v?.expectedInternationalTraffic !== true) {
       return { kind: "non_qualifying", reason: "Art. 3.3.2(c) / ¶156 — expected international traffic required" };
@@ -213,6 +300,7 @@ export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKi
     }
     return { kind: "qisi", reason: "Art. 3.3.2(c) time/voyage charter-out" };
   }
+
   if (line.category === "bareboat_charter_intragroup") {
     const b = line.bareboat;
     if (!b?.lesseeIsGroupCe) {
@@ -223,6 +311,19 @@ export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKi
     }
     return { kind: "qisi", reason: "Art. 3.3.2(d) intragroup bareboat-out" };
   }
+
+  if (line.category === "ship_sale") {
+    if ((line.heldYears ?? 0) < 1) {
+      return { kind: "non_qualifying", reason: "Art. 3.3.2(f) / ¶159 — held ≥ 1 year required" };
+    }
+    return { kind: "qisi", reason: "Art. 3.3.2(f) ship sale" };
+  }
+
+  // ─── Art. 3.3.3 closed list + chapeau ───
+  if (!QAISI_CLOSED.has(line.category)) {
+    return { kind: "non_qualifying", reason: "Art. 3.3.3 closed list — category is not QAISI (a)–(e)" };
+  }
+
   if (line.category === "bareboat_charter_third_party") {
     const b = line.bareboat;
     if (!b?.lesseeIsNonCeShippingEnterprise) {
@@ -234,16 +335,58 @@ export function classifyShippingLine(line: ShippingLine): { kind: ShippingLineKi
     if (!bareboatWithinThreeYears(b)) {
       return { kind: "non_qualifying", reason: "Art. 3.3.3(a) / ¶164 — charter > 3 years incl. renewals (or duration missing)" };
     }
+    const chapeau = qaisiChapeauFail(line);
+    if (chapeau) return { kind: "non_qualifying", reason: chapeau };
     return { kind: "qaisi", reason: "Art. 3.3.3(a) third-party bareboat ≤ 3 years" };
   }
-  if (line.category === "ship_sale") {
-    if ((line.heldYears ?? 0) < 1) {
-      return { kind: "non_qualifying", reason: "Art. 3.3.2(f) / ¶159 — held ≥ 1 year required" };
+
+  if (line.category === "ticket_domestic_leg") {
+    const t = line.ticket;
+    if (!t?.issuedByOtherShippingEnterprise) {
+      return {
+        kind: "non_qualifying",
+        reason: "Art. 3.3.3(b) — tickets must be issued by other shipping enterprises (own-ship tickets are 3.3.2(a))",
+      };
     }
-    return { kind: "qisi", reason: "Art. 3.3.2(f) ship sale" };
+    if (t.domesticLegOfInternationalVoyage !== true) {
+      return {
+        kind: "non_qualifying",
+        reason: "Art. 3.3.3(b) — must be domestic leg of an international voyage (purely domestic tickets fail)",
+      };
+    }
+    const chapeau = qaisiChapeauFail(line);
+    if (chapeau) return { kind: "non_qualifying", reason: chapeau };
+    return { kind: "qaisi", reason: "Art. 3.3.3(b) other-enterprise domestic-leg tickets" };
   }
+
+  if (line.category === "container_leasing") {
+    if (line.containerStorageDays != null && line.containerStorageDays > 5) {
+      return { kind: "non_qualifying", reason: "Commentary ¶166 — container storage beyond short-term (~5 days)" };
+    }
+    const chapeau = qaisiChapeauFail(line);
+    if (chapeau) return { kind: "non_qualifying", reason: chapeau };
+    return { kind: "qaisi", reason: "Art. 3.3.3(c) container leasing / short-term storage" };
+  }
+
+  if (line.category === "engineering_services") {
+    const chapeau = qaisiChapeauFail(line);
+    if (chapeau) return { kind: "non_qualifying", reason: chapeau };
+    return { kind: "qaisi", reason: "Art. 3.3.3(d) engineering / related services" };
+  }
+
+  if (line.category === "ancillary_investment") {
+    if (line.integralToShipOperations !== true) {
+      return {
+        kind: "non_qualifying",
+        reason: "Art. 3.3.3(e) / ¶170 — integral to ship operations required (not group treasury)",
+      };
+    }
+    const chapeau = qaisiChapeauFail(line);
+    if (chapeau) return { kind: "non_qualifying", reason: chapeau };
+    return { kind: "qaisi", reason: "Art. 3.3.3(e) investment income integral to ship operations" };
+  }
+
   if (QISI_CATS.has(line.category)) return { kind: "qisi", reason: `Art. 3.3.2 — ${line.category}` };
-  if (QAISI_CATS.has(line.category)) return { kind: "qaisi", reason: `Art. 3.3.3 — ${line.category}` };
   return { kind: "non_qualifying", reason: "Unrecognised shipping category" };
 }
 
@@ -397,7 +540,7 @@ export function art413aShippingReduction(opts: {
   currentTaxExpense: number;
   deferredTaxExpense: number;
   otherCovered: number;
-  association?: ShippingTaxAssociation;
+  association: ShippingTaxAssociation;
 }): {
   reduction: number;
   identifiableExcluded: number;
@@ -407,12 +550,12 @@ export function art413aShippingReduction(opts: {
   ratioShare: number;
   totalPool: number;
 } {
-  const assoc = opts.association ?? {};
+  const assoc = opts.association;
   const identifiableExcluded = money(
-    (assoc.identifiableCurrentOnExcluded ?? 0) + (assoc.identifiableDeferredOnExcluded ?? 0),
+    assoc.identifiableCurrentOnExcluded + assoc.identifiableDeferredOnExcluded,
   );
-  const identifiableSpill = money(assoc.identifiableTaxOnSpill ?? 0);
-  const identifiableResidual = money(assoc.identifiableTaxOnResidual ?? 0);
+  const identifiableSpill = money(assoc.identifiableTaxOnSpill);
+  const identifiableResidual = money(assoc.identifiableTaxOnResidual);
   const totalPool = money(opts.currentTaxExpense + opts.deferredTaxExpense + opts.otherCovered);
   const assigned = money(identifiableExcluded + identifiableSpill + identifiableResidual);
   const unidentifiablePool = money(Math.max(0, totalPool - assigned));
@@ -440,6 +583,85 @@ export function art413aShippingReduction(opts: {
   };
 }
 
+/**
+ * Build Art. 4.1.3(a) association from engine-readable line tax facts and
+ * FINANCIALS pool totals. Pack-asserted “identifiable on shipping” labels are
+ * not accepted — only `line.currentTax` / `line.deferredTax` (or derivation
+ * from 3.3.5 net × CE `shippingActivityTaxRate` when that rate is provided).
+ *
+ * When line tax facts (or a CE shipping rate) exist, FINANCIALS tax not on any
+ * line stays as residual (in ACT). When no identification facts exist, the
+ * pool remains unidentifiable and the excluded/spill/residual ratio applies.
+ */
+export function buildTaxAssociationFromLines(opts: {
+  lines: Array<{
+    treatedAs: ShippingLineTreatment;
+    netAfterCosts: number;
+    currentTax?: number;
+    deferredTax?: number;
+  }>;
+  currentTaxExpense: number;
+  deferredTaxExpense: number;
+  otherCovered: number;
+  shippingActivityTaxRate?: number;
+}): ShippingTaxAssociation {
+  let identifiableCurrentOnExcluded = 0;
+  let identifiableDeferredOnExcluded = 0;
+  let identifiableTaxOnSpill = 0;
+  let identifiableTaxOnResidual = 0;
+  let lineTaxTotal = 0;
+
+  const rate = opts.shippingActivityTaxRate;
+  // Derive only when the CE supplies its actual shipping-activity rate as a fact.
+  // The engine never invents a hardcoded 15% (or any other) rate.
+  const derive = rate != null && Number.isFinite(rate) && rate !== 0;
+  const anyLineTaxFact = opts.lines.some(
+    (l) => (l.currentTax != null && l.currentTax !== 0) || (l.deferredTax != null && l.deferredTax !== 0),
+  );
+
+  for (const line of opts.lines) {
+    let cur = line.currentTax ?? 0;
+    let def = line.deferredTax ?? 0;
+    if (
+      cur === 0 &&
+      def === 0 &&
+      derive &&
+      (line.treatedAs === "excluded_qisi" ||
+        line.treatedAs === "excluded_qaisi" ||
+        line.treatedAs === "capped_out" ||
+        line.treatedAs === "non_qualifying")
+    ) {
+      cur = money(line.netAfterCosts * (rate as number));
+    }
+    const lineTax = money(cur + def);
+    lineTaxTotal = money(lineTaxTotal + lineTax);
+
+    if (line.treatedAs === "excluded_qisi" || line.treatedAs === "excluded_qaisi") {
+      identifiableCurrentOnExcluded = money(identifiableCurrentOnExcluded + cur);
+      identifiableDeferredOnExcluded = money(identifiableDeferredOnExcluded + def);
+    } else if (line.treatedAs === "capped_out") {
+      identifiableTaxOnSpill = money(identifiableTaxOnSpill + lineTax);
+    } else if (line.treatedAs === "non_qualifying" || line.treatedAs === "kept_management_fail") {
+      identifiableTaxOnResidual = money(identifiableTaxOnResidual + lineTax);
+    }
+  }
+
+  const pool = money(opts.currentTaxExpense + opts.deferredTaxExpense + opts.otherCovered);
+  const unassigned = money(Math.max(0, pool - lineTaxTotal));
+  // Identification facts present → unassigned FINANCIALS = residual non-shipping (stays in ACT).
+  // No identification facts → leave unassigned unidentifiable for the ratio.
+  if ((anyLineTaxFact || derive) && unassigned !== 0) {
+    identifiableTaxOnResidual = money(identifiableTaxOnResidual + unassigned);
+  }
+
+  return {
+    identifiableCurrentOnExcluded,
+    identifiableDeferredOnExcluded,
+    identifiableTaxOnSpill,
+    identifiableTaxOnResidual,
+  };
+}
+
 /** @deprecated current-only proxy — kept for Example 4.1.3-1 dividend teaching only. */
 export function art413aReduction(incomeExcluded: number, taxableIncome: number, currentTaxExpense: number): number {
   if (incomeExcluded === 0 || taxableIncome === 0) return 0;
@@ -461,7 +683,10 @@ export function jurisdictionalQaisiCap(
   return { jurisdictionQisi, jurisdictionQaisi, cap: qaisiCapOf(jurisdictionQisi) };
 }
 
-/** Live Aetherion seed — gross Art. 3.3.5 lines (nets reconcile to FANIL 8.9m). */
+/** Live Aetherion seed — gross Art. 3.3.5 lines (nets reconcile to FANIL 8.9m).
+ * Art. 4.1.3(a) taxes are on lines + FINANCIALS pool (currentTaxExpense/deferredTaxExpense
+ * mirror FINANCIALS for SG-SHIP) — no pack-asserted identifiable label.
+ */
 export const SHIPPING_PACKS: ShippingFacts[] = [
   {
     entityId: "SG-SHIP",
@@ -474,12 +699,6 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
     deferredTaxExpense: 40_000,
     otherCovered: 0,
     taxableIncome: 8_900_000,
-    taxAssociation: {
-      identifiableCurrentOnExcluded: 900_000,
-      identifiableDeferredOnExcluded: 30_000,
-      identifiableTaxOnSpill: 0,
-      identifiableTaxOnResidual: 230_000,
-    },
     sourceDoc: "SG-SHIP shipping P&L FY2026.xlsx",
     lines: [
       {
@@ -489,6 +708,8 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         amount: 5_200_000,
         revenue: 9_000_000,
         directCosts: 3_800_000,
+        currentTax: 650_000,
+        deferredTax: 22_000,
         flagJurisdiction: "LR",
         voyage: { solelyDomesticPlaces: false, inlandWaterwaysSameJurisdiction: false },
         notes: "Art. 3.3.2(a) · gross 9.0 − direct 3.8",
@@ -500,7 +721,10 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         amount: 800_000,
         revenue: 1_200_000,
         directCosts: 400_000,
+        currentTax: 100_000,
+        deferredTax: 3_000,
         flagJurisdiction: "SG",
+        primarilyInConnectionWithInternationalTraffic: true,
         bareboat: {
           lesseeIsNonCeShippingEnterprise: true,
           lesseeIsGroupCe: false,
@@ -516,7 +740,11 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         amount: 1_400_000,
         revenue: 2_000_000,
         directCosts: 600_000,
-        notes: "Art. 3.3.3(c) containers",
+        currentTax: 100_000,
+        deferredTax: 3_000,
+        primarilyInConnectionWithInternationalTraffic: true,
+        containerStorageDays: 4,
+        notes: "Art. 3.3.3(c) containers · ¶166 short-term storage",
       },
       {
         id: "SH-04",
@@ -525,6 +753,8 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         amount: 400_000,
         revenue: 700_000,
         directCosts: 300_000,
+        currentTax: 80_000,
+        deferredTax: 5_000,
         qualifies: false,
         notes: "Commentary ¶171 — inland haulage not QAISI",
       },
@@ -535,6 +765,8 @@ export const SHIPPING_PACKS: ShippingFacts[] = [
         amount: 600_000,
         revenue: 600_000,
         directCosts: 0,
+        currentTax: 50_000,
+        deferredTax: 2_000,
         flagJurisdiction: "LR",
         heldYears: 4,
         notes: "Art. 3.3.2(f) sale · held 4 years",
@@ -562,7 +794,9 @@ export function example331Facts(opts: {
   deferredTaxExpense?: number;
   otherCovered?: number;
   taxableIncome?: number;
-  taxAssociation?: ShippingTaxAssociation;
+  shippingActivityTaxRate?: number;
+  qaisiLineTax?: { currentTax?: number; deferredTax?: number };
+  qisiLineTax?: { currentTax?: number; deferredTax?: number };
 }): ShippingFacts {
   void opts.otherIncome;
   return {
@@ -576,7 +810,7 @@ export function example331Facts(opts: {
     deferredTaxExpense: opts.deferredTaxExpense ?? 0,
     otherCovered: opts.otherCovered ?? 0,
     taxableIncome: opts.taxableIncome ?? opts.fanil,
-    taxAssociation: opts.taxAssociation,
+    shippingActivityTaxRate: opts.shippingActivityTaxRate,
     sourceDoc: "OECD Illustrative Examples Art. 3.3.1",
     lines: [
       {
@@ -585,12 +819,17 @@ export function example331Facts(opts: {
         category: "international_transport",
         amount: opts.qisi,
         voyage: { solelyDomesticPlaces: false },
+        currentTax: opts.qisiLineTax?.currentTax,
+        deferredTax: opts.qisiLineTax?.deferredTax,
       },
       {
         id: "ex-qaisi",
         kind: "qaisi",
         category: "container_leasing",
         amount: opts.qaisi,
+        primarilyInConnectionWithInternationalTraffic: true,
+        currentTax: opts.qaisiLineTax?.currentTax,
+        deferredTax: opts.qaisiLineTax?.deferredTax,
       },
     ],
   };
@@ -630,6 +869,7 @@ export function commentary179Facts(): ShippingFacts {
         amount: 40,
         revenue: 100,
         directCosts: 60,
+        primarilyInConnectionWithInternationalTraffic: true,
       },
     ],
   };
@@ -752,16 +992,6 @@ export function computeShippingExclusion(
     Math.max(0, pack.taxableIncome - qisiGross - qaisiGross),
   );
 
-  const tax = art413aShippingReduction({
-    incomeExcluded,
-    spillNet: qaisiCappedOut,
-    residualNet: residualForTax,
-    currentTaxExpense: pack.currentTaxExpense,
-    deferredTaxExpense: pack.deferredTaxExpense,
-    otherCovered: pack.otherCovered,
-    association: pack.taxAssociation,
-  });
-
   const linesOut: ShippingResult["lines"] = [];
   let qaisiRunning = 0;
   for (const line of annotated) {
@@ -802,6 +1032,25 @@ export function computeShippingExclusion(
     }
   }
 
+  // Art. 4.1.3(a) — association from line/FINANCIALS facts only (no pack-asserted IDs).
+  const association = buildTaxAssociationFromLines({
+    lines: linesOut,
+    currentTaxExpense: pack.currentTaxExpense,
+    deferredTaxExpense: pack.deferredTaxExpense,
+    otherCovered: pack.otherCovered,
+    shippingActivityTaxRate: pack.shippingActivityTaxRate,
+  });
+
+  const tax = art413aShippingReduction({
+    incomeExcluded,
+    spillNet: qaisiCappedOut,
+    residualNet: residualForTax,
+    currentTaxExpense: pack.currentTaxExpense,
+    deferredTaxExpense: pack.deferredTaxExpense,
+    otherCovered: pack.otherCovered,
+    association,
+  });
+
   const flagNote = pack.lines.some((l) => l.flagJurisdiction && l.flagJurisdiction !== pack.ceJurisdiction)
     ? " Flag ≠ CE location — Art. 3.3.6 looks to management (¶182)."
     : "";
@@ -831,7 +1080,7 @@ export function computeShippingExclusion(
       totalPool: tax.totalPool,
     },
     lines: linesOut,
-    detail: `Art. 3.3.1 exclusion — QISI ${qisiExcluded.toLocaleString("en-GB")} + QAISI ${qaisiExcludedSigned.toLocaleString("en-GB")} (Art. 3.3.4 cap ${qaisiCap.toLocaleString("en-GB")}; spill ${qaisiCappedOut.toLocaleString("en-GB")} stays in GloBE with its costs ¶178). Art. 3.3.5 nets from gross/direct/indirect. Art. 3.3.6 OR management passes. Art. 4.1.3(a) reduction ${tax.reduction.toLocaleString("en-GB")} (identifiable excluded ${tax.identifiableExcluded.toLocaleString("en-GB")} + ratio ${tax.ratioShare.toLocaleString("en-GB")}; spill tax ${tax.identifiableSpill.toLocaleString("en-GB")} and residual tax ${tax.identifiableResidual.toLocaleString("en-GB")} stay in ACT).${flagNote}`,
+    detail: `Art. 3.3.1 exclusion — QISI ${qisiExcluded.toLocaleString("en-GB")} + QAISI ${qaisiExcludedSigned.toLocaleString("en-GB")} (Art. 3.3.4 cap ${qaisiCap.toLocaleString("en-GB")}; spill ${qaisiCappedOut.toLocaleString("en-GB")} stays in GloBE with its costs ¶178). Art. 3.3.5 nets from gross/direct/indirect. Art. 3.3.6 OR management passes. Art. 4.1.3(a) reduction ${tax.reduction.toLocaleString("en-GB")} (identifiable excluded ${tax.identifiableExcluded.toLocaleString("en-GB")} + ratio ${tax.ratioShare.toLocaleString("en-GB")}; spill tax ${tax.identifiableSpill.toLocaleString("en-GB")} and residual tax ${tax.identifiableResidual.toLocaleString("en-GB")} stay in ACT — association from line/FINANCIALS facts).${flagNote}`,
     ruleId: "OECD-SHIP-33",
   };
 }

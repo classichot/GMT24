@@ -1,9 +1,10 @@
 /**
- * Art. 3.3 / Art. 4.1.3(a) — auditor third-read scenarios.
+ * Art. 3.3 / Art. 4.1.3(a) — auditor fourth-read scenarios.
  * Run: npm run test:shipping
  *
- * Prior CLEARED: B1, B2, B3, M1–M3, M5, M7.
- * This file closes Art. 3.3.5 (¶176 / ¶179) and upgrades Art. 4.1.3(a) beyond current-only ratio.
+ * Prior CLEARED: B1–B3, M1–M5, M7, Art. 3.3.5, Art. 4.1.3(a) association.
+ * This file closes M6 (3.3.3 chapeau), 3.3.2(a) fail-closed voyage, and
+ * engine-sourced 4.1.3(a) tax identification (no pack-asserted IDs).
  */
 
 import {
@@ -59,7 +60,7 @@ function pack(over: Partial<ShippingFacts> & { lines: ShippingLine[] }): Shippin
   };
 }
 
-console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
+console.log("\nArt. 3.3 fourth-read (M6 chapeau · 3.3.2(a) fail-closed · tax IDs)\n");
 
 // ─── B1 / M1 regression ───
 {
@@ -127,6 +128,7 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     kind: "qaisi",
     category: "bareboat_charter_third_party",
     amount: 500_000,
+    primarilyInConnectionWithInternationalTraffic: true,
     bareboat: {
       lesseeIsNonCeShippingEnterprise: true,
       lesseeIsGroupCe: false,
@@ -205,7 +207,13 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     ceJurisdiction: "SG",
     lines: [
       { id: "a1", kind: "qisi", category: "international_transport", amount: 100, voyage: { solelyDomesticPlaces: false } },
-      { id: "a2", kind: "qaisi", category: "container_leasing", amount: 80 },
+      {
+        id: "a2",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 80,
+        primarilyInConnectionWithInternationalTraffic: true,
+      },
     ],
   });
   const ceB = pack({
@@ -213,7 +221,13 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     ceJurisdiction: "SG",
     lines: [
       { id: "b1", kind: "qisi", category: "international_transport", amount: 100, voyage: { solelyDomesticPlaces: false } },
-      { id: "b2", kind: "qaisi", category: "container_leasing", amount: 40 },
+      {
+        id: "b2",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 40,
+        primarilyInConnectionWithInternationalTraffic: true,
+      },
     ],
   });
   const rA = computeShippingExclusion("CE-A", ceA, { allPacks: [ceA, ceB] })!;
@@ -289,6 +303,7 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
         amount: 20,
         revenue: 20,
         directCosts: 0,
+        primarilyInConnectionWithInternationalTraffic: true,
       },
     ],
   });
@@ -351,8 +366,8 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
 }
 
 {
-  console.log("Art. 4.1.3(a) · (a) identifiable spill tax stays in ACT");
-  // ISI 10 / QAISI 8 → cap 5 → spill 3; exclude 15. Identifiable tax on spill remains in Covered Taxes.
+  console.log("Art. 4.1.3(a) · (a) identifiable spill tax stays in ACT (line facts)");
+  // ISI 10 / QAISI 5+3 → cap 5 → spill 3; exclude 15. Line tax on spill remains in Covered Taxes.
   const p = pack({
     entityId: "EX-413A-SPILL",
     ceJurisdiction: "EX",
@@ -360,12 +375,6 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     currentTaxExpense: 40,
     deferredTaxExpense: 0,
     otherCovered: 0,
-    taxAssociation: {
-      identifiableCurrentOnExcluded: 24,
-      identifiableDeferredOnExcluded: 0,
-      identifiableTaxOnSpill: 6,
-      identifiableTaxOnResidual: 10,
-    },
     lines: [
       {
         id: "isi",
@@ -373,20 +382,44 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
         category: "international_transport",
         amount: 10,
         voyage: { solelyDomesticPlaces: false },
+        currentTax: 16,
       },
-      { id: "qaisi", kind: "qaisi", category: "container_leasing", amount: 8 },
+      {
+        id: "qaisi-ok",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 5,
+        primarilyInConnectionWithInternationalTraffic: true,
+        currentTax: 8,
+      },
+      {
+        id: "qaisi-spill",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 3,
+        primarilyInConnectionWithInternationalTraffic: true,
+        currentTax: 6,
+      },
+      {
+        id: "residual",
+        kind: "non_qualifying",
+        category: "other_non_qualifying",
+        amount: 2,
+        qualifies: false,
+        currentTax: 10,
+      },
     ],
   });
   const r = computeShippingExclusion(p.entityId, p, { allPacks: [p] })!;
   assertEq(r.incomeExcluded, 15, "ISI 10 + allowable QAISI 5");
   assertEq(r.qaisiCappedOut, 3, "spill QAISI 3");
   assertEq(r.coveredTaxExcluded, 24, "only identifiable excluded tax leaves ACT");
-  assertEq(r.tax.identifiableSpill, 6, "spill tax identified");
+  assertEq(r.tax.identifiableSpill, 6, "spill tax identified from spill line");
   assertEq(money(40 - r.coveredTaxExcluded), 16, "ACT keeps spill 6 + residual 10");
 }
 
 {
-  console.log("Art. 4.1.3(a) · (b) deferred on excluded shipping leaves ACT");
+  console.log("Art. 4.1.3(a) · (b) deferred on excluded shipping leaves ACT (line facts)");
   const p = pack({
     entityId: "EX-413A-DEF",
     ceJurisdiction: "EX",
@@ -394,11 +427,6 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     currentTaxExpense: 10,
     deferredTaxExpense: 5,
     otherCovered: 0,
-    taxAssociation: {
-      identifiableCurrentOnExcluded: 8,
-      identifiableDeferredOnExcluded: 4,
-      identifiableTaxOnResidual: 3,
-    },
     lines: [
       {
         id: "isi",
@@ -406,10 +434,21 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
         category: "international_transport",
         amount: 80,
         voyage: { solelyDomesticPlaces: false },
+        currentTax: 7,
+        deferredTax: 4,
       },
-      { id: "qaisi", kind: "qaisi", category: "container_leasing", amount: 10 },
+      {
+        id: "qaisi",
+        kind: "qaisi",
+        category: "container_leasing",
+        amount: 10,
+        primarilyInConnectionWithInternationalTraffic: true,
+        currentTax: 1,
+        deferredTax: 0,
+      },
     ],
   });
+  // current 8 + deferred 4 on excluded; FINANCIALS 15 − line 12 = 3 residual
   const r = computeShippingExclusion(p.entityId, p, { allPacks: [p] })!;
   assertEq(r.incomeExcluded, 90, "ISI 80 + QAISI 10 within 50% cap");
   assertEq(r.coveredTaxExcluded, 12, "current 8 + deferred 4 on excluded leave ACT");
@@ -429,6 +468,7 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     association: {
       identifiableCurrentOnExcluded: 0,
       identifiableDeferredOnExcluded: 0,
+      identifiableTaxOnSpill: 0,
       identifiableTaxOnResidual: 6,
     },
   });
@@ -448,10 +488,33 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     taxableIncome: 100,
     currentTaxExpense: 20,
     deferredTaxExpense: 0,
-    taxAssociation: {
-      identifiableCurrentOnExcluded: 7,
-      identifiableTaxOnResidual: 13,
-    },
+    lines: [
+      {
+        id: "isi",
+        kind: "qisi",
+        category: "international_transport",
+        amount: 40,
+        voyage: { solelyDomesticPlaces: false },
+        currentTax: 7,
+      },
+    ],
+  });
+  const r = computeShippingExclusion(p.entityId, p, { allPacks: [p] })!;
+  assertEq(r.incomeExcluded, 40, "partial shipping exclusion");
+  assertEq(r.coveredTaxExcluded, 7, "only associated line tax leaves — not the whole 20");
+  assertEq(r.tax.identifiableResidual, 13, "FINANCIALS remainder stays as residual");
+}
+
+{
+  console.log("Art. 4.1.3(a) · pack label alone does not identify tax");
+  // No line currentTax/deferredTax. A phantom pack field must not exist / must not change ACT.
+  // Without identification facts, pool is unidentifiable → ratio only.
+  const base = pack({
+    entityId: "EX-413A-LABEL",
+    ceJurisdiction: "EX",
+    taxableIncome: 100,
+    currentTaxExpense: 20,
+    deferredTaxExpense: 0,
     lines: [
       {
         id: "isi",
@@ -462,9 +525,173 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
       },
     ],
   });
-  const r = computeShippingExclusion(p.entityId, p, { allPacks: [p] })!;
-  assertEq(r.incomeExcluded, 40, "partial shipping exclusion");
-  assertEq(r.coveredTaxExcluded, 7, "only associated tax leaves — not the whole 20");
+  const r = computeShippingExclusion(base.entityId, base, { allPacks: [base] })!;
+  // excluded 40 / (40 + residual 60) × 20 = 8
+  assertEq(r.coveredTaxExcluded, 8, "ratio only when no line tax facts");
+  assertEq(r.tax.identifiableExcluded, 0, "no identifiable without line/FINANCIALS line fields");
+  // Mutating a non-engine property must not change ACT (association is not a free-standing label).
+  const fake = { ...base, taxAssociation: { identifiableCurrentOnExcluded: 99_999 } } as typeof base & {
+    taxAssociation: { identifiableCurrentOnExcluded: number };
+  };
+  const rFake = computeShippingExclusion(fake.entityId, fake, { allPacks: [fake] })!;
+  assertEq(rFake.coveredTaxExcluded, r.coveredTaxExcluded, "flipping pack label without line fields does not change ACT");
+}
+
+// ─── M6 Art. 3.3.3 chapeau + closed list ───
+{
+  console.log("M6 · Art. 3.3.3 chapeau + closed list (a)–(e)");
+  const tagged = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "container_leasing",
+    amount: 100,
+    // kind tag says qaisi but chapeau omitted
+  });
+  assert(tagged.kind === "non_qualifying", "preparer kind:qaisi does not satisfy chapeau");
+
+  const chapeauOk = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "container_leasing",
+    amount: 100,
+    primarilyInConnectionWithInternationalTraffic: true,
+  });
+  assert(chapeauOk.kind === "qaisi", "chapeau true → QAISI for 3.3.3(c)");
+
+  const treasury = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "treasury_interest",
+    amount: 100,
+    primarilyInConnectionWithInternationalTraffic: true,
+  });
+  assert(treasury.kind === "non_qualifying", "treasury interest is residual GloBE");
+
+  const otherAnc = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "other_ancillary",
+    amount: 100,
+    primarilyInConnectionWithInternationalTraffic: true,
+  });
+  assert(otherAnc.kind === "non_qualifying", "other_ancillary outside closed list");
+
+  const investFail = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "ancillary_investment",
+    amount: 100,
+    primarilyInConnectionWithInternationalTraffic: true,
+    integralToShipOperations: false,
+  });
+  assert(investFail.kind === "non_qualifying", "3.3.3(e) fails without integralToShipOperations");
+
+  const investOk = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "ancillary_investment",
+    amount: 100,
+    primarilyInConnectionWithInternationalTraffic: true,
+    integralToShipOperations: true,
+  });
+  assert(investOk.kind === "qaisi", "3.3.3(e) working-capital / statutory investment passes");
+
+  const ticketOwn = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "ticket_domestic_leg",
+    amount: 50,
+    primarilyInConnectionWithInternationalTraffic: true,
+    ticket: { issuedByOtherShippingEnterprise: false, domesticLegOfInternationalVoyage: true },
+  });
+  assert(ticketOwn.kind === "non_qualifying", "3.3.3(b) own-ship tickets fail (belong in 3.3.2(a))");
+
+  const ticketDomestic = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "ticket_domestic_leg",
+    amount: 50,
+    primarilyInConnectionWithInternationalTraffic: true,
+    ticket: { issuedByOtherShippingEnterprise: true, domesticLegOfInternationalVoyage: false },
+  });
+  assert(ticketDomestic.kind === "non_qualifying", "3.3.3(b) purely domestic tickets fail");
+
+  const ticketOk = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "ticket_domestic_leg",
+    amount: 50,
+    primarilyInConnectionWithInternationalTraffic: true,
+    ticket: { issuedByOtherShippingEnterprise: true, domesticLegOfInternationalVoyage: true },
+  });
+  assert(ticketOk.kind === "qaisi", "3.3.3(b) other-enterprise domestic-leg tickets pass");
+
+  const bareboatNoChapeau = classifyShippingLine({
+    id: "1",
+    kind: "qaisi",
+    category: "bareboat_charter_third_party",
+    amount: 100,
+    bareboat: {
+      lesseeIsNonCeShippingEnterprise: true,
+      charterYears: 2,
+    },
+  });
+  assert(bareboatNoChapeau.kind === "non_qualifying", "3.3.3(a) still needs chapeau");
+}
+
+// ─── Art. 3.3.2(a) fail-closed voyage ───
+{
+  console.log("Art. 3.3.2(a) · fail-closed voyage / ¶152 / ¶160 / ¶153");
+  const omitted = classifyShippingLine({
+    id: "1",
+    kind: "qisi",
+    category: "international_transport",
+    amount: 100,
+  });
+  assert(omitted.kind === "non_qualifying", "omit voyage → not ISI");
+
+  const coastal = classifyShippingLine({
+    id: "1",
+    kind: "qisi",
+    category: "international_transport",
+    amount: 100,
+    voyage: { solelyDomesticPlaces: true },
+  });
+  assert(coastal.kind === "non_qualifying", "SG–SG coastal solely domestic → not ISI");
+
+  const crossBorder = classifyShippingLine({
+    id: "1",
+    kind: "qisi",
+    category: "international_transport",
+    amount: 100,
+    voyage: { solelyDomesticPlaces: false },
+  });
+  assert(crossBorder.kind === "qisi", "SG–MY international traffic → ISI");
+
+  const inlandWw = classifyShippingLine({
+    id: "1",
+    kind: "qisi",
+    category: "international_transport",
+    amount: 100,
+    voyage: { solelyDomesticPlaces: false, inlandWaterwaysSameJurisdiction: true },
+  });
+  assert(inlandWw.kind === "non_qualifying", "same-jurisdiction inland waterway → not ISI");
+
+  const towing = classifyShippingLine({
+    id: "1",
+    kind: "qisi",
+    category: "towing_dredging",
+    amount: 100,
+    voyage: { solelyDomesticPlaces: false },
+  });
+  assert(towing.kind === "non_qualifying", "¶153 towing/dredging kept in GloBE");
+
+  const omitPack = pack({
+    lines: [{ id: "1", kind: "qisi", category: "international_transport", amount: 500_000 }],
+  });
+  const omitR = computeShippingExclusion("TEST-SHIP", omitPack, { allPacks: [omitPack] })!;
+  assertEq(omitR.qisiExcluded, 0, "omitted voyage not excluded as QISI");
+  assertEq(omitR.nonQualifyingKept, 500_000, "omitted voyage amount stays in GloBE");
 }
 
 // ─── M5 traffic / voyage ───
@@ -562,9 +789,13 @@ console.log("\nArt. 3.3 third-read (3.3.5 + 4.1.3(a) leftovers)\n");
     assert(row.shipping!.cost.usedGrossEngine, "SG-SHIP uses gross revenue/direct engine");
     assertEq(row.shipping!.cost.isiRevenue, 9_600_000, "ISI gross revenue");
     assertEq(row.shipping!.cost.isiDirect, 3_800_000, "ISI direct costs");
-    assertEq(row.shipping!.coveredTaxExcluded, 930_000, "identifiable excluded current 900k + deferred 30k");
+    assertEq(row.shipping!.coveredTaxExcluded, 930_000, "line current+deferred on excluded (900k+30k)");
     assertEq(row.covered, 230_000, "ACT keeps residual tax 230k (spill tax 0)");
-    assertEq(row.shipping!.tax.identifiableResidual, 230_000, "residual tax stays identified in ACT");
+    assertEq(row.shipping!.tax.identifiableResidual, 230_000, "residual from inland line + FINANCIALS unassigned");
+    assert(
+      row.shipping!.lines.every((l) => l.category !== "international_transport" || l.voyage != null),
+      "SG-SHIP ISI lines carry voyage facts (fail-closed)",
+    );
     assert(
       row.shipping!.lines.some(
         (l) => l.category === "bareboat_charter_third_party" && l.treatedAs === "excluded_qaisi",

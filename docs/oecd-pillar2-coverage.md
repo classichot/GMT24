@@ -20,10 +20,12 @@ Statuses: **implemented** · **partial** · **missing** · **election-only** · 
 | B2 | Third-party bareboat tag split only | **CLEARED (second-read)** — lessee-ISI (3.3.2(d) ¶157) + ≤3-year duration engine incl. renewals (3.3.3(a) ¶164); failing tests when facts absent |
 | M2 | Two-CE Art. 3.3.4 jurisdictional cap | **CLEARED** — tested |
 | M3 | OECD Examples 3.3.1-1 / -2 / -3 | **CLEARED** — numeric tests |
-| M4 | Art. 4.1.3(a) Covered Tax association | **CLEARED (third-read)** — identifiable current+deferred+otherCovered; spill/residual tax stay in ACT; ratio only on unidentifiable remainder (not current-only proxy) |
+| M4 | Art. 4.1.3(a) Covered Tax association | **CLEARED (fourth-read)** — identifiable from line `currentTax`/`deferredTax` + FINANCIALS pool; pack labels ignored; spill/residual stay; ratio only on unidentifiable remainder |
 | M5 | Traffic / voyage tests | **CLEARED** — ¶152 solely-domestic; ¶160 inland waterways |
+| M6 | Art. 3.3.3 chapeau + closed list (a)–(e) | **CLEARED (fourth-read)** — `primarilyInConnectionWithInternationalTraffic`; 3.3.3(b) other-enterprise tickets; 3.3.3(e) `integralToShipOperations`; treasury/other_ancillary residual |
 | M7 | Art. 3.3.2(c) crewed time/voyage charter | **CLEARED** — category + expected-international-traffic gate |
 | Art. 3.3.5 | Cost attribution (¶174–179) | **CLEARED (third-read)** — gross revenue + direct + indirect-by-revenue; ¶176 / ¶179 numbers; spill costs stay in GloBE |
+| Art. 3.3.2(a) | Fail-closed voyage | **CLEARED (fourth-read)** — omit voyage → not ISI; coastal / inland-waterway / towing¶153 kept |
 
 No finding discarded without citation.
 
@@ -32,18 +34,24 @@ No finding discarded without citation.
 | Topic | OECD | Status | Where | What tests prove |
 | --- | --- | --- | --- | --- |
 | Mandatory exclusion | Art. 3.3.1 | **implemented** | `computeShippingExclusion` | Examples 3.3.1-1 / -3; no election gate |
-| Transport in international traffic | Art. 3.3.2(a) · ¶152 | **implemented** | `voyage.solelyDomesticPlaces` | Fail when solely domestic |
+| Transport in international traffic | Art. 3.3.2(a) · ¶152 | **implemented** | voyage fail-closed | Omit voyage / solely domestic / inland WW → not ISI; SG–MY passes |
 | Slot charter | Art. 3.3.2(b) | **implemented** | `slot_charter` + voyage screen | Domestic-only slot fails |
 | Crewed time/voyage charter-out | Art. 3.3.2(c) · ¶156 | **implemented** | `time_voyage_charter` | Requires `expectedInternationalTraffic`; fails if absent |
 | Intragroup bareboat | Art. 3.3.2(d) · ¶157 | **implemented** | `bareboat` facts | Needs `lesseeIsGroupCe` **and** `lesseeHasInternationalShippingIncome` |
 | Ship sale | Art. 3.3.2(f) · ¶159 | **partial** | `heldYears ≥ 1` | Holding years are a fact, not a PPE/inventory classifier |
 | Inland waterways same jur. | Art. 3.3.2 last · ¶160 | **implemented** | voyage flag | Fail → non-qualifying |
-| Third-party bareboat | Art. 3.3.3(a) · ¶163–164 | **implemented** | duration engine | Non-CE shipping enterprise + `charterYears` (+ renewals) ≤ 3; missing/over-limit fails |
+| Towing / dredging | ¶153 | **implemented** | `towing_dredging` | Kept in GloBE |
+| QAISI chapeau | Art. 3.3.3 | **implemented** | `primarilyInConnectionWithInternationalTraffic` | Preparer `kind:"qaisi"` alone fails |
+| Third-party bareboat | Art. 3.3.3(a) · ¶163–164 | **implemented** | duration + chapeau | Non-CE shipping enterprise + ≤3 years + chapeau |
+| Other-enterprise tickets | Art. 3.3.3(b) | **implemented** | `ticket` facts | Own-ship / purely domestic fail |
+| Container leasing | Art. 3.3.3(c) · ¶166 | **implemented** | chapeau + storage days | Storage >5 days fails |
+| Engineering services | Art. 3.3.3(d) | **implemented** | chapeau | Closed-list + chapeau |
+| Ancillary investment | Art. 3.3.3(e) · ¶170 | **implemented** | `integralToShipOperations` | Group treasury / omitted integral → residual |
 | Inland haulage (land) | ¶171 | **implemented** | `inland_transport` | Stays in GloBE |
 | QAISI 50% cap | Art. 3.3.4 | **implemented** | two-CE test + Example 3.3.1-2 | Jurisdictional aggregation + pro-rata; not a live multi-CE seed |
 | Cost attribution | Art. 3.3.5 | **implemented** | `buildShippingNets` · `allocateIndirectCosts` | ¶176 (80+20+20 / 30 → 20/5/5); ¶179 spill costs stay; SG-SHIP gross lines |
 | Management | Art. 3.3.6 | **implemented** | OR test | — |
-| Covered Tax association | Art. 4.1.3(a) | **implemented** (shipping path) | `art413aShippingReduction` | Identifiable current+deferred+otherCovered; spill/residual stay; ratio on unidentifiable remainder only |
+| Covered Tax association | Art. 4.1.3(a) | **implemented** (shipping path) | `buildTaxAssociationFromLines` | Line/FINANCIALS facts only; pack labels ignored; spill/residual stay |
 
 ### Hook
 
@@ -60,11 +68,13 @@ Art. 3.3.5 nets
 Adjusted Covered Taxes
   = current + Art. 4.4 deferred + other
   − Art. 4.1.3(a) associated tax on excluded shipping
-    · prefer identifiable; else (excluded / (excluded+spill+residual)) × unidentifiable pool
-    · pool = current + deferred + otherCovered
+    · identifiable = Σ line.currentTax/deferredTax on excluded treatments
+      (+ optional net × CE shippingActivityTaxRate when that rate is a pack fact)
+    · FINANCIALS remainder after line taxes → residual (stays) when identification facts exist
+    · else ratio on unidentifiable pool: excluded / (excluded+spill+residual)
 ```
 
-Live seed: **SG-SHIP** (gross Art. 3.3.5 lines; identifiable tax association). Rule id: `OECD-SHIP-33`.  
+Live seed: **SG-SHIP** (gross Art. 3.3.5 lines; line-level tax facts + FINANCIALS pool). Rule id: `OECD-SHIP-33`.  
 Verify: `npm run test:shipping`.
 
 ### Not claimed
@@ -72,7 +82,7 @@ Verify: `npm run test:shipping`.
 - Broader Art. 4.3 CFC/PE/hybrid Covered Tax allocation (shipping Art. 4.1.3(a) only)
 - General Art. 4.1.3(a) for all Ch. 3 excluded items (dividends etc.) beyond the shipping path
 - Shipping inside Simplified ETR beyond `SETR_SHIP` label
-- Art. 3.3 as a whole “7L Approve” — draft PR only; independent auditor re-read still owed on 3.3.5 / 4.1.3(a) leftovers
+- Art. 3.3 as a whole “7L Approve” — draft PR only; independent auditor re-read owed on fourth-read residuals
 ---
 
 ## 2. Coverage matrix (Model Rules chapters)
@@ -114,7 +124,7 @@ Verify: `npm run test:shipping`.
 | Article / topic | Status | Code | Gaps |
 | --- | --- | --- | --- |
 | Art. 4.1 Adjusted Covered Taxes | **partial** | `entityCovered` | CFC / hybrid / push-down largely stub |
-| Art. 4.1.3(a) reduction for excluded Ch. 3 income | **partial** | Shipping path `art413aShippingReduction` | Shipping: identifiable + deferred + otherCovered association tested; **not** a general excluded-dividend / all Ch. 3 engine |
+| Art. 4.1.3(a) reduction for excluded Ch. 3 income | **partial** | Shipping path `buildTaxAssociationFromLines` | Shipping: line/FINANCIALS identification + association tested; **not** a general excluded-dividend / all Ch. 3 engine |
 | **Art. 4.3 allocation** of Covered Taxes | **missing** / **partial** | `otherCovered` stub | CFC, Hybrid, Main Entity ↔ PE, cross-border allocation not computed |
 | Art. 4.1.5 → ACTTT | **partial** | LU seed posts ACTTT when globe ≤ 0 and covered < 0 | Carry-forward utilisation across years not ledger-proven; do **not** read as full Art. 4.1.5 machinery |
 | Art. 4.4 DT recast / recapture | **partial** | `lib/deferredTax.ts` | Origin-year reopen not auto-refiled |
