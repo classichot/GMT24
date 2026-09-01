@@ -28,6 +28,7 @@ import { entityAdjustments } from "./fanil";
 import { utprAllocation, type UtprFactor } from "./utpr";
 import { sbtishResult } from "./harbours2026";
 import { recapturePostings } from "./recaptureYear";
+import { applyEnte, type EntePriorRow } from "./ente";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -72,6 +73,7 @@ export type JurCalc = {
   revenue: number;
   fanil: number;
   globeIncome: number;
+  coveredTaxRaw: number;
   coveredTax: number;
   etr: number;
   payrollCarve: number;
@@ -81,6 +83,10 @@ export type JurCalc = {
   topUpRate: number;
   additionalCurrentTopUp: number;
   actttReason: string;
+  enteOriginated: number;
+  enteApplied: number;
+  enteCarryforward: number;
+  enteReason: string;
   jurisdictionalTopUp: number;
   sh: {
     deMinimis: ShResult;
@@ -128,8 +134,15 @@ export type CalcCtx = {
   fy?: string;
   electionsOn?: Record<string, boolean>;
   tcshPrior?: TcshPriorRow[];
+  entePrior?: EntePriorRow[];
   approvedMaps?: Record<string, boolean>;
 };
+
+function priorEnte(blendKey: string, iso: string, ctx?: CalcCtx) {
+  return ctx?.entePrior?.find((r) => r.blendKey === blendKey)?.amount
+    ?? ctx?.entePrior?.find((r) => r.iso === iso)?.amount
+    ?? 0;
+}
 
 function elected(ctx: CalcCtx | undefined, id: string, iso: string) {
   return Boolean(ctx?.electionsOn?.[`${id}@${iso}`]);
@@ -581,7 +594,9 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       const f = FINANCIALS.find((x) => x.entityId === e.id);
       return f ? entityGlobe(f, e.id, ctx) : 0;
     })));
-    const coveredTax = money(sum(fins.map(entityCovered)));
+    const coveredTaxRaw = money(sum(fins.map(entityCovered)));
+    const ente = applyEnte({ globeIncome, coveredTax: coveredTaxRaw, priorEnte: priorEnte(blendKey, iso, ctx) });
+    const coveredTax = ente.coveredForEtr;
     const etrComputed = globeIncome > 0;
     const etr = etrComputed ? coveredTax / globeIncome : 0;
     const payroll = sum(fins.map((f) => eligiblePayroll(f.entityId, f.payrollEligible)));
@@ -594,16 +609,22 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const rateTopUp = money(topUpRate * excess);
     let additionalCurrentTopUp = 0;
     let actttReason = "No Additional Current Top-up Tax this year.";
-    if (globeIncome <= 0 && coveredTax < 0) {
+    if (globeIncome <= 0 && coveredTaxRaw < 0) {
       if (elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey)) {
         additionalCurrentTopUp = 0;
-        actttReason = `Art. 4.1.5 elected — negative tax expense ${Math.abs(coveredTax).toLocaleString("en-GB")} carried forward. No Additional Current Top-up this year.`;
+        actttReason = `Art. 4.1.5 elected — Excess Negative Tax Expense ${Math.abs(coveredTaxRaw).toLocaleString("en-GB")} carried forward. No Additional Current Top-up this year.`;
       } else {
-        additionalCurrentTopUp = money(Math.abs(coveredTax));
+        additionalCurrentTopUp = money(Math.abs(coveredTaxRaw));
         actttReason = `Art. 4.1.5 — Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax ${additionalCurrentTopUp.toLocaleString("en-GB")}. Elect OECD_4.1.5 to carry forward.`;
       }
-    } else if (etrComputed && coveredTax < 0) {
-      actttReason = `Art. 5.1.2 — Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up % = 15% − ETR (${(topUpRate * 100).toFixed(2)}%). Not an Art. 4.1.5 Additional Current amount.`;
+    } else if (ente.mandatory521) {
+      actttReason = ente.reason;
+    }
+    let enteOriginated = ente.enteOriginated;
+    let enteCarryforward = ente.enteCarryforward;
+    if (globeIncome <= 0 && coveredTaxRaw < 0 && (elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey))) {
+      enteOriginated = money(Math.abs(coveredTaxRaw));
+      enteCarryforward = money(ente.enteCarryforward + enteOriginated);
     }
     const recap = recapturePostings().filter((p) => p.iso === iso);
     const recaptureActtt = money(recap.reduce((a, p) => a + p.acttt, 0));
@@ -706,11 +727,13 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const coveredTrace: AuditNode = {
       id: `${aid}-ct`,
       label: `${name} Covered taxes`,
-      amount: coveredTax,
+      amount: coveredTaxRaw,
       kind: "formula",
       ruleId: "OECD-GloBE-15",
       ruleVersion: "2026.1",
-      detail: "Current + deferred (Art. 4.4 recast) + other covered − Art. 4.1.3 tax on excluded shipping − non-covered",
+      detail: ente.mandatory521 || ente.enteApplied
+        ? `Current + deferred (Art. 4.4 recast) + other covered − Art. 4.1.3 tax on excluded shipping − non-covered. ETR numerator after ENTE is ${coveredTax.toLocaleString("en-GB")}.`
+        : "Current + deferred (Art. 4.4 recast) + other covered − Art. 4.1.3 tax on excluded shipping − non-covered",
       children: entities.map((e) => traceCoveredEntity(e.id)).filter(Boolean) as AuditNode[],
     };
     const payrollTrace: AuditNode = {
@@ -761,7 +784,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       ruleId: blendKind === "main" ? "OECD-GloBE-15" : blendRule,
       ruleVersion: "2026.1",
       detail: etrComputed
-        ? `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1${blendKind === "main" ? "" : ` · ${blendKind} separate blend`}${coveredTax < 0 ? " · Art. 5.1.2 negative Covered Taxes → negative ETR" : ""}`
+        ? `Covered taxes ${coveredTax.toLocaleString("en-GB")} ÷ GloBE income ${globeIncome.toLocaleString("en-GB")} · Art. 5.1.1${blendKind === "main" ? "" : ` · ${blendKind} separate blend`}${ente.mandatory521 ? ` · ENTE: raw ACT ${coveredTaxRaw.toLocaleString("en-GB")} excluded so ETR floors at 0%` : ""}`
         : `Art. 5.1.2 — Net GloBE Income is zero or negative. No ETR is computed.`,
       children: [coveredTrace, globeTrace],
     };
@@ -789,7 +812,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
           amount: topUpRate,
           kind: "formula",
           detail: etrComputed
-            ? `max(0, 15% − ETR ${(etr * 100).toFixed(2)}%) = ${(topUpRate * 100).toFixed(2)}%${coveredTax < 0 ? " · Art. 5.1.2 negative Covered Taxes" : ""}`
+            ? `max(0, 15% − ETR ${(etr * 100).toFixed(2)}%) = ${(topUpRate * 100).toFixed(2)}%${ente.mandatory521 ? " · OECD AG Feb 2023 ENTE floors ETR at 0% so Top-up % cannot exceed 15%" : ""}`
             : "No ETR (Art. 5.1.2 Net GloBE Income ≤ 0) — Top-up % is 0; Additional Current Top-up may still apply (Art. 4.1.5).",
           ruleId: "OECD-GloBE-15",
           ruleVersion: "2026.1",
@@ -800,8 +823,17 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
           amount: additionalCurrentTopUp,
           kind: "formula",
           detail: actttReason,
-          ruleId: additionalCurrentTopUp || globeIncome <= 0 ? "OECD-GloBE-15" : "OECD-GloBE-15",
+          ruleId: "OECD-GloBE-15",
           ruleVersion: "2026.1",
+        },
+        {
+          id: `${aid}-ente`,
+          label: "Excess Negative Tax Expense",
+          amount: enteCarryforward,
+          kind: "formula",
+          detail: ente.reason,
+          ruleId: ente.mandatory521 || enteOriginated ? "OECD-ENTE-521" : "OECD-GloBE-15",
+          ruleVersion: "2023.2",
         },
         {
           id: `${aid}-formula`,
@@ -835,6 +867,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       revenue,
       fanil,
       globeIncome,
+      coveredTaxRaw,
       coveredTax,
       etr,
       payrollCarve,
@@ -844,6 +877,10 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       topUpRate,
       additionalCurrentTopUp,
       actttReason,
+      enteOriginated,
+      enteApplied: ente.enteApplied,
+      enteCarryforward,
+      enteReason: ente.reason,
       jurisdictionalTopUp,
       sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome, barred: bar.barred, tcshUsed, tcshFailed },
       exposure,

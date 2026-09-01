@@ -10,6 +10,7 @@ export default function IssuesPage() {
     { t: "Ireland KDB vs SBTISH", d: "AI Reviewer: KDB is an IP box, not a substance-based incentive. Do not elect SBTISH. Unusual vs Hungary development allowance." },
     { t: "Vietnam ETR movement", d: "Covered tax −4% vs FY2025 GIR with no deferred-tax opening balance. Unexplained movement." },
     { t: "Singapore harbour", d: "Simplified ETR 16% sits between 15% GloBE min and 17% transitional CbCR rate. Inconsistent to treat as a clean pass." },
+    { t: "Hong Kong negative tax", d: "AI Reviewer: Bare Art. 5.2.1 on −$120k / $800k is a −15% ETR and 30% Top-up %. That is not the filing answer. OECD Feb 2023 AG requires Excess Negative Tax Expense — ETR 0%, Top-up % 15%, $120k carry-forward. 15% is the Minimum Rate, not a second layer on a negative ETR." },
   ];
   return (
     <div className="grid-split">

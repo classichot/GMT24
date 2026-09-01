@@ -42,6 +42,12 @@ const METHOD = [
     body: "If Net GloBE Income is a loss and Adjusted Covered Taxes are negative, Art. 4.1.5 treats the negative tax as Additional Current Top-up Tax unless the MNE elects to carry the negative tax expense forward (OECD_4.1.5, annual). Open Luxembourg on this snapshot.",
     refs: ["Art. 4.1.5", "Art. 5.2.3"],
   },
+  {
+    n: "06",
+    title: "Profit year and negative Covered Taxes",
+    body: "If Net GloBE Income is positive and Adjusted Covered Taxes are negative, do not post a Top-up % above 15%. OECD Feb 2023 AG makes Excess Negative Tax Expense mandatory: exclude the negative tax from this year’s ETR (floor 0%), keep Top-up % at 15%, and carry the amount forward. Open Hong Kong on this snapshot.",
+    refs: ["Art. 5.2.1", "OECD-ENTE-521"],
+  },
 ];
 
 const REFERENCES = [
@@ -55,6 +61,7 @@ const REFERENCES = [
   { cite: "Art. 4.4.4", work: "Five-year recapture of deferred tax liabilities that are not Recapture Exception Accruals", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Art. 4.5", work: "GloBE Loss Election — in lieu of Art. 4.4 deferred-tax mechanics", loc: "Model Rules Ch. 4", href: "/rulebook" },
   { cite: "Art. 4.1.5", work: "Net GloBE Loss + negative Adjusted Covered Taxes → Additional Current Top-up Tax unless carry-forward elected", loc: "OECD-GloBE-15 v2026.1", href: "/etr?iso=LU" },
+  { cite: "Art. 5.2.1 ENTE", work: "Positive Net GloBE Income + negative Adjusted Covered Taxes → mandatory Excess Negative Tax Expense; Top-up % cannot exceed 15%", loc: "OECD-ENTE-521 v2023.2", href: "/etr?iso=HK" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Σ Adjusted Covered Taxes ÷ Net GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
 
@@ -187,9 +194,27 @@ export default function CoveredTaxesPage() {
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">
-              <span>Σ Adjusted Covered Taxes</span>
-              <Amount n={jur?.coveredTax ?? 0} audit={jur?.trace.covered} />
+              <span>Σ Adjusted Covered Taxes (raw)</span>
+              <Amount n={jur?.coveredTaxRaw ?? jur?.coveredTax ?? 0} audit={jur?.trace.covered} />
             </div>
+            {jur && jur.enteOriginated > 0 && (
+              <div className="wf-row">
+                <span>− Excess Negative Tax Expense</span>
+                <Amount n={-jur.enteOriginated} audit={jur.audit.children?.find((n) => n.id.endsWith("-ente"))} />
+              </div>
+            )}
+            {jur && jur.enteApplied > 0 && (
+              <div className="wf-row">
+                <span>− Prior ENTE used</span>
+                <Amount n={-jur.enteApplied} />
+              </div>
+            )}
+            {jur && (jur.enteOriginated > 0 || jur.enteApplied > 0) && (
+              <div className="wf-row">
+                <span>ACT for ETR</span>
+                <Amount n={jur.coveredTax} audit={jur.trace.etr} />
+              </div>
+            )}
             <div className="wf-row">
               <span>÷ Net GloBE Income</span>
               <Amount n={jur?.globeIncome ?? 0} audit={jur?.trace.globe} />

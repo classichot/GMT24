@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { applyScenario, calculateGroup, totals } from "@/lib/engine";
-import { lastLocked } from "@/lib/yearLedger";
+import { lastLocked, entePriorRows } from "@/lib/yearLedger";
 import { useStore } from "@/lib/store";
 
 export function useCalc() {
@@ -23,6 +23,7 @@ export function useCalc() {
             tcshFailed: r.tcshFailed,
           }))
           : [],
+        entePrior: entePriorRows(prior),
       }),
       scenario,
     );

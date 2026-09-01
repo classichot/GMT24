@@ -19,6 +19,7 @@ export type YearJurRow = {
   utpr: number;
   harbour: boolean;
   additionalCurrent?: number;
+  enteCarryforward?: number;
   tcshUsed?: boolean;
   tcshFailed?: boolean;
   tcshBarred?: boolean;
@@ -45,7 +46,7 @@ export const YEAR_LOGIC = [
   { n: "03", title: "Open next year", body: "The next Fiscal Year starts from that lock. GMT24 factors the prior close — it does not start from a blank Core unless the prior year had no lasting elections." },
   { n: "04", title: "What carries", body: "Five-year elections (e.g. Art. 3.2.2) stay on for the rest of the lock (five inclusive years). Art. 4.5 GloBE Loss stays on until you revoke it. Opening DTA/DTL and Art. 4.4.4 recapture already sit in the books." },
   { n: "05", title: "What does not carry", body: "Annual elections (SBIE claim, most harbours, Art. 4.1.5) must be made again. Reset to Core on a later year restores only the carried locks, not last year’s annual choices." },
-  { n: "05b", title: "Once out, always out", body: "Transitional CbCR Safe Harbour is different: if a blend failed the tests or did not elect TCSH in a year it could have used it, the harbour is barred for remaining transition years. The year lock stores used / failed / barred per blend." },
+  { n: "05c", title: "Excess Negative Tax Expense", body: "If a profitable jurisdiction has negative Adjusted Covered Taxes, Top-up % cannot exceed 15%. The OECD Feb 2023 AG makes Excess Negative Tax Expense mandatory: exclude the negative tax from this year’s ETR (floor 0%), post Top-up % at 15%, and carry the amount into the next lock. Art. 4.1.5 (loss year) remains elective." },
   { n: "06", title: "Consistency blocks", body: "Dropping a five-year lock before it expires is a block (early revocation). Re-electing Art. 4.5 after a revocation is a block (GIR: re-elect = NO). Same-year on/off of a new five-year election is allowed until you open the next year." },
   { n: "07", title: "Compare", body: "GMT24 lines up prior lock vs current working package: elections carried / added / dropped, and calculation movement (GloBE, covered taxes, ETR, top-up). The engine posted the amounts — not the copilot." },
   { n: "08", title: "Advisor vs In-house", body: "The logic is the same. In-house: one MNE ledger. Advisor: one ledger per client engagement. Switching clients does not mix locks or elections. The lock is the group close the firm can review." },
@@ -192,6 +193,7 @@ export function rowsFromRestate(rows: Restate[]): YearJurRow[] {
     utpr: r.utpr,
     harbour: r.harbour,
     additionalCurrent: r.additionalCurrent,
+    enteCarryforward: r.enteCarryforward,
     tcshUsed: r.tcshUsed,
     tcshFailed: r.tcshFailed,
     tcshBarred: r.tcshBarred,
@@ -255,6 +257,17 @@ export function tcshPriorRows(lock: YearRecord | null, fy: string) {
     tcshUsed: r.tcshUsed,
     tcshFailed: r.tcshFailed,
   }));
+}
+
+export function entePriorRows(lock: YearRecord | null) {
+  if (!lock) return [];
+  return lock.rows
+    .filter((r) => (r.enteCarryforward ?? 0) > 0)
+    .map((r) => ({
+      blendKey: r.blendKey ?? r.iso,
+      iso: r.iso,
+      amount: r.enteCarryforward ?? 0,
+    }));
 }
 
 export function workingDiffers(lock: YearRecord | null, electionsOn: Record<string, boolean>, sbieClaim: Record<string, SbieMode>) {

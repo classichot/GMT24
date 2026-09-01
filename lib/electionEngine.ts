@@ -1,6 +1,7 @@
 import { money } from "./format";
 import type { AuditNode, JurCalc } from "./engine";
 import { allocateCollection, totals, uniqueIsoCalcs } from "./engine";
+import { applyEnte } from "./ente";
 import { shippingFactsForEntities } from "./shipping";
 import {
   ELECTIONS,
@@ -49,6 +50,7 @@ export type Restate = {
   utpr: number;
   harbour: boolean;
   additionalCurrent?: number;
+  enteCarryforward?: number;
   tcshUsed?: boolean;
   tcshFailed?: boolean;
   tcshBarred?: boolean;
@@ -108,21 +110,31 @@ function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: b
   const keepHarbour = c.exposure === "Safe harbour";
   const harbour = forceZero || keepHarbour;
   const globe = money(c.globeIncome + globeAdj);
-  const covered = c.coveredTax;
+  const ente = applyEnte({
+    globeIncome: globe,
+    coveredTax: c.coveredTaxRaw ?? c.coveredTax,
+    priorEnte: 0,
+  });
+  const covered = ente.coveredForEtr;
   const sbie = sbieMode === "none" ? 0 : sbieMode === "partial" ? money(c.sbie * 0.5) : c.sbie;
   const excess = money(Math.max(0, globe - sbie));
   const etrComputed = globe > 0;
   const etr = etrComputed ? covered / globe : 0;
   const rateTopUp = etrComputed ? money(Math.max(0, MIN - etr) * excess) : 0;
   let additionalCurrent = 0;
-  if (globe <= 0 && covered < 0 && !opts?.carry415) additionalCurrent = money(Math.abs(covered));
+  let enteCarryforward = ente.enteCarryforward;
+  if (globe <= 0 && (c.coveredTaxRaw ?? c.coveredTax) < 0 && opts?.carry415) {
+    enteCarryforward = money(Math.abs(c.coveredTaxRaw ?? c.coveredTax));
+  } else if (globe <= 0 && (c.coveredTaxRaw ?? c.coveredTax) < 0 && !opts?.carry415) {
+    additionalCurrent = money(Math.abs(c.coveredTaxRaw ?? c.coveredTax));
+  }
   const topUp = harbour ? 0 : money(rateTopUp + additionalCurrent);
   const pay = collect(c, topUp, harbour);
   const tcshUsed = Boolean(opts?.tcshElected && c.sh.outcome === "Pass" && c.iso !== "US");
   const tcshFailed = c.sh.tcshFailed || c.sh.outcome === "Fail";
   return {
     iso: c.iso, name: c.name, blendKey: c.blendKey, globe, covered, sbie, excess, etr, topUp, harbour, note, additionalCurrent,
-    tcshUsed, tcshFailed, tcshBarred: c.sh.barred, ...pay,
+    enteCarryforward, tcshUsed, tcshFailed, tcshBarred: c.sh.barred, ...pay,
   };
 }
 

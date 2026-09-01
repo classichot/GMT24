@@ -124,7 +124,7 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "01", title: "Start on the review guide", body: "Open the checklist. Progress tracks ingest, mapping, calculation anchors, trace logic and GIR preflight.", href: "/review-guide", hrefLabel: "Review guide" },
       { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load all 19 Aetherion FY2026 sources in one click.", href: "/data", hrefLabel: "Data Hub" },
       { n: "03", title: "Approve the FX mapping", body: "Account 830010 is held at 62% confidence. Approve it to post the Art. 3.2 delta and rerun ETR.", href: "/mapping", hrefLabel: "Mapping" },
-      { n: "04", title: "Verify anchors", body: "Group top-up ~$19.2M. Thailand ETR ~11.02%. Ireland largest top-up ~$12.6M. Click amounts for audit trail.", href: "/overview", hrefLabel: "Dashboard" },
+      { n: "04", title: "Verify anchors", body: "Group top-up ~$19.1M after Hong Kong ENTE. Thailand ETR ~11.02%. Ireland largest top-up ~$12.6M. Click amounts for audit trail.", href: "/overview", hrefLabel: "Dashboard" },
       { n: "05", title: "Trace collection & GIR", body: "UTPR Art. 2.6 keys on Allocation. Art. 4.3 on Covered taxes. Preflight GIR on Compliance.", href: "/allocation", hrefLabel: "Allocation" },
       { n: "06", title: "Run AI reviewer & lock", body: "Re-run second-level review on Issues. Approve snapshot on Approvals when satisfied.", href: "/issues", hrefLabel: "Issues" },
     ],

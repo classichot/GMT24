@@ -26,13 +26,13 @@ const METHOD = [
   {
     n: "03",
     title: "Divide by Net GloBE Income",
-    body: "Denominator is the positive Net GloBE Income of the jurisdiction (GloBE income of profit CEs less GloBE losses of loss CEs). SBIE does not reduce this figure. If Net GloBE Income is zero or negative, no ETR is computed. If Net GloBE Income is positive and Adjusted Covered Taxes are negative, ETR is negative and Top-up % exceeds 15%.",
+    body: "Denominator is the positive Net GloBE Income of the jurisdiction (GloBE income of profit CEs less GloBE losses of loss CEs). SBIE does not reduce this figure. If Net GloBE Income is zero or negative, no ETR is computed. If Net GloBE Income is positive and Adjusted Covered Taxes are negative, Excess Negative Tax Expense is mandatory (OECD AG Feb 2023): ETR floors at 0% so Top-up % cannot exceed 15%.",
     refs: ["Art. 5.1.1", "Art. 5.1.2", "Art. 3.1"],
   },
   {
     n: "04",
     title: "Compare to 15%",
-    body: "If ETR is below the Minimum Rate, Top-up Tax Percentage = Minimum Rate − ETR. That rate is applied to Excess Profit (GloBE income after SBIE), not to GloBE income. ETR itself is unchanged by the carve-out.",
+    body: "If ETR is below the Minimum Rate, Top-up Tax Percentage = Minimum Rate − ETR. That rate is applied to Excess Profit (GloBE income after SBIE), not to GloBE income. ETR itself is unchanged by the carve-out. 15% is the Minimum Rate, not a statutory cap you apply after a negative ETR — ENTE stops the negative ETR from arising.",
     refs: ["Art. 5.2.1", "Art. 5.2.2", "OECD-GloBE-15"],
   },
 ];
@@ -41,10 +41,10 @@ const REFERENCES = [
   { cite: "OECD (2021)", work: "Tax Challenges Arising from the Digitalisation of the Economy – Global Anti-Base Erosion Model Rules (Pillar Two)", loc: "Chapter 5, Art. 5.1 Determination of Effective Tax Rate", href: "/rulebook" },
   { cite: "OECD (2026)", work: "Consolidated Commentary to the GloBE Model Rules", loc: "Arts. 5.1–5.2", href: "/rulebook" },
   { cite: "Art. 5.1.1", work: "ETR = Σ Adjusted Covered Taxes of CEs in the jurisdiction ÷ Net GloBE Income of the jurisdiction", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
-  { cite: "Art. 5.1.2", work: "Net GloBE Income = GloBE Income of profit CEs − GloBE Losses of loss CEs. No ETR if net ≤ 0. Positive net + negative Covered Taxes → negative ETR (Hong Kong on this snapshot)", loc: "OECD-GloBE-15 v2026.1", href: "/etr?iso=HK" },
+  { cite: "Art. 5.1.2", work: "Net GloBE Income = GloBE Income of profit CEs − GloBE Losses of loss CEs. No ETR if net ≤ 0. Positive net + negative Covered Taxes → mandatory ENTE (Hong Kong on this snapshot)", loc: "OECD-ENTE-521 v2023.2", href: "/etr?iso=HK" },
   { cite: "Art. 4.1.1", work: "Adjusted Covered Taxes — numerator of the ETR", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 4.4.1", work: "Deferred tax recast at the Minimum Rate before it enters Covered Taxes", loc: "OECD-GloBE-15 v2026.1", href: "/covered-taxes" },
-  { cite: "Art. 5.2.1", work: "Top-up Tax Percentage = max(0, Minimum Rate − ETR)", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
+  { cite: "Art. 5.2.1", work: "Top-up Tax Percentage = max(0, Minimum Rate − ETR). Cannot exceed 15% once Excess Negative Tax Expense is applied", loc: "OECD-ENTE-521 v2023.2", href: "/top-up" },
   { cite: "Art. 5.2.2", work: "Excess Profit = Net GloBE Income − SBIE — the base the top-up percentage multiplies", loc: "OECD-SBIE-2026 v2026.1", href: "/sbie" },
   { cite: "Art. 5.2.3", work: "Jurisdictional Top-up Tax = (Top-up Tax Percentage × Excess Profit) + Additional Current Top-up Tax − QDMTT", loc: "OECD-GloBE-15 v2026.1", href: "/top-up" },
   { cite: "Art. 5.1.3", work: "MOCE / MOSG — ETR computed separately from other CEs located in the same jurisdiction when UPE ownership ≤ 30%", loc: "OECD-MOCE-513 v2026.1", href: "/entities" },
@@ -66,6 +66,14 @@ function Inner() {
     <div>
       <FlowBar iso={sel.iso} />
 
+      {sel.enteOriginated > 0 && (
+        <div className="callout" style={{ marginBottom: 16 }}>
+          <strong>Excess Negative Tax Expense — mandatory.</strong> {sel.name} has positive Net GloBE Income and negative Adjusted Covered Taxes ({sel.coveredTaxRaw < 0 ? `raw ${pct(sel.coveredTaxRaw / sel.globeIncome, 2)} ETR` : "negative ACT"}). Bare Art. 5.2.1 would be {min} − (negative ETR) and exceed {min}. OECD Feb 2023 AG excludes the negative tax from this year’s numerator, floors ETR at 0%, holds Top-up % at {min}, and carries {sel.enteOriginated.toLocaleString("en-GB")} forward. 15% is the Minimum Rate, not a rate you add on top of a negative ETR.{" "}
+          <Link href="/covered-taxes">Covered taxes</Link>
+          {" · "}
+          <Link href="/top-up">Top-up</Link>
+        </div>
+      )}
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <strong>ETR method.</strong> {sel.name}: Adjusted Covered Taxes over Net GloBE Income for this blend ({sel.blendKind}). Majority CEs, MOCE/MOSG and JV Groups are not mixed. Formula:{" "}
@@ -155,8 +163,35 @@ function Inner() {
                 Adjusted Covered Taxes
                 <div className="text-muted" style={{ fontSize: 12 }}>Numerator · <Link href="/covered-taxes">Art. 4.1.1</Link> / <Link href="/rulebook">Art. 4.4.1</Link></div>
               </span>
-              <Amount n={sel.coveredTax} audit={sel.trace.covered} />
+              <Amount n={sel.coveredTaxRaw} audit={sel.trace.covered} />
             </div>
+            {sel.enteOriginated > 0 && (
+              <div className="wf-row">
+                <span>
+                  − Excess Negative Tax Expense
+                  <div className="text-muted" style={{ fontSize: 12 }}>Mandatory Art. 5.2.1 · OECD AG Feb 2023 · carried forward {sel.enteCarryforward.toLocaleString("en-GB")}</div>
+                </span>
+                <Amount n={-sel.enteOriginated} audit={sel.audit.children?.find((n) => n.id.endsWith("-ente"))} />
+              </div>
+            )}
+            {sel.enteApplied > 0 && (
+              <div className="wf-row">
+                <span>
+                  − Prior ENTE carry-forward used
+                  <div className="text-muted" style={{ fontSize: 12 }}>Reduces this year’s Adjusted Covered Taxes · remaining {sel.enteCarryforward.toLocaleString("en-GB")}</div>
+                </span>
+                <Amount n={-sel.enteApplied} audit={sel.audit.children?.find((n) => n.id.endsWith("-ente"))} />
+              </div>
+            )}
+            {(sel.enteOriginated > 0 || sel.enteApplied > 0) && (
+              <div className="wf-row">
+                <span>
+                  Adjusted Covered Taxes for ETR
+                  <div className="text-muted" style={{ fontSize: 12 }}>After ENTE · Art. 5.1.1 numerator</div>
+                </span>
+                <Amount n={sel.coveredTax} audit={sel.trace.etr} />
+              </div>
+            )}
             <div className="wf-row">
               <span>
                 ÷ Net GloBE Income

@@ -16,6 +16,15 @@ export default function TopUpPage() {
   return (
     <div>
       <FlowBar iso={th.iso} />
+      {calcs.some((c) => c.enteOriginated > 0) && (
+        <div className="callout" style={{ marginBottom: 16 }}>
+          <strong>Top-up % cannot exceed 15%.</strong> 15% is the Minimum Rate (Art. 5.2.1), not a rate stacked on a negative ETR. Where Adjusted Covered Taxes are negative and Net GloBE Income is positive, Excess Negative Tax Expense is mandatory — ETR floors at 0% and Top-up % stays at 15%.{" "}
+          {calcs.filter((c) => c.enteOriginated > 0).map((c) => (
+            <span key={c.blendKey}>{c.name} carry-forward {c.enteCarryforward.toLocaleString("en-GB")}. </span>
+          ))}
+          <Link href="/etr?iso=HK">Hong Kong ETR</Link>
+        </div>
+      )}
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <strong>{th.name} top-up tax: </strong>

@@ -251,12 +251,23 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     },
   },
   {
+    match: /ente|excess negative tax|30% top.?up|top.?up (tax )?(percentage|%) (exceeds|above|over)|max(imum)? rate under pillar|why.{0,60}30%|hong kong.{0,40}(top.?up|etr|negative)|negative (covered )?tax.{0,40}30/i,
+    answer: () => {
+      const hk = calcForIso("HK");
+      return {
+        role: "assistant",
+        text: `15% is the Pillar Two Minimum Rate — the ETR target — not a cap you apply after a negative ETR.\n\nBare Art. 5.2.1: Top-up % = 15% − ETR. If Covered Taxes are negative and GloBE Income is positive, ETR is negative and Top-up % exceeds 15% (Hong Kong teaching facts: −$120k ÷ $800k = −15%, then 15% − (−15%) = 30%).\n\nOECD Administrative Guidance (February 2023) makes Excess Negative Tax Expense mandatory in that case. GMT24 excludes the negative tax from this year’s numerator, floors ETR at 0%, holds Top-up % at 15%, and carries the negative tax forward.\n\nHong Kong on this snapshot: raw Covered Taxes ${hk ? eur(hk.coveredTaxRaw) : "n/a"} · ACT for ETR ${hk ? eur(hk.coveredTax) : "n/a"} · ETR ${hk ? pct(hk.etr, 2) : "n/a"} · Top-up % ${hk ? pct(hk.topUpRate, 2) : "n/a"} · ENTE carry-forward ${hk ? eur(hk.enteCarryforward) : "n/a"}.\n\nArt. 4.1.5 is different — that is a GloBE Loss year (Luxembourg). ENTE is elective there.`,
+        cites: [{ label: "Hong Kong ETR", href: "/etr?iso=HK" }, { label: "Top-up", href: "/top-up" }, { label: "Covered taxes", href: "/covered-taxes" }],
+      };
+    },
+  },
+  {
     match: /4\.1\.5|additional current|acttt|negative tax expense/i,
     answer: () => {
       const lu = calcForIso("LU");
       return {
         role: "assistant",
-        text: `Art. 5.2.3: Jurisdictional Top-up = (Top-up % × Excess Profit) + Additional Current Top-up Tax − QDMTT.\n\nArt. 4.1.5: when Net GloBE Income is a loss and Adjusted Covered Taxes are negative, the negative tax is Additional Current Top-up Tax unless OECD_4.1.5 is elected (carry-forward).\n\nLuxembourg on this snapshot: GloBE ${lu ? eur(lu.globeIncome) : "n/a"} · Covered taxes ${lu ? eur(lu.coveredTax) : "n/a"} · ACTTT ${lu ? eur(lu.additionalCurrentTopUp) : "n/a"} · collected ${lu?.collection.payer ?? "—"}.\n\nArt. 5.1.2 is different: positive Net GloBE Income and negative Covered Taxes produce a negative ETR and Top-up % above 15% (Hong Kong on this snapshot). That is not an Art. 4.1.5 amount.`,
+        text: `Art. 5.2.3: Jurisdictional Top-up = (Top-up % × Excess Profit) + Additional Current Top-up Tax − QDMTT.\n\nArt. 4.1.5: when Net GloBE Income is a loss and Adjusted Covered Taxes are negative, the negative tax is Additional Current Top-up Tax unless OECD_4.1.5 is elected (carry-forward).\n\nLuxembourg on this snapshot: GloBE ${lu ? eur(lu.globeIncome) : "n/a"} · Covered taxes ${lu ? eur(lu.coveredTax) : "n/a"} · ACTTT ${lu ? eur(lu.additionalCurrentTopUp) : "n/a"} · collected ${lu?.collection.payer ?? "—"}.\n\nHong Kong is not Art. 4.1.5. Positive GloBE + negative Covered Taxes → mandatory Excess Negative Tax Expense so Top-up % cannot exceed 15%.`,
         cites: [{ label: "Luxembourg ETR", href: "/etr?iso=LU" }, { label: "Hong Kong ETR", href: "/etr?iso=HK" }, { label: "Top-up", href: "/top-up" }],
       };
     },
@@ -392,6 +403,7 @@ export const SUGGESTIONS = [
   "Which data is missing from Singapore?",
   "How does the entity test treat MOCE and POPE?",
   "Where is Additional Current Top-up Tax?",
+  "Why is Hong Kong top-up 30%?",
   "Does once out, always out bar Thailand next year?",
   "How does evidence history stay immutable?",
   "Show the OECD basis for this treatment.",

@@ -204,8 +204,20 @@ export const RULES: Rule[] = [
     effectiveTo: null,
     source: "GloBE Model Rules Art. 5.1 / Consolidated Commentary 2026",
     version: "2026.1",
-    formula: "top_up_rate = max(0, 0.15 - jurisdictional_etr)",
+    formula: "top_up_rate = max(0, 0.15 - jurisdictional_etr); ENTE floors ETR at 0% when ACT is negative",
     parameters: { minimumRate: 0.15 },
+    status: "active",
+  },
+  {
+    id: "OECD-ENTE-521",
+    jurisdiction: "OECD",
+    ruleType: "covered-tax",
+    effectiveFrom: "2023-02-02",
+    effectiveTo: null,
+    source: "OECD Administrative Guidance Feb 2023 — Excess Negative Tax Expense (Arts. 4.1.5 and 5.2.1)",
+    version: "2023.2",
+    formula: "if GloBE > 0 and ACT < 0: exclude ACT from ETR (ETR = 0%), Top-up % = 15%, carry |ACT| forward",
+    parameters: { minimumRate: 0.15, mandatory: true },
     status: "active",
   },
   {
@@ -775,9 +787,9 @@ export const ISSUES: Issue[] = [
   { id: "IQ-07", severity: "warn", area: "Deferred tax", entity: "TH-CE", jurisdiction: "Thailand", title: "FY2022 DTL approaching five-year recapture", detail: "GloBE DTL origin FY2022 is not a Recapture Exception Accrual and has not reversed. Article 4.4.4 deadline is the end of FY2027. Origin-year ETR must be recomputed if still outstanding.", owner: "N. Chai" },
   { id: "IQ-10", severity: "info", area: "Ownership", entity: "SG-JV", jurisdiction: "Singapore", title: "JV Group from Art. 10.1 facts", detail: "Keppel Logistics is equity-accounted in the UPE CFS and UPE ownership is 50% (≥ 50%). Entity test: Joint Venture (Art. 6.4 / 10.1) — separate ETR from Singapore HoldCo. The legal-entity type label is not the test.", owner: "Group Tax" },
   { id: "IQ-11", severity: "info", area: "Covered tax", entity: "LU-CE", jurisdiction: "Luxembourg", title: "Art. 4.1.5 — Net GloBE Loss and negative Covered Taxes", detail: "Luxembourg has a Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax equal to the negative tax. Elect OECD_4.1.5 to carry the amount forward instead.", owner: "Group Tax" },
-  { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.1.2 — positive Net GloBE Income, negative Covered Taxes", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. ETR is negative; Top-up Tax Percentage exceeds 15% (Art. 5.2.1). No ETR is computed when Net GloBE Income is zero or negative.", owner: "Group Tax" },
+  { id: "IQ-12", severity: "info", area: "ETR", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 5.2.1 — Excess Negative Tax Expense (mandatory)", detail: "Hong Kong Net GloBE Income is positive and Adjusted Covered Taxes are negative. Bare Art. 5.2.1 would show a negative ETR and Top-up % above 15% (15% − (−15%) = 30%). OECD Feb 2023 AG makes Excess Negative Tax Expense mandatory: exclude the negative tax from this year’s ETR (floor 0%), Top-up % = 15%, and carry the amount forward. Not Art. 4.1.5 — that needs a GloBE Loss.", owner: "Group Tax" },
   { id: "IQ-13", severity: "info", area: "GloBE income", entity: "SG-SHIP", jurisdiction: "Singapore", title: "Art. 3.4 — International Shipping Income excluded", detail: "SG020 posts Art. 3.4.2 ISI $5.0M and Art. 3.4.3 ancillary $3.2M. QAISI is capped at 50% of ISI ($2.5M); $0.7M excess ancillary stays in GloBE. Related Covered Taxes $0.75M and shipping payroll/assets come out of SBIE. Management test (Art. 3.4.5) is met in Singapore.", owner: "L. Tan" },
-  { id: "IQ-14", severity: "info", area: "GloBE income", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 3.4.5 — shipping not excluded", detail: "HK001 has feeder shipping income in FANIL. Strategic and commercial management of the ships is in Singapore, not Hong Kong. Art. 3.4.5 fails; ISI and ancillary stay in GloBE. Hong Kong Art. 5.1.2 teaching numbers are unchanged.", owner: "Group Tax" },
+  { id: "IQ-14", severity: "info", area: "GloBE income", entity: "HK-CE", jurisdiction: "Hong Kong", title: "Art. 3.4.5 — shipping not excluded", detail: "HK001 has feeder shipping income in FANIL. Strategic and commercial management of the ships is in Singapore, not Hong Kong. Art. 3.4.5 fails; ISI and ancillary stay in GloBE. Negative Covered Taxes still go through the mandatory Art. 5.2.1 ENTE path.", owner: "Group Tax" },
 ];
 
 export const INCENTIVES: Incentive[] = [
@@ -819,7 +831,7 @@ export const JURISDICTION_PACKS = [
   { iso: "MY", name: "Malaysia", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2025-01-01", qualified: "Transitional qualified", filing: "QDMTT", fx: "MYR", notes: "" },
   { iso: "ID", name: "Indonesia", iir: false, qdmtt: true, qdmttSH: true, utpr: false, from: "2025-01-01", qualified: "Transitional qualified QDMTT", filing: "QDMTT", fx: "IDR", notes: "" },
   { iso: "LU", name: "Luxembourg", iir: true, qdmtt: true, qdmttSH: true, utpr: true, from: "2024-01-01", qualified: "Transitional qualified", filing: "QDMTT + GIR", fx: "EUR", notes: "Art. 4.1.5 teaching case — Net GloBE Loss and negative Covered Taxes." },
-  { iso: "HK", name: "Hong Kong", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "HKD", notes: "Art. 5.1.2 teaching case — positive Net GloBE Income and negative Covered Taxes. Residual to JP IIR. Art. 3.4.5 fail: feeder shipping in FANIL is not excluded (ships managed from Singapore)." },
+  { iso: "HK", name: "Hong Kong", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "Not on Central Record (demo)", filing: "Notification only", fx: "HKD", notes: "Art. 5.2.1 ENTE teaching case — positive Net GloBE Income and negative Covered Taxes. Mandatory Excess Negative Tax Expense floors ETR at 0% so Top-up % is 15%. Residual to JP IIR. Art. 3.4.5 fail: feeder shipping in FANIL is not excluded (ships managed from Singapore)." },
   { iso: "XX", name: "Stateless", iir: false, qdmtt: false, qdmttSH: false, utpr: false, from: "—", qualified: "n/a", filing: "Allocated with UPE IIR / UTPR", fx: "USD", notes: "Each Stateless CE is its own jurisdiction (Art. 10.3.4)." },
 ];
 

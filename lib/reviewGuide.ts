@@ -77,6 +77,7 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
   const th = ctx.calcs.find((c) => c.iso === "TH");
   const ie = ctx.calcs.find((c) => c.iso === "IE");
   const vn = ctx.calcs.find((c) => c.iso === "VN");
+  const hk = ctx.calcs.find((c) => c.iso === "HK");
   const autoApproved = ACCOUNTS.filter((a) => a.approved).length;
 
   return [
@@ -109,9 +110,9 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
       hint: "Dashboard headline · engine GMT24-CALC 2026.2",
       href: "/overview",
       hrefLabel: "Dashboard",
-      ok: near(t.topUp, 19_218_798),
+      ok: near(t.topUp, 19_102_335),
       actual: eur(t.topUp, true),
-      expected: eur(19_218_798, true),
+      expected: eur(19_102_335, true),
     },
     {
       id: "th-etr",
@@ -145,6 +146,17 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
       ok: ie != null && near(ie.jurisdictionalTopUp, 12_629_581),
       actual: ie ? eur(ie.jurisdictionalTopUp, true) : "—",
       expected: eur(12_629_581, true),
+    },
+    {
+      id: "hk-ente",
+      phase: "calc",
+      title: "Hong Kong ENTE (not 30% Top-up %)",
+      hint: "OECD AG Feb 2023 — Excess Negative Tax Expense is mandatory; Top-up % stays at 15%",
+      href: "/etr?iso=HK",
+      hrefLabel: "Hong Kong ETR",
+      ok: hk != null && hk.topUpRate <= 0.15001 && hk.etr >= 0 && hk.enteOriginated > 0,
+      actual: hk ? `${pct(hk.topUpRate, 2)} · ETR ${pct(hk.etr, 2)} · CF ${eur(hk.enteCarryforward, true)}` : "—",
+      expected: "15.00% · ETR 0.00% · CF $120k",
     },
     {
       id: "vn-gap",
