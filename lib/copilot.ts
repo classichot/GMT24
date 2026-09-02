@@ -47,7 +47,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /host desk|\bbhd\b|demo (invite|link)|review link|mint (a )?link/i,
     answer: () => ({
       role: "assistant",
-      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, set days (1–14, default 3), Generate, then send only that URL.\n\nThe expiry is signed into /review/{token}, so a recipient on another device can open Aetherion until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
+      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, set days (1–30, default 3), Generate, then send only that URL.\n\nThe expiry is signed into /review/{token}, so a recipient on another device can open Aetherion until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
       cites: [
         { label: "Host desk", href: "/host" },
         { label: "Approvals", href: "/approvals" },

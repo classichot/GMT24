@@ -6,7 +6,7 @@ import type { ProductMode } from "./model";
  */
 export const DEFAULT_DAYS = 3;
 export const MIN_DAYS = 1;
-export const MAX_DAYS = 14;
+export const MAX_DAYS = 30;
 export const INVITE_EPOCH = 1;
 export const HOST_PIN = "7L-host";
 

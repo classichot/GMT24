@@ -111,7 +111,7 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "02", title: "Trace every number", body: "Open the audit trail from any amount. Rule IDs go to the rulebook; source files go to Data Hub.", href: "/audit", hrefLabel: "Audit trail" },
       { n: "03", title: "Read the chronicle", body: "Evidence history keeps documents, mapping/election changes, engine snapshots, user actions and comments in time order. Each row hashes the last. Immutability is on by default; turn it off in Settings if you need to purge a working log.", href: "/evidence-history", hrefLabel: "Evidence history" },
       { n: "04", title: "Approve the snapshot", body: "Return or approve. Approval is remembered on the filing matrix.", href: "/approvals", hrefLabel: "Approvals" },
-      { n: "05", title: "Mint a host desk link", body: "7L only. Generate a signed demo URL with 1–14 day life. Recipients open /review/{token} on another device until expiry. Do not put the host key on public login.", href: "/host", hrefLabel: "Host desk" },
+      { n: "05", title: "Mint a host desk link", body: "7L only. Generate a signed demo URL with 1–30 day life. Recipients open /review/{token} on another device until expiry. Do not put the host key on public login.", href: "/host", hrefLabel: "Host desk" },
     ],
   },
   {
