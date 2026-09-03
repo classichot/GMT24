@@ -110,9 +110,9 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
       hint: "Dashboard headline · engine GMT24-CALC 2026.2",
       href: "/overview",
       hrefLabel: "Dashboard",
-      ok: near(t.topUp, 19_102_335),
+      ok: near(t.topUp, 18_472_335),
       actual: eur(t.topUp, true),
-      expected: eur(19_102_335, true),
+      expected: eur(18_472_335, true),
     },
     {
       id: "th-etr",

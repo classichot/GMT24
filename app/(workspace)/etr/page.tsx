@@ -66,7 +66,7 @@ function Inner() {
     <div>
       <FlowBar iso={sel.iso} />
 
-      {sel.enteOriginated > 0 && (
+      {sel.globeIncome > 0 && sel.enteOriginated > 0 && (
         <div className="callout" style={{ marginBottom: 16 }}>
           <strong>Excess Negative Tax Expense — mandatory.</strong> {sel.name} has positive Net GloBE Income and negative Adjusted Covered Taxes ({sel.coveredTaxRaw < 0 ? `raw ${pct(sel.coveredTaxRaw / sel.globeIncome, 2)} ETR` : "negative ACT"}). Bare Art. 5.2.1 would be {min} − (negative ETR) and exceed {min}. OECD Feb 2023 AG excludes the negative tax from this year’s numerator, floors ETR at 0%, holds Top-up % at {min}, and carries {sel.enteOriginated.toLocaleString("en-GB")} forward. 15% is the Minimum Rate, not a rate you add on top of a negative ETR.{" "}
           <Link href="/covered-taxes">Covered taxes</Link>
@@ -145,7 +145,14 @@ function Inner() {
             <span className="text-muted">Art. 5.1.1</span>
           </div>
           <div className="panel-body waterfall">
-            <div className="wf-row"><span>Covered ÷ GloBE</span><Amount n={sel.etr} audit={sel.trace.etr} /></div>
+            <div className="wf-row">
+              <span>Covered ÷ GloBE</span>
+              {sel.globeIncome > 0 ? (
+                <Amount n={sel.etr} audit={sel.trace.etr} />
+              ) : (
+                <span className="text-muted">N/A (Loss)</span>
+              )}
+            </div>
             <div className="wf-row total"><span>Top-up</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
           </div>
         </div>
@@ -165,7 +172,7 @@ function Inner() {
               </span>
               <Amount n={sel.coveredTaxRaw} audit={sel.trace.covered} />
             </div>
-            {sel.enteOriginated > 0 && (
+            {sel.globeIncome > 0 && sel.enteOriginated > 0 && (
               <div className="wf-row">
                 <span>
                   − Excess Negative Tax Expense
@@ -174,7 +181,7 @@ function Inner() {
                 <Amount n={-sel.enteOriginated} audit={sel.audit.children?.find((n) => n.id.endsWith("-ente"))} />
               </div>
             )}
-            {sel.enteApplied > 0 && (
+            {sel.globeIncome > 0 && sel.enteApplied > 0 && (
               <div className="wf-row">
                 <span>
                   − Prior ENTE carry-forward used
@@ -183,7 +190,7 @@ function Inner() {
                 <Amount n={-sel.enteApplied} audit={sel.audit.children?.find((n) => n.id.endsWith("-ente"))} />
               </div>
             )}
-            {(sel.enteOriginated > 0 || sel.enteApplied > 0) && (
+            {sel.globeIncome > 0 && (sel.enteOriginated > 0 || sel.enteApplied > 0) && (
               <div className="wf-row">
                 <span>
                   Adjusted Covered Taxes for ETR
@@ -204,7 +211,11 @@ function Inner() {
                 Jurisdictional ETR
                 <div className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}><Link href="/rulebook">Art. 5.1.1</Link></div>
               </span>
-              <Amount n={sel.etr} audit={sel.trace.etr} />
+              {sel.globeIncome > 0 ? (
+                <Amount n={sel.etr} audit={sel.trace.etr} />
+              ) : (
+                <span className="text-muted">N/A (Loss)</span>
+              )}
             </div>
             <div className="wf-row">
               <span>
@@ -218,7 +229,11 @@ function Inner() {
                 Top-up Tax Percentage
                 <div className="text-muted" style={{ fontSize: 12 }}>max(0, {min} − ETR) · <Link href="/top-up">Art. 5.2.1</Link></div>
               </span>
-              <Amount n={sel.topUpRate} audit={sel.audit.children?.find((n) => n.id.endsWith("-rate"))} />
+              {sel.globeIncome > 0 ? (
+                <Amount n={sel.topUpRate} audit={sel.audit.children?.find((n) => n.id.endsWith("-rate"))} />
+              ) : (
+                <span className="text-muted">—</span>
+              )}
             </div>
             <div className="wf-row">
               <span>

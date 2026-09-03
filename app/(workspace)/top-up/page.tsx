@@ -16,10 +16,10 @@ export default function TopUpPage() {
   return (
     <div>
       <FlowBar iso={th.iso} />
-      {calcs.some((c) => c.enteOriginated > 0) && (
+      {calcs.some((c) => c.globeIncome > 0 && c.enteOriginated > 0) && (
         <div className="callout" style={{ marginBottom: 16 }}>
           <strong>Top-up % cannot exceed 15%.</strong> 15% is the Minimum Rate (Art. 5.2.1), not a rate stacked on a negative ETR. Where Adjusted Covered Taxes are negative and Net GloBE Income is positive, Excess Negative Tax Expense is mandatory — ETR floors at 0% and Top-up % stays at 15%.{" "}
-          {calcs.filter((c) => c.enteOriginated > 0).map((c) => (
+          {calcs.filter((c) => c.globeIncome > 0 && c.enteOriginated > 0).map((c) => (
             <span key={c.blendKey}>{c.name} carry-forward {c.enteCarryforward.toLocaleString("en-GB")}. </span>
           ))}
           <Link href="/etr?iso=HK">Hong Kong ETR</Link>
@@ -43,7 +43,7 @@ export default function TopUpPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Top-up</th>
+                <th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Less: QDMTT</th><th className="num">Top-up</th>
               </tr>
             </thead>
             <tbody>
@@ -52,12 +52,37 @@ export default function TopUpPage() {
                   <td>{c.name}</td>
                   <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                   <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
-                  <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
-                  <td className="num"><Amount n={c.topUpRate} audit={c.audit.children?.find((n) => n.id.endsWith("-rate"))} compact /></td>
-                  <td className="num"><Amount n={c.sbie} audit={c.trace.sbie} compact /></td>
-                  <td className="num"><Amount n={c.excess} audit={c.trace.excess} compact /></td>
+                  <td className="num">
+                    {c.globeIncome > 0 ? (
+                      <Amount n={c.etr} audit={c.trace.etr} compact />
+                    ) : (
+                      <span className="text-muted">N/A (Loss)</span>
+                    )}
+                  </td>
+                  <td className="num">
+                    {c.globeIncome > 0 ? (
+                      <Amount n={c.topUpRate} audit={c.audit.children?.find((n) => n.id.endsWith("-rate"))} compact />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="num">
+                    {c.globeIncome > 0 ? (
+                      <Amount n={c.sbie} audit={c.trace.sbie} compact />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="num">
+                    {(c.exposure !== "Safe harbour" && c.topUpRate > 0 && c.globeIncome > 0) ? (
+                      <Amount n={c.excess} audit={c.trace.excess} compact />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
                   <td className="num"><Amount n={c.additionalCurrentTopUp} audit={c.audit.children?.find((n) => n.id.endsWith("-acttt"))} compact /></td>
-                  <td className="num"><Amount n={c.jurisdictionalTopUp} audit={c.audit} compact /></td>
+                  <td className="num"><Amount n={c.collection.qdmtt} compact /></td>
+                  <td className="num"><Amount n={c.collection.iir + c.collection.utpr} compact /></td>
                 </tr>
               ))}
             </tbody>

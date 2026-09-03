@@ -609,28 +609,47 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const rateTopUp = money(topUpRate * excess);
     let additionalCurrentTopUp = 0;
     let actttReason = "No Additional Current Top-up Tax this year.";
+
+    // Excess Negative Tax Expense (ENTE) and Article 4.1.5 hinge on comparing:
+    // Expected Adjusted Covered Taxes Amount = Net GloBE Loss × 15%
+    // vs Actual Adjusted Covered Taxes (negative).
+    //
+    // If ACT is "lower than expected" (i.e., more negative), the difference becomes ACTTT = Expected − Actual.
+    let carry415 = false;
+    let enteOriginated = ente.enteOriginated;
+    let enteCarryforward = ente.enteCarryforward;
+    let enteReason = ente.reason;
     if (globeIncome <= 0 && coveredTaxRaw < 0) {
-      if (elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey)) {
+      carry415 = elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey);
+
+      const expectedCovered = money(globeIncome * MIN_RATE); // negative
+      const diff = money(Math.max(0, expectedCovered - coveredTaxRaw)); // positive ACTTT / ENTE amount
+
+      if (carry415) {
+        enteOriginated = diff;
+        enteCarryforward = money(enteCarryforward + enteOriginated);
+        enteReason = `Art. 4.1.5 carry-forward: Expected Adjusted Covered Taxes ${expectedCovered.toLocaleString("en-GB")} − Actual Adjusted Covered Taxes ${coveredTaxRaw.toLocaleString("en-GB")} = ENTE carry-forward ${diff.toLocaleString("en-GB")}.`;
         additionalCurrentTopUp = 0;
-        actttReason = `Art. 4.1.5 elected — Excess Negative Tax Expense ${Math.abs(coveredTaxRaw).toLocaleString("en-GB")} carried forward. No Additional Current Top-up this year.`;
+        actttReason = `Art. 4.1.5 elected — ENTE carry-forward ${diff.toLocaleString("en-GB")} instead of charging ACTTT this year.`;
       } else {
-        additionalCurrentTopUp = money(Math.abs(coveredTaxRaw));
-        actttReason = `Art. 4.1.5 — Net GloBE Loss and negative Adjusted Covered Taxes. Default: Additional Current Top-up Tax ${additionalCurrentTopUp.toLocaleString("en-GB")}. Elect OECD_4.1.5 to carry forward.`;
+        additionalCurrentTopUp = diff;
+        actttReason = `Art. 4.1.5 — Expected Adjusted Covered Taxes ${expectedCovered.toLocaleString("en-GB")} − Actual Adjusted Covered Taxes ${coveredTaxRaw.toLocaleString("en-GB")} = ACTTT ${diff.toLocaleString("en-GB")}. Elect OECD_4.1.5 to carry forward.`;
       }
     } else if (ente.mandatory521) {
       actttReason = ente.reason;
     }
-    let enteOriginated = ente.enteOriginated;
-    let enteCarryforward = ente.enteCarryforward;
-    if (globeIncome <= 0 && coveredTaxRaw < 0 && (elected(ctx, "OECD_4.1.5", iso) || elected(ctx, "OECD_4.1.5", blendKey))) {
-      enteOriginated = money(Math.abs(coveredTaxRaw));
-      enteCarryforward = money(ente.enteCarryforward + enteOriginated);
-    }
     const recap = recapturePostings().filter((p) => p.iso === iso);
     const recaptureActtt = money(recap.reduce((a, p) => a + p.acttt, 0));
     if (recaptureActtt > 0) {
-      additionalCurrentTopUp = money(additionalCurrentTopUp + recaptureActtt);
-      actttReason = `${actttReason} Art. 4.4.4 recapture ACTTT ${recaptureActtt.toLocaleString("en-GB")} posted into the year close.`;
+      if (carry415) {
+        enteCarryforward = money(enteCarryforward + recaptureActtt);
+        enteOriginated = money(enteOriginated + recaptureActtt);
+        enteReason = `Art. 4.4.4 recapture adds to ENTE carry-forward: +${recaptureActtt.toLocaleString("en-GB")}.`;
+        actttReason = `${actttReason} Art. 4.4.4 recapture ACTTT ${recaptureActtt.toLocaleString("en-GB")} posted into ENTE carry-forward.`;
+      } else {
+        additionalCurrentTopUp = money(additionalCurrentTopUp + recaptureActtt);
+        actttReason = `${actttReason} Art. 4.4.4 recapture ACTTT ${recaptureActtt.toLocaleString("en-GB")} posted into the year close.`;
+      }
     }
     let jurisdictionalTopUp = money(rateTopUp + additionalCurrentTopUp);
 
@@ -831,7 +850,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
           label: "Excess Negative Tax Expense",
           amount: enteCarryforward,
           kind: "formula",
-          detail: ente.reason,
+          detail: enteReason,
           ruleId: ente.mandatory521 || enteOriginated ? "OECD-ENTE-521" : "OECD-GloBE-15",
           ruleVersion: "2023.2",
         },
@@ -880,7 +899,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       enteOriginated,
       enteApplied: ente.enteApplied,
       enteCarryforward,
-      enteReason: ente.reason,
+      enteReason: enteReason,
       jurisdictionalTopUp,
       sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome, barred: bar.barred, tcshUsed, tcshFailed },
       exposure,

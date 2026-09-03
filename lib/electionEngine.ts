@@ -123,10 +123,15 @@ function restated(c: JurCalc, globeAdj: number, sbieMode: SbieMode, forceZero: b
   const rateTopUp = etrComputed ? money(Math.max(0, MIN - etr) * excess) : 0;
   let additionalCurrent = 0;
   let enteCarryforward = ente.enteCarryforward;
-  if (globe <= 0 && (c.coveredTaxRaw ?? c.coveredTax) < 0 && opts?.carry415) {
-    enteCarryforward = money(Math.abs(c.coveredTaxRaw ?? c.coveredTax));
-  } else if (globe <= 0 && (c.coveredTaxRaw ?? c.coveredTax) < 0 && !opts?.carry415) {
-    additionalCurrent = money(Math.abs(c.coveredTaxRaw ?? c.coveredTax));
+  const carry415 = Boolean(opts?.carry415);
+  if (globe <= 0 && (c.coveredTaxRaw ?? c.coveredTax) < 0) {
+    const expectedCovered = money(globe * MIN); // negative
+    const diff = money(Math.max(0, expectedCovered - (c.coveredTaxRaw ?? c.coveredTax))); // positive ACTTT / ENTE
+    if (carry415) {
+      enteCarryforward = money(enteCarryforward + diff);
+    } else {
+      additionalCurrent = diff;
+    }
   }
   const topUp = harbour ? 0 : money(rateTopUp + additionalCurrent);
   const pay = collect(c, topUp, harbour);
