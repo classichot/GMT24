@@ -7,6 +7,7 @@ import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { pickCalc, etrHref } from "@/lib/engine";
+import { BlendBadge } from "@/components/BlendBadge";
 
 export default function TopUpPage() {
   const { ask } = useStore();
@@ -49,7 +50,7 @@ export default function TopUpPage() {
             <tbody>
               {calcs.map((c) => (
                 <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
-                  <td>{c.name}</td>
+                  <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /></td>
                   <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                   <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
                   <td className="num">

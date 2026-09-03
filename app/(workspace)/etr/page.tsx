@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
+import { BlendBadge } from "@/components/BlendBadge";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { MIN_RATE, pickCalc, etrHref } from "@/lib/engine";
@@ -256,10 +257,16 @@ function Inner() {
               <tbody>
                 {calcs.map((c) => (
                   <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
-                    <td>{c.name}</td>
+                    <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /></td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
-                    <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
+                    <td className="num">
+                      {c.globeIncome > 0 ? (
+                        <Amount n={c.etr} audit={c.trace.etr} compact />
+                      ) : (
+                        <span className="text-muted">N/A (Loss)</span>
+                      )}
+                    </td>
                     <td>{c.exposure}</td>
                   </tr>
                 ))}
@@ -269,6 +276,80 @@ function Inner() {
         </div>
       </div>
 
+      {sel.enteCarryforward > 0 && (
+        <div className="panel" style={{ marginTop: 20 }}>
+          <div className="panel-head">
+            <h4>ENTE carry-forward — Year 2 proof</h4>
+            <Link href="/rulebook" className="tag tag-accent">OECD-ENTE-521 v2023.2</Link>
+          </div>
+          <div className="panel-body">
+            <p className="text-muted" style={{ marginTop: 0, fontSize: 13 }}>
+              The Excess Negative Tax Expense of{" "}
+              <strong>{sel.enteCarryforward.toLocaleString("en-GB")}</strong>{" "}
+              carried forward from this year reduces Adjusted Covered Taxes in the next profitable year for {sel.name}.
+              This prevents the permanent-difference benefit from being consumed twice.
+            </p>
+            <p className="text-muted" style={{ fontSize: 13 }}>
+              OECD AG Feb 2023, para. 21.5: <em>"In each subsequent Fiscal Year in which the MNE Group has positive GloBE Income and
+              Adjusted Covered Taxes for the jurisdiction, the MNE Group shall decrease (but not below zero) the
+              aggregate Adjusted Covered Taxes by the remaining balance of the Excess Negative Tax Expense Carry-forward."</em>
+            </p>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th className="num">Net GloBE Income</th>
+                    <th className="num">ACT (raw)</th>
+                    <th className="num">Less: ENTE carry-forward</th>
+                    <th className="num">ACT for ETR</th>
+                    <th className="num">ETR</th>
+                    <th className="num">Top-up %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Year 1 (this year)</td>
+                    <td className="num">{sel.globeIncome.toLocaleString("en-GB")}</td>
+                    <td className="num">{sel.coveredTaxRaw.toLocaleString("en-GB")}</td>
+                    <td className="num">—</td>
+                    <td className="num">{sel.coveredTax.toLocaleString("en-GB")}</td>
+                    <td className="num">{sel.globeIncome > 0 ? pct(sel.etr, 2) : "N/A (Loss)"}</td>
+                    <td className="num">{sel.globeIncome > 0 ? pct(sel.topUpRate, 2) : "—"}</td>
+                  </tr>
+                  {(() => {
+                    const yr2Globe = Math.max(0, Math.abs(sel.globeIncome));
+                    const yr2RawAct = Math.max(0, Math.round(yr2Globe * 0.15));
+                    const applied = Math.min(yr2RawAct, sel.enteCarryforward);
+                    const yr2Act = yr2RawAct - applied;
+                    const yr2Etr = yr2Globe > 0 ? yr2Act / yr2Globe : 0;
+                    const remaining = sel.enteCarryforward - applied;
+                    return (
+                      <tr style={{ background: "color-mix(in srgb, var(--color-accent-100) 60%, transparent)" }}>
+                        <td>Year 2 (illustrative)</td>
+                        <td className="num">{yr2Globe.toLocaleString("en-GB")}</td>
+                        <td className="num">{yr2RawAct.toLocaleString("en-GB")}</td>
+                        <td className="num" style={{ color: "var(--color-warn)" }}>
+                          −{applied.toLocaleString("en-GB")}{remaining > 0 ? ` (${remaining.toLocaleString("en-GB")} still to use)` : ""}
+                        </td>
+                        <td className="num">{yr2Act.toLocaleString("en-GB")}</td>
+                        <td className="num">{pct(yr2Etr, 2)}</td>
+                        <td className="num">{pct(Math.max(0, 0.15 - yr2Etr), 2)}</td>
+                      </tr>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
+              Year 2 figures are illustrative: GloBE income assumed equal to the absolute of Year 1 loss/balance; raw ACT assumed at 15%.
+              The actual reduction depends on the jurisdiction's real Year 2 numbers in the next locked year.
+              The carry-forward balance is stored in the Year record and propagated automatically on Lock &amp; Open.{" "}
+              <Link href="/years">Year record</Link>
+            </p>
+          </div>
+        </div>
+      )}
       <p className="text-muted" style={{ marginTop: 14, fontSize: 13 }}>
         SBIE changes Excess Profit, not the ETR. Jurisdictional top-up is (Top-up Tax Percentage × Excess Profit) + Additional Current Top-up Tax (<Link href="/top-up">Art. 5.2.3</Link>), then allocated QDMTT → POPE IIR → UPE IIR → UTPR.
         {" "}
