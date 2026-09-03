@@ -48,6 +48,16 @@ function sev(amount: number, floor?: XraySeverity): XraySeverity {
   return rank[floor] > rank[byAmount] ? floor : byAmount;
 }
 
+/**
+ * An evidence gap is not an anomaly. A carve-out with no register behind it is
+ * significant by default and only material when the carve-out itself is large,
+ * so the hard stop is reserved for detected misclassification risk and for the
+ * biggest unsupported balances rather than every missing file.
+ */
+function evidenceGapSev(amount: number): XraySeverity {
+  return Math.abs(amount) >= 2 * MATERIAL_AT ? "material" : "significant";
+}
+
 function ent(id: string): Entity | undefined {
   return ENTITIES.find((e) => e.id === id);
 }
@@ -285,7 +295,7 @@ export function payrollXray(): XrayFinding[] {
       id: `XR-PAY-LOC-${e.id}`,
       engine: "payroll",
       area: "Payroll SBIE",
-      severity: sev(carve),
+      severity: evidenceGapSev(carve),
       title: "Payroll carve-out claimed with no work-location evidence",
       detected: `${e.code} claims ${carve.toLocaleString("en-GB")} of payroll carve-out on ${f.payrollEligible.toLocaleString("en-GB")} of eligible payroll, but no payroll register has been received for this entity.`,
       missing: "Employee-level payroll with the jurisdiction of work, and a local-work percentage for anyone working partly outside the jurisdiction.",
@@ -434,7 +444,7 @@ export function assetXray(): XrayFinding[] {
       id: `XR-AST-REG-${e.id}`,
       engine: "asset",
       area: "Tangible asset SBIE",
-      severity: sev(carve),
+      severity: evidenceGapSev(carve),
       title: "Asset carve-out claimed with no carrying-value bridge",
       detected: `${e.code} claims ${carve.toLocaleString("en-GB")} of asset carve-out on ${f.tangibleEligible.toLocaleString("en-GB")} of eligible tangible assets, with no fixed-asset register received to bridge the consolidated carrying value to the eligible base.`,
       missing: "Asset-level opening and closing carrying values, exclusion of ineligible categories, and the location of each asset.",
@@ -717,11 +727,14 @@ export function deferredXray(): XrayFinding[] {
   const out: XrayFinding[] = [];
   const register = deferredTaxRegister();
 
-  for (const p of register.filter((r) => r.id.startsWith("DT-PLUG"))) {
+  const plugs = register
+    .filter((r) => r.id.startsWith("DT-PLUG"))
+    .map((p) => ({ p, amount: Math.abs(enrich(p).pnl) }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3);
+  for (const { p, amount } of plugs) {
     const e = ent(p.entityId);
     if (!e) continue;
-    const v = enrich(p);
-    const amount = Math.abs(v.pnl);
     out.push({
       id: `XR-DT-PLUG-${p.entityId}`,
       engine: "deferred",
@@ -852,10 +865,12 @@ export function deferredXray(): XrayFinding[] {
     });
   }
 
-  for (const f of FINANCIALS) {
-    const e = ent(f.entityId);
-    if (!e || f.deferredTax === 0) continue;
-    if (f.priorDta !== 0 || f.priorDtl !== 0) continue;
+  const noOpening = FINANCIALS
+    .filter((f) => ent(f.entityId) && f.deferredTax !== 0 && f.priorDta === 0 && f.priorDtl === 0)
+    .sort((a, b) => Math.abs(b.deferredTax) - Math.abs(a.deferredTax))
+    .slice(0, 2);
+  for (const f of noOpening) {
+    const e = ent(f.entityId)!;
     const amount = Math.abs(f.deferredTax);
     out.push({
       id: `XR-DT-OPEN-${e.id}`,
@@ -1200,8 +1215,7 @@ export function entityXray(): XrayFinding[] {
       e.type === "Tax-transparent"
       || e.type === "Stateless"
       || e.type === "Investment"
-      || (e.equityMethod === true)
-      || e.completeness < 80,
+      || e.equityMethod === true,
   );
 
   return targets.map((e) => {
