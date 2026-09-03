@@ -56,6 +56,14 @@ import {
   writeIngestStatus,
   type IngestStatus,
 } from "./ingestSim";
+import { runXray } from "./xrayEngines";
+import {
+  activeQuestions,
+  emptyResponse,
+  missingEvidence,
+  type XrayMode,
+  type XrayState,
+} from "./xray";
 
 type Store = {
   ready: boolean;
@@ -119,6 +127,13 @@ type Store = {
   loadDemoPack: () => Promise<void>;
   resetIngest: () => void;
   noteFileDrop: (name: string) => void;
+  xray: XrayState;
+  xrayMode: XrayMode;
+  setXrayMode: (m: XrayMode) => void;
+  answerXray: (findingId: string, questionId: string, value: string) => void;
+  attachXrayEvidence: (findingId: string, kind: string) => void;
+  signXray: (findingId: string, role: "preparer" | "reviewer") => string | null;
+  resetXray: () => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -126,6 +141,18 @@ const Ctx = createContext<Store | null>(null);
 function loadApprovedMaps(groupId: string): Record<string, boolean> {
   try {
     return JSON.parse(localStorage.getItem(`gmt24_maps_${groupId}`) ?? "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function xrayKey(groupId: string) {
+  return `gmt24_xray_${groupId}`;
+}
+
+function loadXray(groupId: string): XrayState {
+  try {
+    return JSON.parse(localStorage.getItem(xrayKey(groupId)) ?? "{}") as XrayState;
   } catch {
     return {};
   }
@@ -160,6 +187,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [historyImmutable, setHistoryImmutableState] = useState(true);
   const [ingestStatus, setIngestStatus] = useState<IngestStatus>("ready");
   const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
+  const [xray, setXray] = useState<XrayState>({});
+  const [xrayMode, setXrayModeState] = useState<XrayMode>("corporate");
   const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
@@ -210,6 +239,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIngestStatus(storedIngest ?? defaultIngestStatus(startGroup, invite));
     setReady(true);
   }, [applyLedger]);
+
+  useEffect(() => {
+    setXray(loadXray(groupId));
+    const m = localStorage.getItem("gmt24_xray_mode");
+    if (m === "rd" || m === "corporate") setXrayModeState(m);
+  }, [groupId]);
 
   const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
     const stored = readIngestStatus(gid);
@@ -613,6 +648,100 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     flash("Ingest reset — load the demo pack again");
   }, [groupId, flash]);
 
+  const persistXray = useCallback((next: XrayState) => {
+    setXray(next);
+    localStorage.setItem(xrayKey(groupId), JSON.stringify(next));
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
+  }, [groupId]);
+
+  const setXrayMode = useCallback((m: XrayMode) => {
+    setXrayModeState(m);
+    localStorage.setItem("gmt24_xray_mode", m);
+  }, []);
+
+  const answerXray = useCallback((findingId: string, questionId: string, value: string) => {
+    const finding = runXray({ electionsOn }).find((f) => f.id === findingId);
+    const prev = xray[findingId] ?? emptyResponse();
+    const answers = { ...prev.answers, [questionId]: value };
+    // A changed answer can retire dependent questions — drop their stale responses
+    // so the confirmation cannot be completed on facts that no longer apply.
+    if (finding) {
+      const live = new Set(activeQuestions(finding, answers).map((q) => q.id));
+      for (const k of Object.keys(answers)) if (!live.has(k)) delete answers[k];
+    }
+    persistXray({
+      ...xray,
+      [findingId]: { ...prev, answers, preparer: null, reviewer: null, at: "" },
+    });
+    const q = finding?.questions.find((x) => x.id === questionId);
+    appendHistory({
+      kind: "change",
+      title: `X-Ray confirmation · ${finding?.title ?? findingId}`,
+      detail: `${q?.prompt ?? questionId} → ${q?.options.find((o) => o.value === value)?.label ?? value}. Approvals reset for re-review.`,
+      href: "/xray/confirm",
+      ref: findingId,
+    });
+  }, [xray, electionsOn, persistXray, appendHistory]);
+
+  const attachXrayEvidence = useCallback((findingId: string, kind: string) => {
+    const prev = xray[findingId] ?? emptyResponse();
+    if (prev.evidence.includes(kind)) return;
+    persistXray({
+      ...xray,
+      [findingId]: { ...prev, evidence: [...prev.evidence, kind], reviewer: null },
+    });
+    appendHistory({
+      kind: "doc",
+      title: `X-Ray evidence attached · ${kind}`,
+      detail: `Validated against ${findingId}. Reviewer approval reset.`,
+      href: "/xray/confirm",
+      ref: findingId,
+    });
+  }, [xray, persistXray, appendHistory]);
+
+  /**
+   * Signing is gated, not advisory. A preparer cannot sign an item whose active
+   * questions are unanswered or whose required evidence is absent, and a reviewer
+   * cannot sign ahead of the preparer.
+   */
+  const signXray = useCallback((findingId: string, role: "preparer" | "reviewer") => {
+    const finding = runXray({ electionsOn }).find((f) => f.id === findingId);
+    if (!finding) return "Finding not found on this snapshot.";
+    const prev = xray[findingId] ?? emptyResponse();
+    const open = activeQuestions(finding, prev.answers).filter((q) => !prev.answers[q.id]);
+    if (open.length) return `${open.length} question${open.length === 1 ? "" : "s"} still unanswered — ${open[0].dept} must respond first.`;
+    const missing = missingEvidence(finding, prev);
+    if (missing.length) return `Evidence missing — attach ${missing.join(", ")} before signing.`;
+    const actor = actorNow();
+    if (role === "reviewer" && !prev.preparer) return "Preparer must sign before reviewer approval.";
+    if (role === "reviewer" && prev.preparer === actor.name) {
+      return "Preparer and reviewer must be different people — switch operating mode to review this item.";
+    }
+    persistXray({
+      ...xray,
+      [findingId]: { ...prev, [role]: actor.name, at: new Date().toISOString() },
+    });
+    appendHistory({
+      kind: "action",
+      title: `X-Ray ${role} approval · ${finding.title}`,
+      detail: `${finding.jurisdiction} · ${finding.article} · ${actor.name} (${actor.role}) signed the confirmation.`,
+      href: "/xray/confirm",
+      ref: findingId,
+    });
+    return null;
+  }, [xray, electionsOn, persistXray, appendHistory, actorNow]);
+
+  const resetXray = useCallback(() => {
+    persistXray({});
+    appendHistory({
+      kind: "change",
+      title: "X-Ray confirmations cleared",
+      detail: "All confirmations, evidence links and approvals reset to detection state.",
+      href: "/xray",
+      ref: "reset",
+    });
+  }, [persistXray, appendHistory]);
+
   const noteFileDrop = useCallback((name: string) => {
     appendHistory({
       kind: "doc",
@@ -682,8 +811,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loadDemoPack,
       resetIngest,
       noteFileDrop,
+      xray,
+      xrayMode,
+      setXrayMode,
+      answerXray,
+      attachXrayEvidence,
+      signXray,
+      resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, xray, xrayMode, setXrayMode, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -19,6 +19,7 @@ import {
   Map,
   Menu,
   MessageSquare,
+  ScanLine,
   Scale,
   Settings,
   Shield,
@@ -36,6 +37,7 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import { useCalc } from "@/lib/useCalc";
+import { useXray } from "@/lib/useXray";
 import { PLAYBOOKS } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
@@ -61,6 +63,10 @@ const NAV = [
     { href: "/quality", label: "Data quality", icon: Database },
     { href: "/requests", label: "Data requests", icon: FileText },
     { href: "/playbook/data", label: "Playbook", icon: ClipboardList },
+  ]},
+  { group: "Assurance", items: [
+    { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine },
+    { href: "/xray/confirm", label: "Confirmations", icon: ClipboardList },
   ]},
   { group: "Pillar Two", items: [
     { href: "/scope", label: "Scope", icon: Scale },
@@ -147,6 +153,8 @@ const TITLES: Record<string, [string, string]> = {
   "/mapping": ["Killer feature", "AI Smart Mapping"],
   "/quality": ["Data Engine", "Readiness & validation"],
   "/requests": ["Data Engine", "AI Data Gap Hunter"],
+  "/xray": ["Killer feature", "Pillar Two X-Ray"],
+  "/xray/confirm": ["Pillar Two X-Ray", "Smart confirmation workflow"],
   "/scope": ["Pillar Two", "Scope engine"],
   "/safe-harbours": ["Killer feature", "Safe Harbour Navigator"],
   "/globe-income": ["Pillar Two", "GloBE income"],
@@ -191,6 +199,7 @@ const TITLES: Record<string, [string, string]> = {
 
 function isActive(path: string, href: string) {
   if (href === "/thailand") return path === "/thailand";
+  if (href === "/xray") return path === "/xray";
   return path === href || path.startsWith(href + "/");
 }
 
@@ -200,6 +209,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const { t } = useCalc();
+  const { stop } = useXray();
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
 
@@ -305,6 +315,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
             <Link href="/review-guide" className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>Review guide</Link>
           </div>
+        )}
+        {stop.blocked && (
+          <Link
+            href="/xray"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "color-mix(in srgb, var(--color-hot) 16%, var(--color-surface))", fontSize: 12, fontWeight: 700, flexWrap: "wrap", textDecoration: "none", color: "inherit" }}
+          >
+            <ScanLine size={13} />
+            {stop.label}
+            <span className="tag tag-outline" style={{ fontSize: 10 }}>Open X-Ray</span>
+          </Link>
         )}
         <div className="workspace">
           <main className="page-main">{children}</main>

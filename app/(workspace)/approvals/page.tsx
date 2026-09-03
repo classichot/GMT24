@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/lib/store";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
+import { useXray } from "@/lib/useXray";
 import { Amount } from "@/components/Amount";
 import { eur } from "@/lib/format";
 import { etrHref } from "@/lib/engine";
@@ -24,6 +25,7 @@ const STEPS = ["Imported", "Mapped", "Validated", "Calculated", "Prepared", "Rev
 export default function ApprovalsPage() {
   const { mode, flash, workflow, patchWorkflow, approvedMaps, ask, group } = useStore();
   const { calcs, t } = useCalc();
+  const { stop, overall } = useXray();
   const router = useRouter();
   const reviewer = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const current = workflow.snapshotApproved ? 6 : workflow.girValidated ? 5 : 4;
@@ -35,6 +37,14 @@ export default function ApprovalsPage() {
   const th = calcs.find((c) => c.iso === "TH") ?? calcs.find((c) => c.jurisdictionalTopUp > 0);
 
   const gates = [
+    {
+      ok: !stop.blocked,
+      label: "Pillar Two X-Ray cleared",
+      detail: stop.blocked
+        ? `${stop.reasons.length} material assumption${stop.reasons.length === 1 ? "" : "s"} unproven · ${eur(stop.exposure, true)} of top-up at risk`
+        : `All material items confirmed, supported and reviewed · confidence ${overall}%`,
+      href: "/xray",
+    },
     { ok: mapsPending.length === 0, label: "Account mapping approved", detail: mapsPending.length ? `${mapsPending.length} account below 80% confidence` : "All mapped accounts approved", href: "/mapping" },
     { ok: adjOpen.length === 0, label: "GloBE adjustments signed", detail: adjOpen.length ? `${adjOpen.length} without a reviewer` : "Art. 3.2 deltas reviewed", href: "/globe-income" },
     { ok: blocks.length === 0, label: "Blocking issues cleared", detail: blocks.length ? blocks.map((b) => b.title).join(" · ") : "No blocks on the issue list", href: "/issues" },
@@ -136,17 +146,30 @@ export default function ApprovalsPage() {
             : " Group Tax Director is reviewer; local tax is preparer."}
           {" "}You are signing the calculation, not the GIR XML.
           {workflow.snapshotApproved ? " Snapshot is approved." : gatesOpen ? ` ${gatesOpen} gates still open.` : " Gates clear — ready for reviewer lock."}
+          {stop.blocked && (
+            <div style={{ marginTop: 8, fontWeight: 700, color: "var(--color-hot)" }}>
+              {stop.label} Final approval is blocked until Pillar Two X-Ray is cleared —{" "}
+              <Link href="/xray">resolve the material items</Link>.
+            </div>
+          )}
         </div>
         <div className="stack-actions">
           <button className="btn btn-secondary" onClick={() => { patchWorkflow({ snapshotApproved: false }); setRowOk({}); flash("Returned to preparer with comments"); }}>Return</button>
           <button
             className="btn btn-primary"
+            disabled={stop.blocked}
+            title={stop.blocked ? stop.label : "Reviewer lock on the FY calculation"}
+            style={stop.blocked ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
             onClick={() => {
+              if (stop.blocked) {
+                flash(`Blocked · ${stop.reasons.length} unresolved material X-Ray item${stop.reasons.length === 1 ? "" : "s"}`);
+                return;
+              }
               patchWorkflow({ snapshotApproved: true });
               flash(blocks.length ? "FY2026 calculation approved with documented exceptions (VN blocks remain)" : "FY2026 calculation approved (reviewer lock)");
             }}
           >
-            Approve snapshot
+            {stop.blocked ? "Approval blocked" : "Approve snapshot"}
           </button>
           <Link href="/gir" className="btn btn-secondary">GIR</Link>
           <Link href="/filings" className="btn btn-secondary">Filings</Link>
@@ -173,6 +196,9 @@ export default function ApprovalsPage() {
             <span className="tag tag-outline">Snapshot v14</span>
             <span className="tag tag-accent">Rule pack 2026.2</span>
             <span className="tag tag-neutral">Reviewer {reviewer.name}</span>
+            <Link href="/xray" className={stop.blocked ? "tag tag-hot" : "tag tag-ok"}>
+              {stop.blocked ? `Preliminary · ${stop.reasons.length} unproven` : `Assured · ${overall}% confidence`}
+            </Link>
           </div>
         </div>
         <div style={{ width: "46%", flex: "none", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
