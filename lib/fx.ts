@@ -1,5 +1,8 @@
 import { money } from "./format";
-import { EUR_MATERIAL_PRESENTATION, EUR_PERMANENT_DIFF } from "./thailand";
+
+/** Art. 3.1.3 GAAP screens. Defined here so fx.ts does not import thailand.ts, which imports engine.ts, which imports fx.ts. */
+export const EUR_MATERIAL_PRESENTATION = 75_000_000;
+export const EUR_PERMANENT_DIFF = 1_000_000;
 
 /** Locked FY2026 mid-rates: local currency units per 1 USD. Thai THB uses BOT Notification No. 6. */
 export type FxRow = {

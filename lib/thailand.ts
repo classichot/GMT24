@@ -100,8 +100,7 @@ export const BOT_RATES = [
 ];
 
 export const EUR_THRESHOLD = 750_000_000;
-export const EUR_MATERIAL_PRESENTATION = 75_000_000;
-export const EUR_PERMANENT_DIFF = 1_000_000;
+export { EUR_MATERIAL_PRESENTATION, EUR_PERMANENT_DIFF } from "./fx";
 export const FILING_PENALTY_CAP_THB = 200_000;
 
 export function botRate(id: string) {
