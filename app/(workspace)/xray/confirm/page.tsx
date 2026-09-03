@@ -363,11 +363,11 @@ function ConfirmWorkflow() {
 
         <div className="panel" style={{ marginTop: 16 }}>
           <div className="panel-head">
-            <h4>Audit framing</h4>
-            <span className="text-muted">How the same gap reads from the other side</span>
+            <h4>Proof required</h4>
+            <span className="text-muted">What {f.dept} must produce to close this</span>
           </div>
           <div className="panel-body">
-            <p style={{ margin: 0 }}>{f.rdChallenge}</p>
+            <p style={{ margin: 0 }}>{f.proofRequired}</p>
           </div>
         </div>
       </div>

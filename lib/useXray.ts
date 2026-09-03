@@ -5,7 +5,6 @@ import { useStore } from "./store";
 import { useCalc } from "./useCalc";
 import { runXray } from "./xrayEngines";
 import {
-  auditQuestions,
   confidenceByArea,
   confidenceByEngine,
   confidenceByEntity,
@@ -13,7 +12,6 @@ import {
   findingStatus,
   hardStop,
   overallConfidence,
-  rdRiskScore,
 } from "./xray";
 
 /**
@@ -22,7 +20,7 @@ import {
  * stored result.
  */
 export function useXray() {
-  const { xray, xrayMode, electionsOn } = useStore();
+  const { xray, electionsOn } = useStore();
   const { calcs, t } = useCalc();
 
   return useMemo(() => {
@@ -32,18 +30,15 @@ export function useXray() {
     return {
       findings,
       state: xray,
-      mode: xrayMode,
       statuses,
       areas,
       byJurisdiction: confidenceByJurisdiction(findings, xray, calcs),
       byEntity: confidenceByEntity(findings, xray, calcs),
       byEngine: confidenceByEngine(findings, xray, calcs),
       overall: overallConfidence(areas),
-      riskScore: rdRiskScore(areas),
       stop: hardStop(findings, xray, calcs),
-      audit: auditQuestions(findings, xray, calcs),
       calcs,
       t,
     };
-  }, [electionsOn, xray, xrayMode, calcs, t]);
+  }, [electionsOn, xray, calcs, t]);
 }

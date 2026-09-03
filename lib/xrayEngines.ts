@@ -195,7 +195,7 @@ export function dividendXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `Provide the share register and dividend voucher proving the ownership percentage and holding period behind the ${amount.toLocaleString("en-GB")} dividend excluded from GloBE income at ${e.code}. Without them the exclusion is not established.`,
+      proofRequired: `Provide the share register and dividend voucher proving the ownership percentage and holding period behind the ${amount.toLocaleString("en-GB")} dividend excluded from GloBE income at ${e.code}. Without them the exclusion is not established.`,
       href: "/globe-income",
     };
   });
@@ -275,7 +275,7 @@ export function payrollXray(): XrayFinding[] {
           sbieDelta: -money((f.payrollEligible - f.employees * 200_000) * PAYROLL_RATE),
         },
       ],
-      rdChallenge: `${e.code} claims ${money(perHead).toLocaleString("en-GB")} of eligible payroll per employee. Produce the employment records showing these are employees performing activities in ${e.jurisdiction}, not contracted labour.`,
+      proofRequired: `${e.code} claims ${money(perHead).toLocaleString("en-GB")} of eligible payroll per employee. Produce the employment records showing these are employees performing activities in ${e.jurisdiction}, not contracted labour.`,
       href: "/sbie",
     });
   }
@@ -356,7 +356,7 @@ export function payrollXray(): XrayFinding[] {
           sbieDelta: -money(carve * 0.5),
         },
       ],
-      rdChallenge: `${e.code} claims a ${carve.toLocaleString("en-GB")} payroll carve-out. Produce the employee-level payroll register showing each individual's jurisdiction of work, with the local-work percentage for anyone working partly outside ${e.jurisdiction}.`,
+      proofRequired: `${e.code} claims a ${carve.toLocaleString("en-GB")} payroll carve-out. Produce the employee-level payroll register showing each individual's jurisdiction of work, with the local-work percentage for anyone working partly outside ${e.jurisdiction}.`,
       href: "/sbie",
     });
   }
@@ -409,7 +409,7 @@ export function payrollXray(): XrayFinding[] {
           sbieDelta: money(f.employees * 40_000 * PAYROLL_RATE),
         },
       ],
-      rdChallenge: `${e.code} reports ${f.employees} personnel with no payroll. Identify which entity bears the cost and confirm the substance carve-out is not being claimed twice.`,
+      proofRequired: `${e.code} reports ${f.employees} personnel with no payroll. Identify which entity bears the cost and confirm the substance carve-out is not being claimed twice.`,
       href: "/sbie",
     });
   }
@@ -513,7 +513,7 @@ export function assetXray(): XrayFinding[] {
           sbieDelta: -money(carve * 0.15),
         },
       ],
-      rdChallenge: `${e.code} claims a ${carve.toLocaleString("en-GB")} asset carve-out. Produce the fixed-asset register reconciling the consolidated carrying value to the eligible base and evidencing that each asset is located in ${e.jurisdiction}.`,
+      proofRequired: `${e.code} claims a ${carve.toLocaleString("en-GB")} asset carve-out. Produce the fixed-asset register reconciling the consolidated carrying value to the eligible base and evidencing that each asset is located in ${e.jurisdiction}.`,
       href: "/sbie",
     });
   }
@@ -571,7 +571,7 @@ export function assetXray(): XrayFinding[] {
           sbieDelta: -money(carve * 0.4),
         },
       ],
-      rdChallenge: `${e.code} carries ${money(perHead).toLocaleString("en-GB")} of claimed tangible assets per employee. Evidence the physical location of those assets and confirm no intangible or right-of-use balance is inside the carve-out base.`,
+      proofRequired: `${e.code} carries ${money(perHead).toLocaleString("en-GB")} of claimed tangible assets per employee. Evidence the physical location of those assets and confirm no intangible or right-of-use balance is inside the carve-out base.`,
       href: "/sbie",
     });
   }
@@ -707,7 +707,7 @@ export function boiXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} relies on ${i.name}. Produce the certificate showing the promoted activity, exemption percentage, cap base, cumulative utilisation and privilege period, and the enacted statutory basis for the treatment adopted in the calculation.`,
+      proofRequired: `${e.code} relies on ${i.name}. Produce the certificate showing the promoted activity, exemption percentage, cap base, cumulative utilisation and privilege period, and the enacted statutory basis for the treatment adopted in the calculation.`,
       href: e.iso === "TH" ? "/thailand/boi" : "/incentives",
     };
   });
@@ -790,7 +790,7 @@ export function deferredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} includes ${amount.toLocaleString("en-GB")} of deferred tax in Adjusted Covered Taxes without identifying the temporary differences behind it. Produce the deferred-tax schedule reconciling every movement.`,
+      proofRequired: `${e.code} includes ${amount.toLocaleString("en-GB")} of deferred tax in Adjusted Covered Taxes without identifying the temporary differences behind it. Produce the deferred-tax schedule reconciling every movement.`,
       href: "/deferred-tax",
     });
   }
@@ -860,7 +860,7 @@ export function deferredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${money(agg.amount).toLocaleString("en-GB")} of ${e.jurisdiction} deferred tax liabilities have no stated reversal year. Demonstrate that each reverses within five years of origination or accept recapture in the origination year.`,
+      proofRequired: `${money(agg.amount).toLocaleString("en-GB")} of ${e.jurisdiction} deferred tax liabilities have no stated reversal year. Demonstrate that each reverses within five years of origination or accept recapture in the origination year.`,
       href: "/deferred-tax",
     });
   }
@@ -918,7 +918,7 @@ export function deferredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} claims a deferred tax movement with no opening position. Produce the deferred tax roll-forward, or accept that the movement is not established.`,
+      proofRequired: `${e.code} claims a deferred tax movement with no opening position. Produce the deferred tax roll-forward, or accept that the movement is not established.`,
       href: "/deferred-tax",
     });
   }
@@ -972,7 +972,7 @@ export function deferredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `Thai deferred tax liabilities originating in FY${clock.originYear} remain outstanding. Show the reversal schedule, or recompute the FY${clock.originYear} effective tax rate and pay the recapture.`,
+      proofRequired: `Thai deferred tax liabilities originating in FY${clock.originYear} remain outstanding. Show the reversal schedule, or recompute the FY${clock.originYear} effective tax rate and pay the recapture.`,
       href: "/deferred-tax",
     });
   }
@@ -1054,7 +1054,7 @@ export function coveredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} identifies ${f.nonCovered.toLocaleString("en-GB")} of non-covered tax yet the effective tax rate numerator does not appear to exclude it. Reconcile the tax charge in the return to Adjusted Covered Taxes line by line.`,
+      proofRequired: `${e.code} identifies ${f.nonCovered.toLocaleString("en-GB")} of non-covered tax yet the effective tax rate numerator does not appear to exclude it. Reconcile the tax charge in the return to Adjusted Covered Taxes line by line.`,
       href: "/covered-taxes",
     });
   }
@@ -1128,7 +1128,7 @@ export function coveredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} reports negative current tax of ${f.currentTax.toLocaleString("en-GB")}. Identify the statutory basis for the credit and the year it relates to, and show why it belongs in this year's Adjusted Covered Taxes.`,
+      proofRequired: `${e.code} reports negative current tax of ${f.currentTax.toLocaleString("en-GB")}. Identify the statutory basis for the credit and the year it relates to, and show why it belongs in this year's Adjusted Covered Taxes.`,
       href: "/covered-taxes",
     });
   }
@@ -1191,7 +1191,7 @@ export function coveredXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${e.code} excludes ${a.original.toLocaleString("en-GB")} of dividend income while retaining the full tax charge in the numerator. Identify every current, deferred, withholding and controlled foreign company tax attaching to that income.`,
+      proofRequired: `${e.code} excludes ${a.original.toLocaleString("en-GB")} of dividend income while retaining the full tax charge in the numerator. Identify every current, deferred, withholding and controlled foreign company tax attaching to that income.`,
       href: "/covered-taxes",
     });
   }
@@ -1306,7 +1306,7 @@ export function entityXray(): XrayFinding[] {
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `Produce the constitutional documents and tax residence evidence for ${e.code}, and confirm its transparency status and any permanent establishment. The register label alone does not establish the GloBE classification.`,
+      proofRequired: `Produce the constitutional documents and tax residence evidence for ${e.code}, and confirm its transparency status and any permanent establishment. The register label alone does not establish the GloBE classification.`,
       href: "/entities",
     };
   });
@@ -1396,7 +1396,7 @@ export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFin
           sbieDelta: 0,
         },
       ],
-      rdChallenge: "Produce the filed prior-year return and reconcile every carried attribute to it: election first-election years, safe-harbour outcomes, deferred tax vintages and negative-tax carry-forwards.",
+      proofRequired: "Produce the filed prior-year return and reconcile every carried attribute to it: election first-election years, safe-harbour outcomes, deferred tax vintages and negative-tax carry-forwards.",
       href: "/years",
     });
   }
@@ -1453,7 +1453,7 @@ export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFin
           sbieDelta: 0,
         },
       ],
-      rdChallenge: "Produce validated transfer pricing documentation for the intra-group charges adjusted in GloBE income, and show the same arm's-length amount is recognised in the counterparty jurisdiction.",
+      proofRequired: "Produce validated transfer pricing documentation for the intra-group charges adjusted in GloBE income, and show the same arm's-length amount is recognised in the counterparty jurisdiction.",
       href: "/globe-income",
     });
   }
@@ -1535,7 +1535,7 @@ export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFin
           sbieDelta: 0,
         },
       ],
-      rdChallenge: `${def.article} is claimed for ${e.jurisdiction}. Identify the entity that made the election, its authority to do so, and the return in which it was reported.`,
+      proofRequired: `${def.article} is claimed for ${e.jurisdiction}. Identify the entity that made the election, its authority to do so, and the return in which it was reported.`,
       href: "/elections",
     });
   }

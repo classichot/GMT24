@@ -11,7 +11,6 @@ import { useXray } from "@/lib/useXray";
 import { eur } from "@/lib/format";
 import {
   ENGINE_META,
-  MODE_META,
   amountAtRisk,
   type XrayEngineId,
 } from "@/lib/xray";
@@ -28,8 +27,8 @@ const ENGINE_ORDER: XrayEngineId[] = [
 ];
 
 export default function XrayPage() {
-  const { xrayMode, setXrayMode, resetXray, ask, flash, group } = useStore();
-  const { findings, statuses, areas, byEngine, byJurisdiction, overall, riskScore, stop, audit, calcs } = useXray();
+  const { resetXray, ask, flash, group } = useStore();
+  const { findings, statuses, areas, byEngine, byJurisdiction, overall, stop, calcs } = useXray();
   const router = useRouter();
   const [engine, setEngine] = useState<XrayEngineId | "all">("all");
 
@@ -43,9 +42,6 @@ export default function XrayPage() {
         return openA - openB || b.risk - a.risk;
       });
   }, [findings, engine, statuses, calcs]);
-
-  const meta = MODE_META[xrayMode];
-  const rd = xrayMode === "rd";
 
   return (
     <div>
@@ -70,14 +66,11 @@ export default function XrayPage() {
           <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
             X-Ray sits between the data and the calculation. A trial balance carries the amount but never the
             legal characteristics the GloBE rules turn on, so every detection below is a fact the source data
-            cannot prove on its own. {meta.blurb}
+            cannot prove on its own. Find the missing facts, route them to the responsible team, validate the
+            evidence and prepare a calculation that can be defended.
           </div>
         </div>
         <div className="stack-actions">
-          <div className="seg">
-            <button className={`seg-opt${xrayMode === "corporate" ? " active" : ""}`} onClick={() => setXrayMode("corporate")}>Corporate</button>
-            <button className={`seg-opt${rd ? " active" : ""}`} onClick={() => setXrayMode("rd")}>RD audit</button>
-          </div>
           <Link href="/xray/confirm" className="btn btn-primary"><ScanLine size={16} />Confirmation workflow</Link>
           <button className="btn btn-ghost" onClick={() => { resetXray(); flash("X-Ray confirmations cleared"); }}>Reset</button>
           <button className="btn btn-ghost" onClick={() => ask("What is blocking the FY2026 close in Pillar Two X-Ray?")}>Ask GMT24</button>
@@ -86,9 +79,9 @@ export default function XrayPage() {
 
       <div className="kpi-grid cols-4" style={{ marginBottom: 20 }}>
         <div className="kpi">
-          <div className="kpi-label">{rd ? "Audit risk score" : "Overall confidence"}</div>
-          <div className="kpi-val" style={{ color: rd ? "var(--color-hot)" : undefined }}>{rd ? riskScore : overall}%</div>
-          <div className="kpi-sub">{rd ? "Inverse of calculation confidence" : "Weighted by the magnitude of each area"}</div>
+          <div className="kpi-label">Overall confidence</div>
+          <div className="kpi-val">{overall}%</div>
+          <div className="kpi-sub">Weighted by the magnitude of each area</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Top-up at risk</div>
@@ -226,49 +219,6 @@ export default function XrayPage() {
           })}
         </div>
       </div>
-
-      {rd ? (
-        <div className="panel" style={{ marginBottom: 20 }}>
-          <div className="panel-head">
-            <h4>Audit challenges · {meta.question}</h4>
-            <span className="text-muted">Generated from the same detections</span>
-          </div>
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Challenge</th>
-                  <th>Entity</th>
-                  <th>Article</th>
-                  <th>Proof required</th>
-                  <th className="num">At risk</th>
-                  <th>Proven</th>
-                </tr>
-              </thead>
-              <tbody>
-                {audit.map((q) => (
-                  <tr key={q.findingId} className="clickable" onClick={() => router.push(`/xray/confirm?f=${q.findingId}`)}>
-                    <td style={{ maxWidth: 460 }}>{q.question}</td>
-                    <td>{q.entity}</td>
-                    <td className="mono">{q.article}</td>
-                    <td className="text-muted" style={{ fontSize: 12 }}>{q.proof}</td>
-                    <td className="num">{q.atRisk ? eur(q.atRisk, true) : "—"}</td>
-                    <td>
-                      <span className={q.proven ? "tag tag-accent" : "tag tag-hot"}>{q.proven ? "Evidenced" : "Not proven"}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="panel-body">
-            <p className="text-muted" style={{ margin: 0, fontSize: 12 }}>
-              RD Audit mode asks what the taxpayer failed to prove. The detections are identical — only the framing
-              and the scoring change, so the same engine serves both sides of an audit.
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       <div className="panel">
         <div className="panel-head">

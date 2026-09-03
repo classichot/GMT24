@@ -133,8 +133,8 @@ export type XrayFinding = {
   evidence: EvidenceKind[];
   questions: XrayQuestion[];
   branches: XrayBranch[];
-  /** How the Revenue Department would frame the same gap in an audit. */
-  rdChallenge: string;
+  /** Exactly what the responsible team must produce to close the item. */
+  proofRequired: string;
   href: string;
 };
 
@@ -551,55 +551,4 @@ export function hardStop(findings: XrayFinding[], state: XrayState, calcs: JurCa
       ? `Preliminary calculation — contains ${n} unresolved material assumption${n === 1 ? "" : "s"}.`
       : "Calculation assurance complete — all material items confirmed, supported and reviewed.",
   };
-}
-
-// ---------------------------------------------------------------------------
-// RD Audit mode
-// ---------------------------------------------------------------------------
-
-export type XrayMode = "corporate" | "rd";
-
-export const MODE_META: Record<XrayMode, { name: string; question: string; blurb: string }> = {
-  corporate: {
-    name: "Corporate / Advisory",
-    question: "What must we confirm?",
-    blurb: "Prevention. Find the missing facts, route them to the responsible team, validate the evidence and prepare an audit-ready package.",
-  },
-  rd: {
-    name: "RD Audit",
-    question: "What did the taxpayer fail to prove?",
-    blurb: "Detection. Identify figures resting on the trial balance alone, test the carve-outs and incentive treatment, and generate the audit questions.",
-  },
-};
-
-export type AuditQuestion = {
-  findingId: string;
-  jurisdiction: string;
-  entity: string;
-  article: string;
-  question: string;
-  proof: string;
-  atRisk: number;
-  proven: boolean;
-};
-
-/** Audit challenges generated from the same detections, framed from the RD side. */
-export function auditQuestions(findings: XrayFinding[], state: XrayState, calcs: JurCalc[]): AuditQuestion[] {
-  return findings
-    .map((f) => ({
-      findingId: f.id,
-      jurisdiction: f.jurisdiction,
-      entity: `${f.entityCode} · ${f.entityName}`,
-      article: f.article,
-      question: f.rdChallenge,
-      proof: f.evidence.join(", "),
-      atRisk: amountAtRisk(f, calcs),
-      proven: isResolved(f, state),
-    }))
-    .sort((a, b) => Number(a.proven) - Number(b.proven) || b.atRisk - a.atRisk);
-}
-
-/** Audit risk score — the inverse of calculation confidence. */
-export function rdRiskScore(rows: ConfidenceRow[]): number {
-  return 100 - overallConfidence(rows);
 }

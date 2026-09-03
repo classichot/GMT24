@@ -61,7 +61,6 @@ import {
   activeQuestions,
   emptyResponse,
   missingEvidence,
-  type XrayMode,
   type XrayState,
 } from "./xray";
 
@@ -128,8 +127,6 @@ type Store = {
   resetIngest: () => void;
   noteFileDrop: (name: string) => void;
   xray: XrayState;
-  xrayMode: XrayMode;
-  setXrayMode: (m: XrayMode) => void;
   answerXray: (findingId: string, questionId: string, value: string) => void;
   attachXrayEvidence: (findingId: string, kind: string) => void;
   signXray: (findingId: string, role: "preparer" | "reviewer") => string | null;
@@ -188,7 +185,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [ingestStatus, setIngestStatus] = useState<IngestStatus>("ready");
   const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
   const [xray, setXray] = useState<XrayState>({});
-  const [xrayMode, setXrayModeState] = useState<XrayMode>("corporate");
   const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
@@ -242,8 +238,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setXray(loadXray(groupId));
-    const m = localStorage.getItem("gmt24_xray_mode");
-    if (m === "rd" || m === "corporate") setXrayModeState(m);
   }, [groupId]);
 
   const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
@@ -654,11 +648,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
   }, [groupId]);
 
-  const setXrayMode = useCallback((m: XrayMode) => {
-    setXrayModeState(m);
-    localStorage.setItem("gmt24_xray_mode", m);
-  }, []);
-
   const answerXray = useCallback((findingId: string, questionId: string, value: string) => {
     const finding = runXray({ electionsOn }).find((f) => f.id === findingId);
     const prev = xray[findingId] ?? emptyResponse();
@@ -812,14 +801,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetIngest,
       noteFileDrop,
       xray,
-      xrayMode,
-      setXrayMode,
       answerXray,
       attachXrayEvidence,
       signXray,
       resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, xray, xrayMode, setXrayMode, answerXray, attachXrayEvidence, signXray, resetXray],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, xray, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
