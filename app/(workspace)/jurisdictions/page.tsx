@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, RotateCcw, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Check, Lock, RotateCcw, ShieldCheck, Sparkles, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
 import { calculateGroup, totals } from "@/lib/engine";
@@ -19,10 +19,11 @@ import {
   blockedCount,
   effectivePacks,
   impactFrom,
+  openChanges,
   overlayWith,
   overlayWithout,
   pendingCount,
-  proposalsFromRefresh,
+  undecidedIn,
   type PackAmendment,
   type PackOverlay,
   type PackTotals,
@@ -44,8 +45,10 @@ export default function JurisdictionsPage() {
     activeFy,
     electionsOn,
     packAmendments,
+    packChanges,
     packOverlay,
-    proposePackAmendments,
+    scanPacks,
+    adminReviewPackChange,
     decidePackAmendment,
     revertPackAmendment,
     clearPackAmendments,
@@ -82,12 +85,11 @@ export default function JurisdictionsPage() {
         flash(data.error ?? "OECD Central Record could not be read");
         return;
       }
-      const rows = proposalsFromRefresh(data);
-      const open = proposePackAmendments(rows);
+      const { changed, open } = scanPacks(data);
       flash(
-        rows.length
-          ? `OECD extract: ${rows.length} difference${rows.length === 1 ? "" : "s"} · ${open} awaiting your decision`
-          : `OECD extract complete${data.asOf ? ` · as at ${data.asOf}` : ""}. Signed pack matches the Record.`,
+        changed
+          ? `Change detected · ${changed} field${changed === 1 ? "" : "s"} · ${open} awaiting your decision`
+          : `Scan complete${data.asOf ? ` · Record as at ${data.asOf}` : ""}. Signed pack matches the Record.`,
       );
     } catch {
       flash("Could not reach the OECD refresh endpoint");
@@ -140,11 +142,57 @@ export default function JurisdictionsPage() {
           <div className="kpi-sub">Need a conclusion on the local instrument</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Record as at</div>
-          <div className="kpi-val" style={{ fontSize: 22 }}>{live?.asOf ?? "—"}</div>
-          <div className="kpi-sub">{live ? new Date(live.fetchedAt).toUTCString().slice(5, 16) : "Not yet scanned"}</div>
+          <div className="kpi-label">Unreviewed changes</div>
+          <div className="kpi-val" style={{ color: openChanges(packChanges).length ? "var(--color-hot)" : undefined }}>{openChanges(packChanges).length}</div>
+          <div className="kpi-sub">{live?.asOf ? `Record as at ${live.asOf}` : live ? "Record date not stated" : "Not yet scanned"}</div>
         </div>
       </div>
+
+      {openChanges(packChanges).map((c) => {
+        const undecided = undecidedIn(c, packAmendments);
+        return (
+          <div
+            key={c.id}
+            className="callout"
+            style={{ marginBottom: 20, borderLeft: "4px solid var(--color-hot)" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ maxWidth: 760 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
+                  <AlertTriangle size={16} />
+                  Change detected — held on the record until administrator review
+                </div>
+                <div style={{ fontSize: 13, marginTop: 6 }}>{c.summary}</div>
+                <ul style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 12 }}>
+                  {c.lines.map((l) => <li key={l}>{l}</li>)}
+                </ul>
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+                  Detected {new Date(c.detectedAt).toUTCString()} from the{" "}
+                  <a href={c.sourceUrl} target="_blank" rel="noreferrer">{c.source === "pdf" ? "published PDF" : "Central Record page"}</a>
+                  {c.note ? ` · ${c.note}` : ""}
+                </div>
+              </div>
+              <div style={{ flex: "none" }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const err = adminReviewPackChange(c.id);
+                    flash(err ?? "Change record closed by administrator review");
+                  }}
+                  title={undecided.length ? "Decide every amendment first" : "Close this change record"}
+                >
+                  <ShieldCheck size={15} />Administrator review
+                </button>
+                <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: 200 }}>
+                  {undecided.length
+                    ? `${undecided.length} amendment${undecided.length === 1 ? "" : "s"} undecided — the record cannot be closed yet.`
+                    : "All amendments decided. Ready to close."}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
       {live && !live.ok && (
         <div
@@ -264,6 +312,51 @@ export default function JurisdictionsPage() {
         </div>
       )}
 
+      {packChanges.length > 0 && (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-head">
+            <h4>Change record</h4>
+            <span className="text-muted">Every detected change, kept after review</span>
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Detected</th>
+                  <th>Record as at</th>
+                  <th>Source</th>
+                  <th>Change</th>
+                  <th className="num">Fields</th>
+                  <th>Administrator</th>
+                </tr>
+              </thead>
+              <tbody>
+                {packChanges.map((c) => (
+                  <tr key={c.id}>
+                    <td style={{ whiteSpace: "nowrap", fontSize: 12 }}>{new Date(c.detectedAt).toUTCString().slice(5, 22)}</td>
+                    <td style={{ fontSize: 12 }}>{c.asOf ?? "—"}</td>
+                    <td><span className="tag tag-outline">{c.source === "pdf" ? "PDF" : c.source === "html" ? "Web" : "—"}</span></td>
+                    <td style={{ fontSize: 12, maxWidth: 420 }}>{c.summary}</td>
+                    <td className="num">{c.amendmentIds.length}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {c.adminReviewed
+                        ? <span className="tag tag-accent">{c.admin}</span>
+                        : <span className="tag tag-hot">Awaiting review</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="panel-body">
+            <p className="text-muted" style={{ margin: 0, fontSize: 12 }}>
+              A detected change stays here permanently. The alert clears only once an administrator has reviewed the
+              record, and only after every amendment inside it has been accepted or rejected.
+            </p>
+          </div>
+        </div>
+      )}
+
       {live && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-head">
@@ -280,7 +373,12 @@ export default function JurisdictionsPage() {
               <a href={live.sourceUrl} target="_blank" rel="noreferrer">{live.sourceUrl}</a>
               {" · "}
               <a href={live.pdfUrl} target="_blank" rel="noreferrer">PDF</a>
-              {live.error ? ` · ${live.error}` : " · Country names mapped to the IIR / QDMTT / QDMTT SH / SbS tables. Differences become the proposals above."}
+              {live.error
+                ? ` · ${live.error}`
+                : live.source === "pdf"
+                  ? " · Read from the published PDF by column position: presence in the IIR table, presence in the QDMTT table, and a Safe Harbour \"Yes\" in its own column. Prose mentions are excluded because they do not sit in the jurisdiction column."
+                  : " · Country names mapped to the IIR / QDMTT / QDMTT SH / SbS tables. Differences become the proposals above."}
+              {live.note ? ` · ${live.note}` : ""}
             </p>
           </div>
           {live.ok && live.rows.length > 0 && (

@@ -38,6 +38,7 @@ import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
+import { changeAlert } from "@/lib/packAmendments";
 import { PLAYBOOKS } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
@@ -206,10 +207,11 @@ function isActive(path: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const { t } = useCalc();
   const { stop } = useXray();
+  const packAlert = changeAlert(packChanges);
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
 
@@ -315,6 +317,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
             <Link href="/review-guide" className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>Review guide</Link>
           </div>
+        )}
+        {packAlert && (
+          <Link
+            href="/jurisdictions"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "color-mix(in srgb, var(--color-hot) 16%, var(--color-surface))", fontSize: 12, fontWeight: 700, flexWrap: "wrap", textDecoration: "none", color: "inherit" }}
+          >
+            <Globe size={13} />
+            {packAlert}
+            <span className="tag tag-outline" style={{ fontSize: 10 }}>Review packs</span>
+          </Link>
         )}
         {stop.blocked && (
           <Link

@@ -34,13 +34,19 @@ export type OecdPackRow = {
   note: string;
 };
 
+/** Which artefact produced the comparison, so proposals carry their provenance. */
+export type OecdSource = "html" | "pdf" | "none";
+
 export type OecdRefresh = {
   fetchedAt: string;
   asOf: string | null;
   sourceUrl: string;
   pdfUrl: string;
+  source: OecdSource;
   ok: boolean;
   error?: string;
+  /** How the extract was obtained when it was not the straightforward path. */
+  note?: string;
   news: { title: string; href: string }[];
   rows: OecdPackRow[];
 };

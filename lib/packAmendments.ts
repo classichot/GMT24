@@ -1,5 +1,5 @@
 import { JURISDICTION_PACKS } from "./model";
-import type { OecdPackRow, OecdRefresh } from "./oecdCentralRecord";
+import type { OecdPackRow, OecdRefresh, OecdSource } from "./oecdCentralRecord";
 
 /**
  * AI-assisted jurisdiction pack maintenance.
@@ -192,6 +192,72 @@ export function mergeProposals(stored: PackAmendment[], incoming: PackAmendment[
       : next;
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Change record
+// ---------------------------------------------------------------------------
+
+/**
+ * A detected change is kept on the record until a group administrator reviews
+ * it. Deciding the individual amendments is a preparer/reviewer act; closing the
+ * record is a separate administrative sign-off, so a change to legal data cannot
+ * pass through the product unnoticed.
+ */
+export type PackChangeRecord = {
+  id: string;
+  detectedAt: string;
+  asOf: string | null;
+  source: OecdSource;
+  sourceUrl: string;
+  summary: string;
+  lines: string[];
+  amendmentIds: string[];
+  note?: string;
+  adminReviewed: boolean;
+  admin: string | null;
+  reviewedAt: string | null;
+};
+
+function phrase(a: PackAmendment): string {
+  if (a.field === "qualified") return `${a.name} qualified-status text updated`;
+  const label = FIELD_LABEL[a.field];
+  if (a.direction === "upgrade") return `${a.name} gains ${label}`;
+  return `${a.name} loses ${label}`;
+}
+
+export function summariseAmendments(rows: PackAmendment[], asOf: string | null, source: OecdSource): { summary: string; lines: string[] } {
+  const lines = rows.map((a) => `${phrase(a)}${a.guard ? " — blocked, absent from the Record" : ""} (${String(a.current)} → ${String(a.proposed)})`);
+  if (!rows.length) return { summary: "No differences between the Central Record and the signed pack.", lines };
+  const jurisdictions = [...new Set(rows.map((r) => r.name))];
+  const ups = rows.filter((r) => r.direction === "upgrade").length;
+  const downs = rows.filter((r) => r.direction === "downgrade").length;
+  const blocked = rows.filter((r) => r.guard).length;
+  const bits: string[] = [];
+  if (ups) bits.push(`${ups} added qualified status${ups === 1 ? "" : "es"}`);
+  if (downs) bits.push(`${downs} removed`);
+  if (blocked) bits.push(`${blocked} legally blocked`);
+  const where = source === "pdf" ? "published PDF" : source === "html" ? "Central Record page" : "Central Record";
+  return {
+    summary: `OECD ${where}${asOf ? ` as at ${asOf}` : ""} differs from the signed pack in ${rows.length} field${rows.length === 1 ? "" : "s"} across ${jurisdictions.length} jurisdiction${jurisdictions.length === 1 ? "" : "s"} (${bits.join(", ")}): ${jurisdictions.join(", ")}.`,
+    lines,
+  };
+}
+
+/** Undecided amendments block the administrative sign-off. */
+export function undecidedIn(record: PackChangeRecord, amendments: PackAmendment[]): PackAmendment[] {
+  return amendments.filter((a) => record.amendmentIds.includes(a.id) && a.status === "proposed");
+}
+
+export function openChanges(records: PackChangeRecord[]): PackChangeRecord[] {
+  return records.filter((r) => !r.adminReviewed);
+}
+
+export function changeAlert(records: PackChangeRecord[]): string | null {
+  const open = openChanges(records);
+  if (!open.length) return null;
+  const fields = open.reduce((a, r) => a + r.amendmentIds.length, 0);
+  return `Jurisdiction pack change detected — ${fields} field${fields === 1 ? "" : "s"} across ${open.length} scan${open.length === 1 ? "" : "s"} awaiting administrator review.`;
 }
 
 export function pendingCount(amendments: PackAmendment[]): number {

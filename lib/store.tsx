@@ -60,10 +60,15 @@ import { runXray } from "./xrayEngines";
 import {
   mergeProposals,
   overlayFrom,
+  proposalsFromRefresh,
+  summariseAmendments,
+  undecidedIn,
   type PackAmendment,
   type PackAmendmentStatus,
+  type PackChangeRecord,
   type PackOverlay,
 } from "./packAmendments";
+import type { OecdRefresh } from "./oecdCentralRecord";
 import {
   activeQuestions,
   emptyResponse,
@@ -134,8 +139,10 @@ type Store = {
   resetIngest: () => void;
   noteFileDrop: (name: string) => void;
   packAmendments: PackAmendment[];
+  packChanges: PackChangeRecord[];
   packOverlay: PackOverlay;
-  proposePackAmendments: (rows: PackAmendment[]) => number;
+  scanPacks: (refresh: OecdRefresh) => { changed: number; open: number; recordId: string | null };
+  adminReviewPackChange: (id: string) => string | null;
   decidePackAmendment: (id: string, status: Exclude<PackAmendmentStatus, "proposed">) => string | null;
   revertPackAmendment: (id: string) => void;
   clearPackAmendments: () => void;
@@ -164,6 +171,19 @@ function loadPackAmendments(groupId: string): PackAmendment[] {
   try {
     const raw = JSON.parse(localStorage.getItem(packKey(groupId)) ?? "[]");
     return Array.isArray(raw) ? (raw as PackAmendment[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function changeKey(groupId: string) {
+  return `gmt24_pack_changes_${groupId}`;
+}
+
+function loadPackChanges(groupId: string): PackChangeRecord[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(changeKey(groupId)) ?? "[]");
+    return Array.isArray(raw) ? (raw as PackChangeRecord[]) : [];
   } catch {
     return [];
   }
@@ -212,6 +232,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
   const [xray, setXray] = useState<XrayState>({});
   const [packAmendments, setPackAmendments] = useState<PackAmendment[]>([]);
+  const [packChanges, setPackChanges] = useState<PackChangeRecord[]>([]);
   const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
@@ -266,6 +287,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setXray(loadXray(groupId));
     setPackAmendments(loadPackAmendments(groupId));
+    setPackChanges(loadPackChanges(groupId));
   }, [groupId]);
 
   const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
@@ -678,22 +700,83 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
   }, [groupId]);
 
-  /** AI writes proposals only. Returns how many rows are newly open for review. */
-  const proposePackAmendments = useCallback((rows: PackAmendment[]) => {
+  const persistChanges = useCallback((next: PackChangeRecord[]) => {
+    setPackChanges(next);
+    localStorage.setItem(changeKey(groupId), JSON.stringify(next));
+  }, [groupId]);
+
+  /**
+   * One scan: AI proposes, differences are merged into the review queue, and any
+   * difference raises a change record that stays open — and keeps alerting —
+   * until an administrator reviews it.
+   */
+  const scanPacks = useCallback((refresh: OecdRefresh) => {
+    const rows = proposalsFromRefresh(refresh);
     const merged = mergeProposals(packAmendments, rows);
     persistPacks(merged);
     const open = merged.filter((a) => a.status === "proposed" && !a.guard).length;
-    if (rows.length) {
+    if (!rows.length) {
       appendHistory({
         kind: "action",
-        title: `OECD Central Record scan · ${rows.length} pack difference${rows.length === 1 ? "" : "s"}`,
-        detail: `${open} awaiting reviewer decision. Nothing reaches the calculation until accepted.`,
+        title: "OECD Central Record scan · no differences",
+        detail: `Signed pack agrees with the ${refresh.source === "pdf" ? "published PDF" : "Central Record page"}${refresh.asOf ? ` as at ${refresh.asOf}` : ""}.`,
         href: "/jurisdictions",
         ref: "pack-scan",
       });
+      return { changed: 0, open, recordId: null };
     }
-    return open;
-  }, [packAmendments, persistPacks, appendHistory]);
+    const { summary, lines } = summariseAmendments(rows, refresh.asOf, refresh.source);
+    const record: PackChangeRecord = {
+      id: `PC-${refresh.fetchedAt}`,
+      detectedAt: refresh.fetchedAt,
+      asOf: refresh.asOf,
+      source: refresh.source,
+      sourceUrl: refresh.source === "pdf" ? refresh.pdfUrl : refresh.sourceUrl,
+      summary,
+      lines,
+      amendmentIds: rows.map((r) => r.id),
+      note: refresh.note,
+      adminReviewed: false,
+      admin: null,
+      reviewedAt: null,
+    };
+    persistChanges([record, ...packChanges.filter((c) => c.id !== record.id)]);
+    appendHistory({
+      kind: "action",
+      title: `Jurisdiction pack change detected · ${rows.length} field${rows.length === 1 ? "" : "s"}`,
+      detail: `${summary} Held on the record until administrator review. ${open} awaiting a reviewer decision; nothing reaches the calculation until accepted.`,
+      href: "/jurisdictions",
+      ref: record.id,
+    });
+    return { changed: rows.length, open, recordId: record.id };
+  }, [packAmendments, packChanges, persistPacks, persistChanges, appendHistory]);
+
+  /**
+   * Administrative sign-off closes the alert. It is refused while any amendment
+   * in the record is still undecided, so the record cannot be dismissed to make
+   * the banner go away.
+   */
+  const adminReviewPackChange = useCallback((id: string) => {
+    const record = packChanges.find((c) => c.id === id);
+    if (!record) return "Change record not found.";
+    if (record.adminReviewed) return null;
+    const open = undecidedIn(record, packAmendments);
+    if (open.length) {
+      return `${open.length} amendment${open.length === 1 ? "" : "s"} in this change are still undecided — accept or reject each one before closing the record.`;
+    }
+    const actor = actorNow();
+    persistChanges(packChanges.map((c) => (
+      c.id === id ? { ...c, adminReviewed: true, admin: actor.name, reviewedAt: new Date().toISOString() } : c
+    )));
+    appendHistory({
+      kind: "action",
+      title: "Jurisdiction pack change reviewed by administrator",
+      detail: `${record.summary} Closed by ${actor.name} (${actor.role}). Source: ${record.sourceUrl}.`,
+      href: "/jurisdictions",
+      ref: record.id,
+    });
+    return null;
+  }, [packChanges, packAmendments, persistChanges, appendHistory, actorNow]);
 
   /**
    * A reviewer decision is the only route into the calculation. Rows carrying a
@@ -735,6 +818,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const clearPackAmendments = useCallback(() => {
     persistPacks([]);
+    persistChanges([]);
     appendHistory({
       kind: "change",
       title: "Jurisdiction pack amendments cleared",
@@ -742,7 +826,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       href: "/jurisdictions",
       ref: "pack-reset",
     });
-  }, [persistPacks, appendHistory]);
+  }, [persistPacks, persistChanges, appendHistory]);
 
   const persistXray = useCallback((next: XrayState) => {
     setXray(next);
@@ -903,8 +987,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetIngest,
       noteFileDrop,
       packAmendments,
+      packChanges,
       packOverlay,
-      proposePackAmendments,
+      scanPacks,
+      adminReviewPackChange,
       decidePackAmendment,
       revertPackAmendment,
       clearPackAmendments,
@@ -914,7 +1000,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signXray,
       resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, packAmendments, packOverlay, proposePackAmendments, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, packAmendments, packChanges, packOverlay, scanPacks, adminReviewPackChange, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
