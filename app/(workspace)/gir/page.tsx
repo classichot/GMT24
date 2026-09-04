@@ -9,9 +9,9 @@ import { useCalc } from "@/lib/useCalc";
 import { buildGirPackage, downloadGir } from "@/lib/gir";
 
 export default function GirPage() {
-  const { flash, workflow, patchWorkflow, group, electionsOn, activeFy } = useStore();
+  const { flash, workflow, patchWorkflow, group, electionsOn, activeFy, packOverlay } = useStore();
   const { t, calcs } = useCalc();
-  const pkg = buildGirPackage({ group, calcs, electionsOn, activeFy });
+  const pkg = buildGirPackage({ group, calcs, electionsOn, activeFy, packOverlay });
   const validate = () => {
     if (!pkg.validation.valid) {
       patchWorkflow({ girValidated: false });

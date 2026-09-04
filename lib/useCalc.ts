@@ -6,7 +6,7 @@ import { lastLocked, entePriorRows } from "@/lib/yearLedger";
 import { useStore } from "@/lib/store";
 
 export function useCalc() {
-  const { groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps } = useStore();
+  const { groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps, packOverlay } = useStore();
   return useMemo(() => {
     const prior = lastLocked(yearRecords, activeFy);
     const calcs = applyScenario(
@@ -24,9 +24,11 @@ export function useCalc() {
           }))
           : [],
         entePrior: entePriorRows(prior),
+        packOverlay,
       }),
       scenario,
+      packOverlay,
     );
     return { calcs, t: totals(calcs), groupId, scenario };
-  }, [groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps]);
+  }, [groupId, scenario, electionsOn, yearRecords, activeFy, approvedMaps, packOverlay]);
 }

@@ -58,6 +58,13 @@ import {
 } from "./ingestSim";
 import { runXray } from "./xrayEngines";
 import {
+  mergeProposals,
+  overlayFrom,
+  type PackAmendment,
+  type PackAmendmentStatus,
+  type PackOverlay,
+} from "./packAmendments";
+import {
   activeQuestions,
   emptyResponse,
   missingEvidence,
@@ -126,6 +133,12 @@ type Store = {
   loadDemoPack: () => Promise<void>;
   resetIngest: () => void;
   noteFileDrop: (name: string) => void;
+  packAmendments: PackAmendment[];
+  packOverlay: PackOverlay;
+  proposePackAmendments: (rows: PackAmendment[]) => number;
+  decidePackAmendment: (id: string, status: Exclude<PackAmendmentStatus, "proposed">) => string | null;
+  revertPackAmendment: (id: string) => void;
+  clearPackAmendments: () => void;
   xray: XrayState;
   answerXray: (findingId: string, questionId: string, value: string) => void;
   attachXrayEvidence: (findingId: string, kind: string) => void;
@@ -140,6 +153,19 @@ function loadApprovedMaps(groupId: string): Record<string, boolean> {
     return JSON.parse(localStorage.getItem(`gmt24_maps_${groupId}`) ?? "{}") as Record<string, boolean>;
   } catch {
     return {};
+  }
+}
+
+function packKey(groupId: string) {
+  return `gmt24_packs_${groupId}`;
+}
+
+function loadPackAmendments(groupId: string): PackAmendment[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(packKey(groupId)) ?? "[]");
+    return Array.isArray(raw) ? (raw as PackAmendment[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -185,6 +211,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [ingestStatus, setIngestStatus] = useState<IngestStatus>("ready");
   const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
   const [xray, setXray] = useState<XrayState>({});
+  const [packAmendments, setPackAmendments] = useState<PackAmendment[]>([]);
   const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
@@ -238,6 +265,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setXray(loadXray(groupId));
+    setPackAmendments(loadPackAmendments(groupId));
   }, [groupId]);
 
   const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
@@ -642,6 +670,80 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     flash("Ingest reset — load the demo pack again");
   }, [groupId, flash]);
 
+  const packOverlay = useMemo(() => overlayFrom(packAmendments), [packAmendments]);
+
+  const persistPacks = useCallback((next: PackAmendment[]) => {
+    setPackAmendments(next);
+    localStorage.setItem(packKey(groupId), JSON.stringify(next));
+    setWorkflow((w) => ({ ...w, girValidated: false, girExported: false }));
+  }, [groupId]);
+
+  /** AI writes proposals only. Returns how many rows are newly open for review. */
+  const proposePackAmendments = useCallback((rows: PackAmendment[]) => {
+    const merged = mergeProposals(packAmendments, rows);
+    persistPacks(merged);
+    const open = merged.filter((a) => a.status === "proposed" && !a.guard).length;
+    if (rows.length) {
+      appendHistory({
+        kind: "action",
+        title: `OECD Central Record scan · ${rows.length} pack difference${rows.length === 1 ? "" : "s"}`,
+        detail: `${open} awaiting reviewer decision. Nothing reaches the calculation until accepted.`,
+        href: "/jurisdictions",
+        ref: "pack-scan",
+      });
+    }
+    return open;
+  }, [packAmendments, persistPacks, appendHistory]);
+
+  /**
+   * A reviewer decision is the only route into the calculation. Rows carrying a
+   * legal guard can be rejected but never accepted — absence from the Central
+   * Record is not a determination that a regime is unqualified.
+   */
+  const decidePackAmendment = useCallback((id: string, status: Exclude<PackAmendmentStatus, "proposed">) => {
+    const row = packAmendments.find((a) => a.id === id);
+    if (!row) return "Amendment not found on this snapshot.";
+    if (status === "accepted" && row.guard) return row.guard;
+    const actor = actorNow();
+    persistPacks(packAmendments.map((a) => (
+      a.id === id ? { ...a, status, reviewer: actor.name, decidedAt: new Date().toISOString() } : a
+    )));
+    appendHistory({
+      kind: "change",
+      title: `Jurisdiction pack ${status} · ${row.name} ${row.field}`,
+      detail: `${String(row.current)} → ${String(row.proposed)}. Source: Central Record${row.asOf ? ` as at ${row.asOf}` : ""} · ${row.sourceUrl}. ${actor.name} (${actor.role}).`,
+      href: "/jurisdictions",
+      ref: row.id,
+    });
+    return null;
+  }, [packAmendments, persistPacks, appendHistory, actorNow]);
+
+  const revertPackAmendment = useCallback((id: string) => {
+    const row = packAmendments.find((a) => a.id === id);
+    if (!row) return;
+    persistPacks(packAmendments.map((a) => (
+      a.id === id ? { ...a, status: "proposed", reviewer: null, decidedAt: null } : a
+    )));
+    appendHistory({
+      kind: "change",
+      title: `Jurisdiction pack amendment reverted · ${row.name} ${row.field}`,
+      detail: `Signed pack value ${String(row.current)} restored to the calculation pending review.`,
+      href: "/jurisdictions",
+      ref: row.id,
+    });
+  }, [packAmendments, persistPacks, appendHistory]);
+
+  const clearPackAmendments = useCallback(() => {
+    persistPacks([]);
+    appendHistory({
+      kind: "change",
+      title: "Jurisdiction pack amendments cleared",
+      detail: "All proposals and accepted amendments removed. The engine is back on the signed Central Record pack.",
+      href: "/jurisdictions",
+      ref: "pack-reset",
+    });
+  }, [persistPacks, appendHistory]);
+
   const persistXray = useCallback((next: XrayState) => {
     setXray(next);
     localStorage.setItem(xrayKey(groupId), JSON.stringify(next));
@@ -800,13 +902,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loadDemoPack,
       resetIngest,
       noteFileDrop,
+      packAmendments,
+      packOverlay,
+      proposePackAmendments,
+      decidePackAmendment,
+      revertPackAmendment,
+      clearPackAmendments,
       xray,
       answerXray,
       attachXrayEvidence,
       signXray,
       resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, xray, answerXray, attachXrayEvidence, signXray, resetXray],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, packAmendments, packOverlay, proposePackAmendments, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

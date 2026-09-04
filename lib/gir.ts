@@ -1,6 +1,7 @@
 import type { JurCalc } from "./engine";
 import { totals } from "./engine";
-import { ENTITIES, JURISDICTION_PACKS, type Entity, type Group } from "./model";
+import { ENTITIES, type Entity, type Group } from "./model";
+import { effectivePack, type PackOverlay } from "./packAmendments";
 import { utprAllocation } from "./utpr";
 import { entityPopulation, type PopulationRecord } from "./population";
 
@@ -53,8 +54,8 @@ function statusCode(entity: Entity) {
   return "GIR301";
 }
 
-function idXml(entity: Entity, indent = "        ") {
-  const pack = JURISDICTION_PACKS.find((p) => p.iso === entity.iso);
+function idXml(entity: Entity, indent = "        ", overlay?: PackOverlay) {
+  const pack = effectivePack(entity.iso, overlay);
   const rules = [
     ...(pack?.iir ? ["GIR201"] : []),
     ...(pack?.utpr ? ["GIR203"] : []),
@@ -69,8 +70,8 @@ ${indent}  <globe:GloBEStatus>${statusCode(entity)}</globe:GloBEStatus>
 ${indent}</globe:ID>`;
 }
 
-function nonMaterialIdXml(entity: PopulationRecord, indent = "        ") {
-  const pack = JURISDICTION_PACKS.find((p) => p.iso === entity.iso);
+function nonMaterialIdXml(entity: PopulationRecord, indent = "        ", overlay?: PackOverlay) {
+  const pack = effectivePack(entity.iso, overlay);
   const rules = [
     ...(pack?.iir ? ["GIR201"] : []),
     ...(pack?.utpr ? ["GIR203"] : []),
@@ -148,8 +149,9 @@ export function buildGirPackage(opts: {
   calcs: JurCalc[];
   electionsOn?: Record<string, boolean>;
   activeFy?: string;
+  packOverlay?: PackOverlay;
 }): GirPackage {
-  const { group, calcs, electionsOn = {}, activeFy = group.fy } = opts;
+  const { group, calcs, electionsOn = {}, activeFy = group.fy, packOverlay } = opts;
   const t = totals(calcs);
   const entities = group.id === "aetherion" ? ENTITIES : ENTITIES.slice(0, Math.min(ENTITIES.length, group.entities));
   const population = group.id === "aetherion" ? entityPopulation() : entities.map((entity) => ({
@@ -209,14 +211,14 @@ export function buildGirPackage(opts: {
       <globe:CorporateStructure>
         <globe:UPE>
           <globe:OtherUPE>
-${idXml(upe, "            ")}
+${idXml(upe, "            ", packOverlay)}
           </globe:OtherUPE>
         </globe:UPE>
 ${entities.filter((entity) => entity.id !== upe.id).map((entity) => `        <globe:CE>
-${idXml(entity, "          ")}
+${idXml(entity, "          ", packOverlay)}
         </globe:CE>`).join("\n")}
 ${nonMaterial.map((entity) => `        <globe:CE>
-${nonMaterialIdXml(entity, "          ")}
+${nonMaterialIdXml(entity, "          ", packOverlay)}
         </globe:CE>`).join("\n")}
       </globe:CorporateStructure>
     </globe:GeneralSection>

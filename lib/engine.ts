@@ -29,6 +29,7 @@ import { utprAllocation, type UtprFactor } from "./utpr";
 import { sbtishResult } from "./harbours2026";
 import { recapturePostings } from "./recaptureYear";
 import { applyEnte, type EntePriorRow } from "./ente";
+import { effectivePack, effectivePacks, type PackOverlay } from "./packAmendments";
 
 const MIN_RATE = Number(RULES.find((r) => r.id === "OECD-GloBE-15")!.parameters.minimumRate);
 const SBIE = RULES.find((r) => r.id === "OECD-SBIE-2026")!;
@@ -136,6 +137,8 @@ export type CalcCtx = {
   tcshPrior?: TcshPriorRow[];
   entePrior?: EntePriorRow[];
   approvedMaps?: Record<string, boolean>;
+  /** Reviewer-accepted amendments to the signed Central Record packs. */
+  packOverlay?: PackOverlay;
 };
 
 function priorEnte(blendKey: string, iso: string, ctx?: CalcCtx) {
@@ -434,6 +437,7 @@ export function allocateCollection(opts: {
   entities: Entity[];
   iso: string;
   name: string;
+  overlay?: PackOverlay;
 }): Collection {
   const empty: Collection = {
     qdmtt: 0, iir: 0, utpr: 0, payer: "—", path: [], popeIir: 0, upeIir: 0, inclusionRatio: 0, popeId: null, utprAllocations: [],
@@ -451,7 +455,7 @@ export function allocateCollection(opts: {
   const irPope = pope ? inclusionRatio(pope.id, opts.entities) : 0;
   const irUpe = inclusionRatio(upe.id, opts.entities);
   const popeEnt = pope ? ENTITIES.find((e) => e.id === pope.id) : undefined;
-  const popePack = popeEnt ? JURISDICTION_PACKS.find((p) => p.iso === popeEnt.iso) : undefined;
+  const popePack = popeEnt ? effectivePack(popeEnt.iso, opts.overlay) : undefined;
 
   if (opts.pack?.qdmtt) {
     qdmtt = remaining;
@@ -482,7 +486,7 @@ export function allocateCollection(opts: {
   }
 
   if (remaining > 0) {
-    const upePack = JURISDICTION_PACKS.find((p) => p.iso === upe.iso);
+    const upePack = effectivePack(upe.iso, opts.overlay);
     if (upePack?.iir) {
       upeIir = money(remaining * (irUpe / 100));
       remaining = money(Math.max(0, remaining - upeIir));
@@ -494,7 +498,7 @@ export function allocateCollection(opts: {
   }
 
   const utpr = remaining;
-  const utprAllocations = utprAllocation(utpr);
+  const utprAllocations = utprAllocation(utpr, effectivePacks(opts.overlay));
   if (utpr > 0) {
     if (!popeIir && !upeIir && !qdmtt) payer = `UTPR · ${utprAllocations.length} jurisdictions`;
     path.push(`Residual UTPR ${utpr.toLocaleString("en-GB")} · Art. 2.6 key`);
@@ -658,7 +662,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const cbcrTax = sum(fins.map((f) => f.cbcrTax));
     const cbcrEtr = cbcrPbt > 0 ? cbcrTax / cbcrPbt : 0;
     const routine = money(cbcrRev * 0.1); // simplified routine profits proxy for demo
-    const pack = JURISDICTION_PACKS.find((p) => p.iso === iso);
+    const pack = effectivePack(iso, ctx?.packOverlay);
 
     const deMinimis = shPass(cbcrRev < DEMIN_REV && cbcrPbt < DEMIN_PBT);
     const simplifiedEtr = shPass(cbcrEtr >= SIMPLIFIED_ETR);
@@ -724,6 +728,7 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
       entities,
       iso,
       name,
+      overlay: ctx?.packOverlay,
     });
 
     const completeness = Math.round(entities.reduce((a, e) => a + e.completeness, 0) / entities.length);
@@ -967,7 +972,7 @@ export function totals(calcs: JurCalc[]) {
 
 export type ScenarioInput = { boiExtend: boolean; payrollTh: number; tpMargin: number };
 
-export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
+export function applyScenario(calcs: JurCalc[], s: ScenarioInput, overlay?: PackOverlay): JurCalc[] {
   const live = s.boiExtend || s.payrollTh > 0 || s.tpMargin !== 3;
   if (!live) return calcs;
   return calcs.map((c) => {
@@ -977,13 +982,13 @@ export function applyScenario(calcs: JurCalc[], s: ScenarioInput): JurCalc[] {
       const excess = money(Math.max(0, c.globeIncome - sbie));
       let jurisdictionalTopUp = money(c.topUpRate * excess + (c.additionalCurrentTopUp ?? 0));
       if (s.boiExtend) jurisdictionalTopUp = money(jurisdictionalTopUp * 0.38);
-      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name });
+      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name, overlay });
       return { ...c, sbie, excess, jurisdictionalTopUp, collection };
     }
     if (c.iso === "IE" && s.tpMargin !== 3) {
       const factor = 1 + ((s.tpMargin - 3) / 2) * 0.08;
       const jurisdictionalTopUp = money(Math.max(0, c.jurisdictionalTopUp * factor));
-      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name });
+      const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name, overlay });
       return { ...c, jurisdictionalTopUp, collection };
     }
     return c;

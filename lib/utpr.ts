@@ -15,9 +15,13 @@ export type UtprFactor = {
 
 const excluded = new Set(["Investment", "Excluded", "JV", "JV Sub"]);
 
-/** Article 2.6 factors. Investment Entities and JV Group members do not enter the MNE's UTPR key. */
-export function utprAllocation(totalUtpr = 0): UtprFactor[] {
-  const eligible = JURISDICTION_PACKS.filter((p) => p.utpr && p.iso !== "XX");
+/**
+ * Article 2.6 factors. Investment Entities and JV Group members do not enter the
+ * MNE's UTPR key. Callers pass the effective pack list so a reviewer-accepted
+ * UTPR amendment changes which jurisdictions share the residual.
+ */
+export function utprAllocation(totalUtpr = 0, packs = JURISDICTION_PACKS): UtprFactor[] {
+  const eligible = packs.filter((p) => p.utpr && p.iso !== "XX");
   const rows = eligible.map((pack) => {
     const entities = ENTITIES.filter(
       (e) => e.iso === pack.iso && !excluded.has(e.type) && !e.equityMethod,
