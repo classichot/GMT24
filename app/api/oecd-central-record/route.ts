@@ -56,13 +56,22 @@ export async function GET() {
     return Response.json(body);
   } catch (e) {
     const message = e instanceof Error ? e.message : "OECD fetch failed";
+    // oecd.org began refusing automated requests to the Central Record page for
+    // every client and User-Agent. Say so plainly: an empty result must never be
+    // read as "the signed pack agrees with the Record".
+    const blocked = /\b40[13]\b/.test(message);
+    const error = blocked
+      ? `OECD refused the request (${message}). The Central Record page now blocks automated readers, so no comparison was made — this is not a finding that the signed pack matches the Record. Open the PDF and record any change as a manual amendment.`
+      : /abort/i.test(message)
+        ? "OECD timed out. No comparison was made. Open the Central Record and retry."
+        : `${message}. No comparison was made.`;
     const body: OecdRefresh = {
       fetchedAt,
       asOf: null,
       sourceUrl: OECD_CENTRAL_RECORD_URL,
       pdfUrl: OECD_CENTRAL_RECORD_PDF,
       ok: false,
-      error: /abort/i.test(message) ? "OECD timed out. Open the Central Record and retry." : message,
+      error,
       news: [],
       rows: [],
     };

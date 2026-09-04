@@ -146,6 +146,17 @@ export default function JurisdictionsPage() {
         </div>
       </div>
 
+      {live && !live.ok && (
+        <div
+          className="callout"
+          style={{ marginBottom: 20, borderLeft: "4px solid var(--color-hot)" }}
+        >
+          <strong>No comparison was made.</strong> {live.error}{" "}
+          <a href={live.pdfUrl} target="_blank" rel="noreferrer">Open the Central Record PDF</a>. An empty proposal
+          list here means the Record could not be read — not that the signed pack agrees with it.
+        </div>
+      )}
+
       {proposals.length > 0 && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-head">
