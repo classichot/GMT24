@@ -37,6 +37,7 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import AiReadyBadge from "@/components/AiReadyBadge";
+import { AiProvider } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
@@ -125,8 +126,19 @@ const NAV = [
     { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
     { href: "/playbook/review", label: "Playbook", icon: ClipboardList },
   ]},
+  { group: "AI Co-Pilot", items: [
+    { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare },
+    { href: "/quickscan", label: "Quick Scan", icon: ScanLine },
+    { href: "/trainer", label: "App Trainer", icon: BookOpen },
+    { href: "/reviewer", label: "Calculation Reviewer", icon: Check },
+    { href: "/strategy", label: "Strategy Simulator", icon: Sparkles },
+    { href: "/rehearsal", label: "Audit Rehearsal", icon: Shield },
+    { href: "/regwatch", label: "Regulatory Watch", icon: Globe },
+    { href: "/briefing", label: "CFO Briefing", icon: FileText },
+    { href: "/tasks", label: "Tasks", icon: ClipboardList },
+    { href: "/feedback", label: "Feedback", icon: MessageSquare },
+  ]},
   { group: "Intelligence", items: [
-    { href: "/copilot", label: "AI Copilot", icon: MessageSquare },
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
@@ -193,7 +205,16 @@ const TITLES: Record<string, [string, string]> = {
   "/evidence": ["Review", "Evidence locker"],
   "/evidence-history": ["Review", "Evidence history"],
   "/approvals": ["Review", "Preparer / reviewer"],
-  "/copilot": ["Intelligence", "Ask GMT24"],
+  "/copilot": ["AI Co-Pilot", "Ask GMT24"],
+  "/quickscan": ["AI Co-Pilot", "Pillar Two Quick Scan"],
+  "/trainer": ["AI Co-Pilot", "App Trainer"],
+  "/reviewer": ["AI Co-Pilot", "Calculation Reviewer"],
+  "/strategy": ["AI Co-Pilot", "Strategy Simulator"],
+  "/rehearsal": ["AI Co-Pilot", "Audit Rehearsal"],
+  "/regwatch": ["AI Co-Pilot", "Regulatory Impact Watch"],
+  "/briefing": ["AI Co-Pilot", "CFO Briefing"],
+  "/tasks": ["AI Co-Pilot", "Tasks"],
+  "/feedback": ["AI Co-Pilot", "Feedback"],
   "/rulebook": ["Killer feature", "GMT24 Global Rulebook"],
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
@@ -206,6 +227,14 @@ function isActive(path: string, href: string) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <AiProvider>
+      <Shell>{children}</Shell>
+    </AiProvider>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
