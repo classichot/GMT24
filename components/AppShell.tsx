@@ -36,6 +36,7 @@ import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
+import AiReadyBadge from "@/components/AiReadyBadge";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
@@ -233,6 +234,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div>
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 10 }}>
               GMT24<span style={{ width: 14, height: 14, background: "var(--color-accent)", display: "block" }} />
+              <AiReadyBadge style={{ alignSelf: "center", marginLeft: 2 }} />
             </div>
             <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 4 }}>Global Minimum Tax OS</div>
           </div>
