@@ -60,6 +60,7 @@ type Ai = {
   createTask: GatewayApi["createTask"];
   updateTask: GatewayApi["updateTask"];
   updateTicket: (id: string, p: Partial<Pick<Ticket, "status">> & { note?: string }) => void;
+  submitTicket: (t: Ticket) => GatewayResult;
   reviewReg: GatewayApi["reviewReg"];
   confirmFact: GatewayApi["confirmFact"];
   addFact: (f: Fact) => void;
@@ -328,6 +329,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     removeAttachment: (id) => patch((s) => ({ attachments: s.attachments.filter((a) => a.id !== id) })),
     createTask: api.createTask, updateTask: api.updateTask,
     updateTicket: (id, p) => patch((s) => ({ tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...(p.status ? { status: p.status } : {}), updates: [...t.updates, { at: new Date().toISOString(), note: p.note ?? `Status → ${p.status}` }] } : t)) })),
+    submitTicket: (t) => { pendingTickets.current.set(t.id, t); return run(propose("create-ticket", { id: t.id }, ctx)); },
     reviewReg: api.reviewReg, confirmFact: api.confirmFact,
     addFact: (f) => patch((s) => ({ manualFacts: [...s.manualFacts.filter((m) => m.id !== f.id), f] })),
     scans, runScan, answerScan, correctScan, deleteScan, onboard,
