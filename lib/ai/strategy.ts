@@ -26,7 +26,7 @@ export function parseScenario(q: string, calcs: JurCalc[], current: { scenario: 
   const num = (re: RegExp) => { const m = l.match(re); return m ? Number(m[1].replace(/,/g, "")) * (m[2]?.startsWith("m") || m[2] === "ล้าน" ? 1_000_000 : m[2]?.startsWith("k") ? 1_000 : 1) : null; };
 
   if (/boi|tax holiday|incentive|extend/.test(l) && iso === "TH") {
-    const off = /(drop|end|expire|lose|without|no longer|not extend|ไม่ต่อ)/.test(l);
+    const off = /\b(drop|end|ends|ending|expire|expires|expiry|lose|lapse|without|no longer|not extend|don't extend|do not extend)\b|ไม่ต่อ|หมดอายุ/.test(l);
     spec.boiExtend = !off;
     assumptions.push(`BOI incentive ${off ? "is not extended — Thai statutory tax applies from the expiry date in the incentive register" : "is extended for the full fiscal year on the same certificate terms"}.`);
   }

@@ -10,7 +10,7 @@ export type Intent = { feature: FeatureId; mode: InteractionMode | null; confide
 type Rule = { feature: FeatureId; re: RegExp; weight: number; mode?: InteractionMode; audience?: Intent["audience"] };
 
 const RULES: Rule[] = [
-  { feature: "feedback", re: /\b(bug|broken|doesn'?t work|not working|crash|freez|typo|wrong label|feature request|suggestion|would be (nice|better)|report (a|an|this) (bug|issue|problem))\b|ไม่ทำงาน|ข้อเสนอ|แจ้งปัญหา|บั๊ก/i, weight: 0.9 },
+  { feature: "feedback", re: /\b(bug|broken|doesn'?t work|not working|crash\w*|freez\w*|typo|wrong label|(this|the) (number|figure|amount|total|screen|page|label|button) (is|looks|seems) wrong|feature request|suggestion|would be (nice|better)|report (a|an|this) (bug|issue|problem))\b|ไม่ทำงาน|ข้อเสนอ|แจ้งปัญหา|บั๊ก|หน้าค้าง|ค้าง/i, weight: 0.9 },
   { feature: "quickscan", re: /\b(quick ?scan|scan (the )?(group|company)|public (evidence|disclosures)|annual report of|56-1|exposure of [A-Z])|สแกน|รายงานประจำปี/i, weight: 0.85 },
   { feature: "strategy", re: /\b(what if|if we|scenario|simulat|extend(ing)? (the )?(boi|holiday)|convert (the )?(holiday|boi)|increase (the )?payroll|move (the )?(ip|function|margin)|reduce (the )?(margin|top-?up by)|sensitivit)\b|จำลอง|ถ้าเรา|สมมติ/i, weight: 0.85 },
   { feature: "rehearsal", re: /\b(audit(or)?s? (would|will|might|could) ask|rehears|defend|revenue department|the rd\b|tax authority|prepare (for|us for) (an|the) audit|readiness)\b|ซ้อม|กรมสรรพากร|ผู้ตรวจสอบ/i, weight: 0.85 },
@@ -18,7 +18,7 @@ const RULES: Rule[] = [
   { feature: "regwatch", re: /\b(new (guidance|rule|regulation|decree)|administrative guidance|central record|regulator|what changed in the rules|pending guidance|impact of (the )?(new|latest))\b|กฎเกณฑ์ใหม่|ประกาศใหม่|แนวปฏิบัติ/i, weight: 0.8 },
   { feature: "reviewer", re: /\b(review (the|my|this) (calc|calculation|numbers|package)|anything (wrong|off|missing)|check (the|my|this) (calc|numbers|mapping)|reconcil|second[- ]level|findings)\b|ตรวจสอบการคำนวณ|ตรวจการคำนวณ/i, weight: 0.8 },
   { feature: "interviewer", re: /\b(x-?ray|open questions?|what do you need from me|confirm(ation)?s? (for|of)|which facts|interview)\b|คำถามที่เปิด|ยืนยันข้อเท็จจริง/i, weight: 0.8 },
-  { feature: "explain", re: /\b(why is (the|this|our)? ?[\w ]*(top-?up|etr|number|amount|figure|sbie|covered tax|globe income)|explain (this|the|that) (number|amount|figure|top-?up|etr)|how (is|was|did) .* (calculated|computed|derived|arrive)|where does .* come from|break(down)? (this|the) (number|amount)|source of (this|the))\b|ทำไม.*(ตัวเลข|top-?up|etr)|อธิบายตัวเลข|คำนวณอย่างไร/i, weight: 0.85 },
+  { feature: "explain", re: /\b(why is (the|this|our)? ?[\w ]*(top-?up|etr|number|amount|figure|sbie|covered tax|globe income)|explain (this|the|that) (number|amount|figure|top-?up|etr)|how (is|was|did) .* (calculated|computed|derived|arrive)|where does .* come from|break(down)? (this|the) (number|amount)|source of (this|the))\b|ทำไม.*(ตัวเลข|top-?up|etr)|อธิบาย.*(ตัวเลข|จำนวน|top-?up|etr|sbie|globe)|อธิบายตัวเลข|คำนวณอย่างไร|มาจากไหน/i, weight: 0.85 },
   { feature: "trainer", re: /\b(how do i|how can i|where (do|can) i|what does this (screen|page|button|field|column)|what (is|does) (this|the) (screen|page|button|field|column)|walk me|show me (how|where)|next step|what should i do|onboard|get started|i'?m (new|lost)|guide me)\b|ทำอย่างไร|อยู่ที่ไหน|ขั้นตอนต่อไป|เริ่มต้น|หน้านี้/i, weight: 0.8 },
 ];
 

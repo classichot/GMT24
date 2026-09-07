@@ -104,19 +104,27 @@ export type Retrieved = { entry: KbEntry; score: number; current: boolean };
  * jurisdiction are returned with `current = false` so the caller can say "this
  * is superseded / not yet effective" instead of citing it silently.
  */
+/** Words every Pillar Two passage contains; they never make a passage relevant on their own. */
+const GENERIC = new Set(["tax", "taxes", "rate", "rates", "income", "group", "entity", "entities", "rule", "rules", "pillar", "two", "oecd", "globe", "year", "fiscal", "jurisdiction", "jurisdictions", "amount", "percentage", "apply", "applies"]);
+
 export function retrieve(q: string, ctx: Pick<WorkContext, "fy" | "iso">, limit = 4): Retrieved[] {
   const toks = tokens(q);
   const out: Retrieved[] = [];
   for (const e of KNOWLEDGE) {
     let score = 0;
+    let hit = 0;
+    let topicHit = false;
     const hay = `${e.title} ${e.provision} ${e.passage} ${e.topics.join(" ")}`.toLowerCase();
     for (const t of toks) {
-      if (e.topics.some((x) => x === t)) score += 3;
-      else if (e.topics.some((x) => x.includes(t) || t.includes(x))) score += 2;
-      else if (hay.includes(t)) score += 1;
+      if (e.topics.some((x) => x === t)) { score += 3; hit += 1; topicHit = true; }
+      else if (!GENERIC.has(t) && t.length >= 4 && e.topics.some((x) => x.includes(t) || t.includes(x))) { score += 2; hit += 1; topicHit = true; }
+      else if (hay.includes(t)) { score += 1; hit += 1; }
     }
     if (ctx.iso && e.jurisdictions.includes(ctx.iso)) score += 1;
-    if (score > 0) out.push({ entry: e, score, current: applicable(e, ctx) && e.status !== "pending-review" && e.status !== "draft" });
+    // Relevance floor: a passage that merely shares generic words ("tax", "rate") with the question
+    // is not authority for it. Require a topic match or most of the question's terms to land.
+    const relevant = toks.length > 0 && score >= 3 && (topicHit || hit / toks.length >= 0.5);
+    if (relevant) out.push({ entry: e, score, current: applicable(e, ctx) && e.status !== "pending-review" && e.status !== "draft" });
   }
   return out.sort((a, b) => b.score - a.score || AUTHORITY_RANK[a.entry.authority] - AUTHORITY_RANK[b.entry.authority]).slice(0, limit);
 }
