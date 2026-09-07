@@ -38,6 +38,63 @@ export function sectionTitle(kind: SectionKind, lang: Lang, fallback?: string) {
   return fallback ?? SECTION[lang][kind];
 }
 
+/**
+ * Words a user may type for a jurisdiction: English name, adjective, and Thai
+ * name. Longest match wins so "hong kong" beats "kong" and Thai compounds resolve
+ * before their parts. Two-letter ISO codes are matched separately as whole words.
+ */
+export const JURISDICTION_WORDS: Record<string, string> = {
+  thailand: "TH", thai: "TH", ประเทศไทย: "TH", ไทย: "TH",
+  ireland: "IE", irish: "IE", ไอร์แลนด์: "IE",
+  vietnam: "VN", "viet nam": "VN", vietnamese: "VN", เวียดนาม: "VN",
+  "hong kong": "HK", ฮ่องกง: "HK",
+  singapore: "SG", singaporean: "SG", สิงคโปร์: "SG",
+  malaysia: "MY", malaysian: "MY", มาเลเซีย: "MY",
+  indonesia: "ID", indonesian: "ID", อินโดนีเซีย: "ID",
+  india: "IN", indian: "IN", อินเดีย: "IN",
+  "united states": "US", usa: "US", america: "US", american: "US", สหรัฐ: "US", อเมริกา: "US",
+  china: "CN", chinese: "CN", จีน: "CN",
+  japan: "JP", japanese: "JP", ญี่ปุ่น: "JP",
+  "united kingdom": "GB", britain: "GB", british: "GB", อังกฤษ: "GB", สหราชอาณาจักร: "GB",
+  germany: "DE", german: "DE", เยอรมนี: "DE", เยอรมัน: "DE",
+  france: "FR", french: "FR", ฝรั่งเศส: "FR",
+  netherlands: "NL", dutch: "NL", holland: "NL", เนเธอร์แลนด์: "NL",
+  luxembourg: "LU", ลักเซมเบิร์ก: "LU",
+  hungary: "HU", hungarian: "HU", ฮังการี: "HU",
+  "united arab emirates": "AE", uae: "AE", dubai: "AE", สหรัฐอาหรับเอมิเรตส์: "AE", ดูไบ: "AE",
+  peru: "PE", peruvian: "PE", เปรู: "PE",
+  cambodia: "KH", cambodian: "KH", กัมพูชา: "KH",
+  australia: "AU", australian: "AU", ออสเตรเลีย: "AU",
+  "cayman islands": "KY", cayman: "KY", เคย์แมน: "KY",
+};
+
+const JW_SORTED = Object.entries(JURISDICTION_WORDS).sort((a, b) => b[0].length - a[0].length);
+
+/** ISO codes named in free text, in order of appearance. Accepts names, adjectives, Thai names and whole-word ISO codes. */
+export function isosIn(text: string): string[] {
+  const l = text.toLowerCase();
+  const found: { at: number; iso: string }[] = [];
+  for (const [w, iso] of JW_SORTED) {
+    let from = 0;
+    while (from < l.length) {
+      const at = l.indexOf(w, from);
+      if (at < 0) break;
+      const before = l[at - 1];
+      const after = l[at + w.length];
+      const asciiWord = /[a-z]/.test(w[0]);
+      const bounded = !asciiWord || ((!before || !/[a-z]/.test(before)) && (!after || !/[a-z]/.test(after)));
+      if (bounded && !found.some((f) => f.iso === iso)) found.push({ at, iso });
+      from = at + w.length;
+    }
+  }
+  const shouting = /[A-Z]/.test(text) && !/[a-z]/.test(text);
+  for (const m of shouting ? [] : text.matchAll(/(^|[^A-Za-z])([A-Z]{2})(?![A-Za-z])/g)) {
+    const iso = m[2];
+    if (!found.some((f) => f.iso === iso)) found.push({ at: m.index ?? 0, iso });
+  }
+  return found.sort((a, b) => a.at - b.at).map((f) => f.iso);
+}
+
 const UI: Record<string, Record<Lang, string>> = {
   ask: { en: "Ask about this screen, a number, a rule or a decision…", th: "ถามเกี่ยวกับหน้านี้ ตัวเลข กฎเกณฑ์ หรือการตัดสินใจ…" },
   explainIt: { en: "Explain it", th: "อธิบาย" },

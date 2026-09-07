@@ -1,4 +1,5 @@
 import type { JurCalc } from "../engine";
+import { isosIn } from "./i18n";
 import { optimizeGlobe } from "../electionEngine";
 import { eur, pct } from "../format";
 import { answerCopilot } from "../copilot";
@@ -38,7 +39,8 @@ const TOPIC_TO_ENGINE: { re: RegExp; engine: string; area: string }[] = [
 
 function targetCalc(q: string, ctx: WorkContext, calcs: JurCalc[]) {
   const l = q.toLowerCase();
-  const byName = calcs.find((c) => l.includes(c.name.toLowerCase()) || new RegExp(`\\b${c.iso.toLowerCase()}\\b`).test(l));
+  const isos = isosIn(q);
+  const byName = calcs.find((c) => l.includes(c.name.toLowerCase())) ?? (isos.length ? calcs.find((c) => c.iso === isos[0] && c.blendKind === "main") ?? calcs.find((c) => c.iso === isos[0]) : undefined);
   if (byName) return byName;
   if (ctx.iso) return calcs.find((c) => c.iso === ctx.iso && c.blendKind === "main") ?? calcs.find((c) => c.iso === ctx.iso);
   return undefined;

@@ -1,4 +1,5 @@
 import type { JurCalc } from "../engine";
+import { isosIn } from "./i18n";
 import { applyPackage, eligibilityEngine, flagsFromOn, optimizeGlobe, switchKey, type SbieMode } from "../electionEngine";
 import { ELECTIONS, electionById } from "../elections";
 import { eur, money, pct } from "../format";
@@ -13,14 +14,13 @@ import type { Reply, SavedScenario, ScenarioJurRow, ScenarioSpec, Section, WorkC
  * current working package. The result is a draft scenario; adoption goes through
  * the gateway and the election engine's own eligibility and lock rules.
  */
-const ISO_WORDS: Record<string, string> = { thailand: "TH", thai: "TH", ireland: "IE", irish: "IE", vietnam: "VN", "hong kong": "HK", singapore: "SG", malaysia: "MY", indonesia: "ID", india: "IN", "united states": "US", usa: "US", china: "CN", japan: "JP", uk: "GB", "united kingdom": "GB", germany: "DE", netherlands: "NL", australia: "AU", ประเทศไทย: "TH", ไทย: "TH", ไอร์แลนด์: "IE", เวียดนาม: "VN", ฮ่องกง: "HK", สิงคโปร์: "SG" };
 
 export function parseScenario(q: string, calcs: JurCalc[], current: { scenario: CalcInputs["scenario"]; electionsOn: Record<string, boolean>; sbieClaim: Record<string, SbieMode> }): { spec: ScenarioSpec; assumptions: string[]; unparsed: string[] } {
   const l = q.toLowerCase();
   const spec: ScenarioSpec = {};
   const assumptions: string[] = [];
   const unparsed: string[] = [];
-  const isos = Object.entries(ISO_WORDS).filter(([w]) => l.includes(w)).map(([, iso]) => iso);
+  const isos = isosIn(q);
   const iso = isos[0] ?? (calcs.some((c) => c.iso === "TH") ? "TH" : calcs[0]?.iso);
   const name = calcs.find((c) => c.iso === iso)?.name ?? iso;
   const num = (re: RegExp) => { const m = l.match(re); return m ? Number(m[1].replace(/,/g, "")) * (m[2]?.startsWith("m") || m[2] === "ล้าน" ? 1_000_000 : m[2]?.startsWith("k") ? 1_000 : 1) : null; };

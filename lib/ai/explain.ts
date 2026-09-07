@@ -1,4 +1,5 @@
 import type { AuditNode, JurCalc } from "../engine";
+import { isosIn } from "./i18n";
 import { eur, pct } from "../format";
 import { RULES } from "../model";
 import type { XrayFinding, XrayState } from "../xray";
@@ -170,18 +171,19 @@ export function calcNote(i: ExplainInput, rules: { id: string; version: string }
 /** Find the trace node that best matches a phrase ("Thailand ETR", "SBIE Ireland", "group top-up"). */
 export function locateNode(q: string, calcs: JurCalc[], groupAudit: AuditNode): { node: AuditNode; calc?: JurCalc } | null {
   const l = q.toLowerCase();
-  const calc = calcs.find((c) => l.includes(c.name.toLowerCase()) || new RegExp(`\\b${c.iso.toLowerCase()}\\b`).test(l));
+  const isos = isosIn(q);
+  const calc = calcs.find((c) => l.includes(c.name.toLowerCase())) ?? (isos.length ? calcs.find((c) => c.iso === isos[0] && c.blendKind === "main") ?? calcs.find((c) => c.iso === isos[0]) : undefined);
   if (!calc) {
-    if (/group|total|headline/.test(l)) return { node: groupAudit };
+    if (/group|total|headline|กลุ่ม|รวม/.test(l)) return { node: groupAudit };
     return null;
   }
   const t = calc.trace;
-  if (/sbie|substance|carve/.test(l)) return { node: t.sbie, calc };
-  if (/payroll/.test(l)) return { node: t.payroll, calc };
-  if (/asset|tangible/.test(l)) return { node: t.assets, calc };
-  if (/covered|tax(es)? (paid|expense)|deferred/.test(l)) return { node: t.covered, calc };
-  if (/globe income|fanil|income/.test(l)) return { node: t.globe, calc };
-  if (/excess/.test(l)) return { node: t.excess, calc };
-  if (/etr|effective/.test(l)) return { node: t.etr, calc };
+  if (/sbie|substance|carve|สาระสำคัญ/.test(l)) return { node: t.sbie, calc };
+  if (/payroll|เงินเดือน|ค่าจ้าง/.test(l)) return { node: t.payroll, calc };
+  if (/asset|tangible|สินทรัพย์/.test(l)) return { node: t.assets, calc };
+  if (/covered|tax(es)? (paid|expense)|deferred|ภาษีที่ครอบคลุม|ภาษีรอตัด/.test(l)) return { node: t.covered, calc };
+  if (/globe income|fanil|income|รายได้|กำไร/.test(l)) return { node: t.globe, calc };
+  if (/excess|ส่วนเกิน/.test(l)) return { node: t.excess, calc };
+  if (/etr|effective|อัตราภาษีที่แท้จริง/.test(l)) return { node: t.etr, calc };
   return { node: calc.audit, calc };
 }
