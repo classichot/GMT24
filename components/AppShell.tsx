@@ -38,6 +38,7 @@ import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
+import { MenuGuide } from "@/components/MenuGuide";
 import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
@@ -311,7 +312,6 @@ function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const { logout, toast, navOpen, setNavOpen, mode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
-  const ai = useAi();
   const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
   const { stop } = useXray();
@@ -319,8 +319,16 @@ function Shell({ children }: { children: ReactNode }) {
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
   const nav = useNavWidth();
+  // Menu guide: `href` null = explain the current screen; a value = a menu picked from the sidebar.
+  const [guide, setGuide] = useState<{ open: boolean; href: string | null }>({ open: false, href: null });
+  const openGuide = useCallback((href: string | null) => {
+    setGuide((g) => (g.open && (g.href ?? path) === (href ?? path) ? { open: false, href: null } : { open: true, href }));
+    setNavOpen(false);
+  }, [path, setNavOpen]);
 
   useEffect(() => { setNavOpen(false); }, [path, setNavOpen]);
+  // Once you arrive on a screen, the guide follows the screen you are on.
+  useEffect(() => { setGuide((g) => (g.href ? { ...g, href: null } : g)); }, [path]);
   useEffect(() => { setInvite(readInviteSession()); }, [path]);
 
   const book = path.startsWith("/playbook/")
@@ -391,10 +399,21 @@ function Shell({ children }: { children: ReactNode }) {
                 {items.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link key={`${g.group}:${item.href}`} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
-                      <Icon size={15} />
-                      {item.label}
-                    </Link>
+                    <div key={`${g.group}:${item.href}`} className="nav-row">
+                      <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                        <Icon size={15} />
+                        {item.label}
+                      </Link>
+                      <button
+                        type="button"
+                        className={`nav-help${guide.open && (guide.href ?? path) === item.href ? " on" : ""}`}
+                        title={`What is ${item.label} for?`}
+                        aria-label={`What is ${item.label} for?`}
+                        onClick={() => openGuide(item.href)}
+                      >
+                        <HelpCircle size={13} />
+                      </button>
+                    </div>
                   );
                 })}
                 {book && (
@@ -443,7 +462,20 @@ function Shell({ children }: { children: ReactNode }) {
           <button className="icon-btn menu-btn" onClick={() => setNavOpen(true)} aria-label="Open menu"><Menu size={20} /></button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-accent)" }}>{kicker}</div>
-            <h3 style={{ margin: "2px 0 0" }}>{title}</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <h3 style={{ margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</h3>
+              <button
+                type="button"
+                className={`title-help${guide.open && !guide.href ? " on" : ""}`}
+                title="What is this menu for?"
+                aria-label="What is this menu for?"
+                aria-expanded={guide.open && !guide.href}
+                onClick={() => openGuide(null)}
+              >
+                <HelpCircle size={15} />
+                <span className="header-hide-sm">What is this menu?</span>
+              </button>
+            </div>
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
           <span className="tag tag-outline header-hide-sm">{activeFy}</span>
@@ -456,7 +488,6 @@ function Shell({ children }: { children: ReactNode }) {
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
           )}
-          <button className="btn btn-ghost header-hide-sm" title="Explain what this menu is built for" onClick={() => { setCopilotOpen(true); ai.explainMenu(); }}><HelpCircle size={16} />Explain menu</button>
           <button className="btn btn-secondary header-hide-sm" onClick={() => setCopilotOpen(!copilotOpen)}><MessageSquare size={16} />Ask GMT24</button>
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>
@@ -487,6 +518,7 @@ function Shell({ children }: { children: ReactNode }) {
             <span className="tag tag-outline" style={{ fontSize: 10 }}>Open X-Ray</span>
           </Link>
         )}
+        {guide.open && <MenuGuide href={guide.href} onClose={() => setGuide({ open: false, href: null })} />}
         <div className="workspace">
           <main className="page-main">{children}</main>
           <Copilot />

@@ -98,7 +98,7 @@ function screenSections(screen: ScreenMeta): Section[] {
   return sections;
 }
 
-/** Reply that explains a named menu or its playbook. Used by Ask GMT24 and the sidebar Explain control. */
+/** Reply that explains a named menu or its playbook. Used by Ask GMT24 and the "Ask GMT24 about this" button in the inline menu guide. */
 export function explainCatalog(q: string, ctx: WorkContext, forcedHref?: string): Reply | null {
   const hit = forcedHref
     ? (() => {
