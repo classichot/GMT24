@@ -1,4 +1,5 @@
 import type { RegChange, RegSourceState } from "./regwatchSources";
+import type { RehearsalAttempt } from "./rehearsalClient";
 import type { ProductMode } from "../model";
 
 /**
@@ -415,6 +416,8 @@ export type AiState = {
   /** Regulatory Impact Watch: client cache of the server monitor (changes detected on official sources, per-source state). */
   regChanges: RegChange[];
   regSources: RegSourceState[];
+  /** Audit Rehearsal: the team's answers and their evaluations, per rehearsal question. Shape owned by lib/ai/rehearsalClient. */
+  rehearsalAttempts: Record<string, RehearsalAttempt[]>;
 };
 
 export function emptyAiState(): AiState {
@@ -434,6 +437,7 @@ export function emptyAiState(): AiState {
     scans: [],
     regChanges: [],
     regSources: [],
+    rehearsalAttempts: {},
   };
 }
 

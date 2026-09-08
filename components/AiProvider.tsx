@@ -22,6 +22,7 @@ import { parseScenario, runScenario, strategyReply } from "@/lib/ai/strategy";
 import { rehearsalReply, rehearse, type RehearsalQ } from "@/lib/ai/rehearsal";
 import { regwatchReply, watchItems, type WatchItem } from "@/lib/ai/regwatch";
 import type { RegChange, RegSourceState } from "@/lib/ai/regwatchSources";
+import type { RehearsalAttempt } from "@/lib/ai/rehearsalClient";
 import { briefing, briefingReply, type Audience } from "@/lib/ai/briefing";
 import { quickscanReply } from "@/lib/ai/quickscan";
 import type { CalcInputs } from "@/lib/ai/calc";
@@ -78,6 +79,9 @@ type Ai = {
   regwatch: { sources: RegSourceState[]; changes: RegChange[]; checking: boolean; load: () => Promise<void>; check: (sourceIds?: string[]) => Promise<RegCheckOutcome> };
   confirmFact: GatewayApi["confirmFact"];
   addFact: (f: Fact) => void;
+  /** Audit Rehearsal: keep an evaluated answer on the question's exchange; it survives refresh and goes into the package. */
+  recordRehearsal: (questionId: string, attempt: RehearsalAttempt) => void;
+  clearRehearsal: (questionId: string) => void;
   scans: ScanResult[];
   runScan: (query: string, opts?: ScanOptions & { attachmentId?: string }) => ScanResult;
   /** Company-name entry: discover official sources on the web, read the report, structure it with the model, assess. */
@@ -541,11 +545,16 @@ export function AiProvider({ children }: { children: ReactNode }) {
     reviewReg: api.reviewReg, confirmFact: api.confirmFact,
     regwatch: { sources: state.regSources, changes: state.regChanges, checking: regChecking, load: loadRegwatch, check: checkRegwatch },
     addFact: (f) => patch((s) => ({ manualFacts: [...s.manualFacts.filter((m) => m.id !== f.id), f] })),
+    recordRehearsal: (qid, attempt) => {
+      patch((s) => ({ rehearsalAttempts: { ...s.rehearsalAttempts, [qid]: [...(s.rehearsalAttempts[qid] ?? []), attempt] } }));
+      store.appendHistory({ kind: "action", title: `Rehearsal answer evaluated · ${attempt.evaluation.verdict}`, detail: `"${attempt.asked.slice(0, 120)}" — ${attempt.evaluation.summary.slice(0, 200)}`, actor: ctx.user.name, role: ctx.user.title, fy: ctx.fy, href: "/rehearsal", ref: qid });
+    },
+    clearRehearsal: (qid) => patch((s) => { const next = { ...s.rehearsalAttempts }; delete next[qid]; return { rehearsalAttempts: next }; }),
     scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard,
     clearThread: () => patch((s) => ({ threads: s.threads.filter((t) => t.contextKey !== ctx.contextKey) })),
     guideNext: () => patch((s) => (s.guide ? { guide: s.guide.index + 1 >= s.guide.steps.length ? null : { ...s.guide, index: s.guide.index + 1 } } : {})),
     guideEnd: () => patch(() => ({ guide: null })),
-  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard, regChecking, loadRegwatch, checkRegwatch]);
+  }), [state, ctx, lang, patch, store, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard, regChecking, loadRegwatch, checkRegwatch]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
