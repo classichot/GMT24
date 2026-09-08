@@ -69,7 +69,7 @@ export default function CoveredTaxesPage() {
   const { ask, approvedMaps, electionsOn, activeFy } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
-  const [id, setId] = useState("TH-CE");
+  const [id, setId] = useState(() => DATA.focusEntityId);
   const row = entityCalc(id, { approvedMaps, electionsOn, fy: activeFy });
   const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;

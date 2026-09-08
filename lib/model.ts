@@ -659,6 +659,11 @@ export const DATA = {
   get group() { return activeSeed().group; },
   get inhouseUser() { return activeSeed().inhouseUser; },
   get entities(): Entity[] { return activeSeed().entities; },
+  /** Entity a detail page opens on: the first Thai CE (the teaching case), else the first entity of the group. */
+  get focusEntityId(): string {
+    const es = activeSeed().entities;
+    return (es.find((e) => e.iso === "TH" && e.type === "CE") ?? es.find((e) => e.iso === "TH") ?? es[0]).id;
+  },
   get financials(): Financials[] { return activeSeed().financials; },
   get adjustments(): Adjustment[] { return activeSeed().adjustments; },
   get accounts(): AccountMap[] { return activeSeed().accounts; },
