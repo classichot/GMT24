@@ -44,7 +44,7 @@ import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
-import { PLAYBOOKS, playbookByNavGroup } from "@/lib/playbooks";
+import { bookBySlug, bookForMenu } from "@/lib/menuPlaybooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
@@ -335,9 +335,9 @@ function Shell({ children }: { children: ReactNode }) {
   useEffect(() => { setInvite(readInviteSession()); }, [path]);
 
   const book = path.startsWith("/playbook/")
-    ? PLAYBOOKS.find((p) => path === `/playbook/${p.slug}`)
-    : null;
-  const [kicker, title] = book
+    ? bookBySlug(path.slice("/playbook/".length))
+    : bookForMenu(path);
+  const [kicker, title] = path.startsWith("/playbook/") && book
     ? (["Playbook", book.title] as [string, string])
     : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
 
@@ -389,25 +389,38 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
-          {NAV.map((g) => {
+          {NAV.flatMap((g) => {
             const items = g.items.filter((i) => {
               if ("advisor" in i && i.advisor && mode !== "advisor") return false;
               if ("inviteHide" in i && i.inviteHide && invite) return false;
               return true;
             });
-            if (!items.length) return null;
-            const book = playbookByNavGroup(g.group);
+            return items.length ? [{ g, items }] : [];
+          }).map(({ g, items }, gi) => {
+            const n = gi + 1;
             return (
               <div key={g.group}>
-                <div className="nav-group">{g.group}</div>
-                {items.map((item) => {
+                <div className="nav-group"><span className="nav-num">{n}</span>{g.group}</div>
+                {items.map((item, ii) => {
                   const Icon = item.icon;
+                  const pb = bookForMenu(item.href);
+                  const pbHref = pb ? `/playbook/${pb.slug}` : "/playbook/overview";
                   return (
                     <div key={`${g.group}:${item.href}`} className="nav-row">
                       <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                        <span className="nav-num">{n}.{ii + 1}</span>
                         <Icon size={15} />
                         <span className="nav-label">{item.label}</span>
                         {"ai" in item && item.ai ? <AiMenuBadge live={llmLive} /> : null}
+                      </Link>
+                      <Link
+                        href={pbHref}
+                        onClick={() => setNavOpen(false)}
+                        className={`nav-pb${path === pbHref ? " on" : ""}`}
+                        title={`${item.label} playbook`}
+                        aria-label={`${item.label} playbook`}
+                      >
+                        PB
                       </Link>
                       <button
                         type="button"
@@ -421,12 +434,6 @@ function Shell({ children }: { children: ReactNode }) {
                     </div>
                   );
                 })}
-                {book && (
-                  <Link href={`/playbook/${book.slug}`} onClick={() => setNavOpen(false)} className={`nav-btn${path === `/playbook/${book.slug}` ? " active" : ""}`}>
-                    <ClipboardList size={15} />
-                    Playbook
-                  </Link>
-                )}
               </div>
             );
           })}
@@ -469,6 +476,16 @@ function Shell({ children }: { children: ReactNode }) {
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-accent)" }}>{kicker}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <h3 style={{ margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</h3>
+              {book && (
+                <Link
+                  href={`/playbook/${book.slug}`}
+                  className={`title-help${path === `/playbook/${book.slug}` ? " on" : ""}`}
+                  title={`${book.menu} playbook`}
+                >
+                  PB
+                  <span className="header-hide-sm">Playbook</span>
+                </Link>
+              )}
               <button
                 type="button"
                 className={`title-help${guide.open && !guide.href ? " on" : ""}`}
@@ -531,11 +548,12 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="bottom-nav no-print">
-        {TABS.map((t) => {
+        {TABS.map((t, i) => {
           const Icon = t.icon;
           return (
             <Link key={t.href} href={t.href} className={isActive(path, t.href) ? "active" : ""}>
               <Icon size={18} />
+              <span className="nav-num">{i + 1}</span>
               {t.label}
             </Link>
           );

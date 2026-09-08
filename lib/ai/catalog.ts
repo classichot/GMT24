@@ -1,4 +1,5 @@
-import { PLAYBOOKS, playbookByNavGroup, type Playbook } from "../playbooks";
+import { PLAYBOOKS, type Playbook } from "../playbooks";
+import { bookForMenu } from "../menuPlaybooks";
 import { SCREENS, screenFor } from "./context";
 import { tokens } from "./knowledge";
 import type { ScreenMeta } from "./types";
@@ -89,7 +90,7 @@ export function locateCatalog(q: string): CatalogHit | null {
   for (const s of SCREENS) {
     const { score, matched } = scoreHay(q, aliasesFor(s), `${s.title} ${s.purpose} ${s.module}`);
     if (score < 8) continue;
-    const book = playbookByNavGroup(s.module) ?? PLAYBOOKS.find((p) => p.steps.some((st) => st.href === s.href)) ?? null;
+    const book = bookForMenu(s.href);
     const hit: CatalogHit = { kind: "screen", screen: s, book, score, matched };
     if (!best || hit.score > best.score) best = hit;
   }
@@ -116,6 +117,6 @@ export function isCatalogQuestion(q: string): boolean {
 
 export function catalogForPath(path: string): { screen: ScreenMeta | null; book: Playbook | null } {
   const screen = screenFor(path);
-  const book = screen ? playbookByNavGroup(screen.module) ?? PLAYBOOKS.find((p) => p.steps.some((st) => st.href === screen.href)) ?? null : null;
+  const book = screen ? bookForMenu(screen.href) : null;
   return { screen, book };
 }

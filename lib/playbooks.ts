@@ -11,9 +11,15 @@ export type Playbook = {
   menu: string;
   /** Sidebar group this playbook belongs to. Extra walkthroughs omit it. */
   navGroup?: string;
+  /** Primary sidebar menu this book belongs to. Per-menu books always set it. */
+  href?: string;
   title: string;
   summary: string;
   owner: string;
+  /** Why this menu exists — the legal / product reason, shown as THE LAW. */
+  law?: string;
+  aiSuggests?: string;
+  youDecide?: string;
   steps: PlayStep[];
 };
 
