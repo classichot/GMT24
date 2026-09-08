@@ -13,9 +13,9 @@ export default function GraphPage() {
   const { calcs } = useCalc();
   const byId = Object.fromEntries(calcs.flatMap((c) => c.entities.map((e) => [e.id, c])));
   const router = useRouter();
-  const [sel, setSel] = useState("TH-CE");
-  const selected = DATA.entities.find((e) => e.id === sel)!;
-  const jc = byId[sel];
+  const [sel, setSel] = useState(() => DATA.focusEntityId);
+  const selected = DATA.entities.find((e) => e.id === sel) ?? DATA.entities[0];
+  const jc = byId[selected.id];
 
   const edges = useMemo(
     () => DATA.entities.filter((e) => e.parentId).map((e) => {
