@@ -21,6 +21,7 @@ import { reviewCalculation, reviewerReply, type ReviewFinding } from "@/lib/ai/r
 import { parseScenario, runScenario, strategyReply } from "@/lib/ai/strategy";
 import { rehearsalReply, rehearse, type RehearsalQ } from "@/lib/ai/rehearsal";
 import { regwatchReply, watchItems, type WatchItem } from "@/lib/ai/regwatch";
+import type { RegChange, RegSourceState } from "@/lib/ai/regwatchSources";
 import { briefing, briefingReply, type Audience } from "@/lib/ai/briefing";
 import { quickscanReply } from "@/lib/ai/quickscan";
 import type { CalcInputs } from "@/lib/ai/calc";
@@ -73,6 +74,8 @@ type Ai = {
   updateTicket: (id: string, p: Partial<Pick<Ticket, "status">> & { note?: string }) => void;
   submitTicket: (t: Ticket) => GatewayResult;
   reviewReg: GatewayApi["reviewReg"];
+  /** Regulatory Impact Watch monitor: cached server state, refresh, and run-now. */
+  regwatch: { sources: RegSourceState[]; changes: RegChange[]; checking: boolean; load: () => Promise<void>; check: (sourceIds?: string[]) => Promise<RegCheckOutcome> };
   confirmFact: GatewayApi["confirmFact"];
   addFact: (f: Fact) => void;
   scans: ScanResult[];
@@ -91,19 +94,66 @@ type Ai = {
 };
 
 export type { DiscoverOutcome, ScanProgress } from "@/lib/scan/discoverClient";
+export type RegCheckOutcome = { ok: boolean; error: string | null; checkedAt: string | null; newChanges: RegChange[]; errors: { sourceId: string; error: string }[]; model: string | null };
+function mergeChanges(cached: RegChange[], fresh: RegChange[]): RegChange[] {
+  const byId = new Map(cached.map((c) => [c.id, c]));
+  for (const c of fresh) byId.set(c.id, c);
+  return [...byId.values()].sort((a, b) => b.detectedAt.localeCompare(a.detectedAt)).slice(0, 300);
+}
+function mergeSources(cached: RegSourceState[], fresh: RegSourceState[]): RegSourceState[] {
+  const byId = new Map(cached.map((c) => [c.id, c]));
+  for (const c of fresh) byId.set(c.id, c);
+  return [...byId.values()];
+}
 export type ModelStatus = { checked: boolean; configured: boolean; reachable: boolean; provider: string; model: string; detail: string; store: string };
 const NO_MODEL: ModelStatus = { checked: false, configured: false, reachable: false, provider: "none", model: "", detail: "", store: "memory" };
 
 const Ctx = createContext<Ai | null>(null);
 
+/**
+ * Browser persistence is split so the small, decision-bearing core (threads,
+ * tickets, facts, reviews, tasks) always saves. Attachments and scans carry
+ * document text and are written separately; if they exceed the quota, page
+ * text is evicted (metadata kept, note set) rather than losing the core.
+ */
+const KEY_ATT = `${KEY}_att`;
+const KEY_SCANS = `${KEY}_scans`;
+
+function readJson<T>(key: string): T | null {
+  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : null; } catch { return null; }
+}
+
 function load(): AiState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyAiState();
-    return { ...emptyAiState(), ...(JSON.parse(raw) as Partial<AiState>) };
-  } catch {
-    return emptyAiState();
+  const core = readJson<Partial<AiState>>(KEY) ?? {};
+  const attachments = readJson<Attachment[]>(KEY_ATT) ?? core.attachments ?? [];
+  const scans = readJson<unknown[]>(KEY_SCANS) ?? core.scans ?? [];
+  return { ...emptyAiState(), ...core, attachments, scans };
+}
+
+function trySet(key: string, value: unknown): boolean {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { console.error(`gmt24: could not persist ${key}`, e); return false; }
+}
+
+function saveCore(s: AiState) {
+  const { attachments: _a, scans: _s, ...core } = s; // eslint-disable-line @typescript-eslint/no-unused-vars
+  if (trySet(KEY, core)) return;
+  // Still too large: keep decisions, shrink the bulky caches.
+  trySet(KEY, { ...core, regChanges: core.regChanges.map((c) => ({ ...c, excerpt: c.excerpt.slice(0, 600) })), audit: core.audit.slice(0, 100), quality: core.quality.slice(0, 100) });
+}
+
+function saveAttachments(list: Attachment[]) {
+  if (trySet(KEY_ATT, list)) return;
+  const slim = [...list].sort((a, b) => b.size - a.size);
+  for (let i = 0; i < slim.length; i++) {
+    slim[i] = { ...slim[i], pages: [], qualityNote: "Document text was too large to keep in this browser after refresh; attach the file again to use it." };
+    if (trySet(KEY_ATT, slim)) return;
   }
+}
+
+function saveScans(list: unknown[]) {
+  let keep = list;
+  while (keep.length && !trySet(KEY_SCANS, keep)) keep = keep.slice(0, -1);
+  if (!keep.length) trySet(KEY_SCANS, []);
 }
 
 function download(name: string, body: string, mime = "text/markdown") {
@@ -126,13 +176,20 @@ export function AiProvider({ children }: { children: ReactNode }) {
   const [model, setModel] = useState<ModelStatus>(NO_MODEL);
   const abortRef = useRef<AbortController | null>(null);
   const [search, setSearch] = useState<URLSearchParams | null>(null);
-  const loaded = useRef(false);
+  /** True once the persisted state has been committed; saves before that would overwrite the stored record with the empty initial state. */
+  const [hydrated, setHydrated] = useState(false);
   const pendingTickets = useRef<Map<string, Ticket>>(new Map());
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  useEffect(() => { setState(load()); loaded.current = true; }, []);
-  useEffect(() => { if (loaded.current) try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* quota — keep in memory */ } }, [state]);
+  useEffect(() => {
+    // Keep anything the monitor fetched before hydration finished; everything else comes from the stored record.
+    setState((s) => { const l = load(); return { ...l, regSources: s.regSources.length ? mergeSources(l.regSources, s.regSources) : l.regSources, regChanges: s.regChanges.length ? mergeChanges(l.regChanges, s.regChanges) : l.regChanges }; });
+    setHydrated(true);
+  }, []);
+  useEffect(() => { if (hydrated) saveCore(state); }, [state, hydrated]);
+  useEffect(() => { if (hydrated) saveAttachments(state.attachments); }, [state.attachments, hydrated]);
+  useEffect(() => { if (hydrated) saveScans(state.scans); }, [state.scans, hydrated]);
   useEffect(() => { setSearch(typeof window === "undefined" ? null : new URLSearchParams(window.location.search)); }, [pathname]);
 
   const refreshModel = useCallback(async () => {
@@ -148,7 +205,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
 
   // Durable mirror of the thread for the open context (no-op on the in-memory store, kept for configured stores).
   useEffect(() => {
-    if (!loaded.current) return;
+    if (!hydrated) return;
     const t = state.threads.find((th) => th.contextKey === ctxKeyRef.current);
     if (!t) return;
     const h = setTimeout(() => { void fetch("/api/ai/records", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenant: t.groupId, kind: "thread", id: t.id, record: t }) }).catch(() => undefined); }, 1500);
@@ -170,8 +227,9 @@ export function AiProvider({ children }: { children: ReactNode }) {
 
   const facts = useMemo(() => allFacts({ findings: x.findings, xray: x.state, fy: store.activeFy, manual: state.manualFacts, packAmendments: store.packAmendments }), [x.findings, x.state, store.activeFy, state.manualFacts, store.packAmendments]);
   const reviewFindings = useMemo(() => reviewCalculation({ calcs: x.calcs, inputs, findings: x.findings, xray: x.state, approvedMaps: store.approvedMaps, groupId: store.groupId }), [x.calcs, inputs, x.findings, x.state, store.approvedMaps, store.groupId]);
-  const tasks = useMemo(() => deriveTasks({ findings: x.findings, xray: x.state, reviewer: reviewFindings.map((f) => ({ id: f.id, title: f.title, detail: `${f.checked} Expected ${f.expected}; actual ${f.actual}. ${f.question}`, owner: f.owner, severity: f.severity, href: f.href, iso: f.iso, entityId: f.entityId })), overrides: state.taskOverrides, manual: state.manualTasks, fy: store.activeFy }), [x.findings, x.state, reviewFindings, state.taskOverrides, state.manualTasks, store.activeFy]);
-  const watch = useMemo(() => watchItems(x.calcs, store.packAmendments, state.regReview), [x.calcs, store.packAmendments, state.regReview]);
+  const watch = useMemo(() => watchItems(x.calcs, store.packAmendments, state.regReview, state.regChanges), [x.calcs, store.packAmendments, state.regReview, state.regChanges]);
+  const regTasks = useMemo(() => watch.filter((w) => w.status === "approved" && (w.kind === "kb" || w.kind === "source")).flatMap((w) => w.affected.map((a) => ({ id: w.id, iso: a.iso, title: w.title, detail: `${w.source}. ${a.why}. Re-run the ${a.name} computation against the approved guidance and record whether the treatment changes.`, approvedAt: state.regReview[w.id]?.at ?? new Date().toISOString() }))), [watch, state.regReview]);
+  const tasks = useMemo(() => deriveTasks({ findings: x.findings, xray: x.state, reviewer: reviewFindings.map((f) => ({ id: f.id, title: f.title, detail: `${f.checked} Expected ${f.expected}; actual ${f.actual}. ${f.question}`, owner: f.owner, severity: f.severity, href: f.href, iso: f.iso, entityId: f.entityId })), regwatch: regTasks, overrides: state.taskOverrides, manual: state.manualTasks, fy: store.activeFy }), [x.findings, x.state, reviewFindings, regTasks, state.taskOverrides, state.manualTasks, store.activeFy]);
   const rehearsal = useMemo(() => rehearse({ calcs: x.calcs, findings: x.findings, xray: x.state, approvedMaps: store.approvedMaps, electionsOn: store.electionsOn, scenario: store.scenario, ctx }), [x.calcs, x.findings, x.state, store.approvedMaps, store.electionsOn, store.scenario, ctx]);
   const scans = state.scans as ScanResult[];
   const groupAudit: AuditNode = useMemo(() => totals(x.calcs).audit, [x.calcs]);
@@ -345,7 +403,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
         return strategyReply(sc, c, parsed.unparsed, x.calcs);
       }
       case "rehearsal": return rehearsalReply(rehearsal, c, text);
-      case "regwatch": return regwatchReply(watch, c, text);
+      case "regwatch": return regwatchReply(watch, c, text, state.regSources);
       case "briefing": return briefingReply({ audience: audience === "board" ? "board" : audience === "committee" ? "tax-committee" : "cfo", calcs: x.calcs, inputs, findings: x.findings, xray: x.state, reviewer: reviewFindings, tasks, scenarios: stateRef.current.scenarios, ctx: c });
       case "quickscan": {
         const m = text.match(/(?:quick ?scan|scan|สแกน)\s+(?:of\s+|for\s+)?["“]?([^"”?]+?)["”]?\s*$/i);
@@ -355,7 +413,33 @@ export function AiProvider({ children }: { children: ReactNode }) {
       }
       default: return specialistReply({ q: text, ctx: c, calcs: x.calcs, findings: x.findings, xray: x.state, facts });
     }
-  }, [x.calcs, x.findings, x.state, inputs, facts, reviewFindings, rehearsal, watch, tasks, store, groupAudit, patch, runScan]);
+  }, [x.calcs, x.findings, x.state, inputs, facts, reviewFindings, rehearsal, watch, state.regSources, tasks, store, groupAudit, patch, runScan]);
+
+  // Regulatory Impact Watch — server monitor. `load` mirrors the stored state; `check` runs the monitor now.
+  const [regChecking, setRegChecking] = useState(false);
+  const loadRegwatch = useCallback(async () => {
+    try {
+      const r = await fetch("/api/regwatch/check", { cache: "no-store" });
+      if (!r.ok) return;
+      const j = (await r.json()) as { sources: RegSourceState[]; changes: RegChange[] };
+      patch((s) => ({ regSources: j.sources, regChanges: mergeChanges(s.regChanges, j.changes) }));
+    } catch { /* offline: keep the cached copy */ }
+  }, [patch]);
+  const checkRegwatch = useCallback(async (sourceIds?: string[]): Promise<RegCheckOutcome> => {
+    setRegChecking(true);
+    try {
+      const r = await fetch("/api/regwatch/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(sourceIds ? { sourceIds } : {}) });
+      const j = (await r.json()) as { checkedAt: string; sources: RegSourceState[]; changes: RegChange[]; allChanges: RegChange[]; errors: { sourceId: string; error: string }[]; model: string | null; error?: string; detail?: string };
+      if (!r.ok || j.error) return { ok: false, error: j.detail ?? j.error ?? `HTTP ${r.status}`, checkedAt: null, newChanges: [], errors: [], model: null };
+      patch((s) => ({ regSources: mergeSources(s.regSources, j.sources), regChanges: mergeChanges(s.regChanges, j.allChanges) }));
+      store.appendHistory({ kind: "action", title: `Regulatory sources checked · ${j.sources.length} source${j.sources.length === 1 ? "" : "s"}`, detail: `${j.changes.length} new change${j.changes.length === 1 ? "" : "s"} detected; ${j.errors.length} unreachable.${j.model ? ` Summaries by ${j.model}.` : ""}`, actor: ctx.user.name, role: ctx.user.title, fy: ctx.fy, href: "/regwatch" });
+      return { ok: true, error: null, checkedAt: j.checkedAt, newChanges: j.changes, errors: j.errors, model: j.model };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e), checkedAt: null, newChanges: [], errors: [], model: null };
+    } finally {
+      setRegChecking(false);
+    }
+  }, [patch, store, ctx.user.name, ctx.user.title, ctx.fy]);
 
   const toolHost = useCallback((c: WorkContext): ToolHost => ({
     ctx: c, calcs: x.calcs, inputs, findings: x.findings, xray: x.state, facts, tasks, reviewFindings,
@@ -454,12 +538,13 @@ export function AiProvider({ children }: { children: ReactNode }) {
     updateTicket: (id, p) => patch((s) => ({ tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...(p.status ? { status: p.status } : {}), updates: [...t.updates, { at: new Date().toISOString(), note: p.note ?? `Status → ${p.status}` }] } : t)) })),
     submitTicket: (t) => { pendingTickets.current.set(t.id, t); return run(propose("create-ticket", { id: t.id }, ctx)); },
     reviewReg: api.reviewReg, confirmFact: api.confirmFact,
+    regwatch: { sources: state.regSources, changes: state.regChanges, checking: regChecking, load: loadRegwatch, check: checkRegwatch },
     addFact: (f) => patch((s) => ({ manualFacts: [...s.manualFacts.filter((m) => m.id !== f.id), f] })),
     scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard,
     clearThread: () => patch((s) => ({ threads: s.threads.filter((t) => t.contextKey !== ctx.contextKey) })),
     guideNext: () => patch((s) => (s.guide ? { guide: s.guide.index + 1 >= s.guide.steps.length ? null : { ...s.guide, index: s.guide.index + 1 } } : {})),
     guideEnd: () => patch(() => ({ guide: null })),
-  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard]);
+  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard, regChecking, loadRegwatch, checkRegwatch]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

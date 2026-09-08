@@ -1,3 +1,4 @@
+import type { RegChange, RegSourceState } from "./regwatchSources";
 import type { ProductMode } from "../model";
 
 /**
@@ -411,6 +412,9 @@ export type AiState = {
   guide: { steps: { href: string; target: string; text: string }[]; index: number } | null;
   /** Quick Scan results kept for comparison and onboarding. Shape owned by lib/scan. */
   scans: unknown[];
+  /** Regulatory Impact Watch: client cache of the server monitor (changes detected on official sources, per-source state). */
+  regChanges: RegChange[];
+  regSources: RegSourceState[];
 };
 
 export function emptyAiState(): AiState {
@@ -428,6 +432,8 @@ export function emptyAiState(): AiState {
     attachments: [],
     guide: null,
     scans: [],
+    regChanges: [],
+    regSources: [],
   };
 }
 
