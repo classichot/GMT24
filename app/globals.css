@@ -327,21 +327,21 @@ pre { font-size: 12px; line-height: 1.65; }
 .shell { display: flex; height: 100dvh; overflow: hidden; background: var(--color-bg); color: var(--color-text); }
 .sidebar,
 .bottom-nav {
-  --color-bg: #1a0e2e;
-  --color-surface: #2a1648;
-  --color-text: #f4edfb;
-  --color-divider: color-mix(in srgb, #e8d6ff 18%, transparent);
-  --color-neutral-100: #2a1648;
-  --color-neutral-200: #3a1f5c;
-  --color-neutral-300: #3d2266;
-  --color-neutral-500: #9b86b8;
-  --color-neutral-600: #c4b0d8;
-  --color-neutral-700: #ddd0ec;
-  --color-accent: #c9b0f5;
-  --color-accent-100: #3d2270;
-  --color-accent-700: #d8c4f8;
-  --color-accent-800: #efe4fc;
-  --color-on-accent: #1a0e2e;
+  --color-bg: #2e1065;
+  --color-surface: #3d1a82;
+  --color-text: #f6efff;
+  --color-divider: color-mix(in srgb, #edd9ff 22%, transparent);
+  --color-neutral-100: #3d1a82;
+  --color-neutral-200: #4b2296;
+  --color-neutral-300: #542ca4;
+  --color-neutral-500: #c4a8ef;
+  --color-neutral-600: #d8c4f6;
+  --color-neutral-700: #ece0fb;
+  --color-accent: #d4b8ff;
+  --color-accent-100: #4c1d95;
+  --color-accent-700: #e2ccff;
+  --color-accent-800: #f3e8ff;
+  --color-on-accent: #1c083f;
   background: var(--color-bg);
   color: var(--color-text);
 }
