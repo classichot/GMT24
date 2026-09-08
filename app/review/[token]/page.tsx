@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import AiReadyBadge from "@/components/AiReadyBadge";
 import {
   formatExpiry,
   hoursLeft,
@@ -20,7 +19,7 @@ function Shell({ kicker, title, lede, children }: { kicker: string; title: strin
       <section className="login-pane login-hero">
         <header className="login-pane-head">
           <div>
-            <div className="login-mark">GMT24<span /><AiReadyBadge /></div>
+            <div className="login-mark">GMT24<span /></div>
             <span className="login-kicker">{kicker}</span>
           </div>
         </header>

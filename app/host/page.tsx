@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import AiReadyBadge from "@/components/AiReadyBadge";
 import type { ProductMode } from "@/lib/model";
 import {
   DEFAULT_DAYS,
@@ -91,7 +90,7 @@ export default function HostPage() {
       <section className="login-pane login-hero">
         <header className="login-pane-head">
           <div>
-            <div className="login-mark">GMT24<span /><AiReadyBadge /></div>
+            <div className="login-mark">GMT24<span /></div>
             <span className="login-kicker">Host desk</span>
           </div>
         </header>

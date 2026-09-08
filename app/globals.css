@@ -404,41 +404,12 @@ pre { font-size: 12px; line-height: 1.65; }
   align-items: flex-start;
   gap: 12px;
 }
-.login-mark > span:not(.ai-ready) {
+.login-mark > span {
   width: 14px;
   height: 14px;
   background: var(--color-accent);
   margin-top: 8px;
   flex: none;
-}
-.login-mark .ai-ready { margin-top: 6px; }
-
-/* "AI ready" badge shown beside the GMT24 mark. */
-.ai-ready {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  align-self: flex-start;
-  padding: 3px 7px 3px 6px;
-  border: 1px solid var(--color-accent);
-  color: var(--color-accent-800);
-  background: var(--color-accent-100);
-  font-family: var(--font-body);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  line-height: 1;
-  white-space: nowrap;
-}
-.ai-ready::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 .login-kicker {
   display: inline-block;

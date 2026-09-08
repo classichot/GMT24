@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, Scale } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
-import AiReadyBadge from "@/components/AiReadyBadge";
 import type { ProductMode } from "@/lib/model";
 import { useCalc } from "@/lib/useCalc";
 import { eur } from "@/lib/format";
@@ -34,7 +33,7 @@ export default function LoginPage() {
         <header className="login-pane-head">
           <div>
             <div className="login-mark">
-              GMT24<span /><AiReadyBadge />
+              GMT24<span />
             </div>
             <span className="login-kicker">Global Minimum Tax operating system</span>
           </div>
