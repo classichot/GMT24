@@ -9,6 +9,7 @@ import type { ProductMode } from "@/lib/model";
 import { useCalc } from "@/lib/useCalc";
 import { eur } from "@/lib/format";
 import { DEFAULT_SEED_ID, SEEDS } from "@/lib/seeds";
+import { AiReadyBadge } from "@/components/AiReadyBadge";
 
 const DEMO_GROUPS = Object.values(SEEDS).map((s) => s.group);
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
         <header className="login-pane-head">
           <div>
             <div className="login-mark">
-              GMT24<span />
+              GMT24<span /><AiReadyBadge />
             </div>
             <span className="login-kicker">Global Minimum Tax operating system</span>
           </div>

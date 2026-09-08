@@ -39,6 +39,7 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import { MenuGuide } from "@/components/MenuGuide";
+import { AiReadyBadge } from "@/components/AiReadyBadge";
 import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
@@ -344,8 +345,9 @@ function Shell({ children }: { children: ReactNode }) {
       <aside className={`sidebar${navOpen ? " open" : ""}${nav.dragging ? " resizing" : ""}`} style={{ width: nav.width }}>
         <div style={{ padding: "18px 16px 14px", borderBottom: "2px solid var(--color-divider)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <div>
-            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               GMT24<span style={{ width: 14, height: 14, background: "var(--color-accent)", display: "block" }} />
+              <AiReadyBadge compact />
             </div>
             <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 4 }}>Global Minimum Tax OS</div>
           </div>
