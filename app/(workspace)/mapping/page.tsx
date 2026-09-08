@@ -1,6 +1,6 @@
 "use client";
 
-import { ACCOUNTS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { availableMappingPostings, mappingDelta } from "@/lib/fanil";
 import { eur } from "@/lib/format";
@@ -9,7 +9,7 @@ import Link from "next/link";
 export default function MappingPage() {
   const { approvedMaps, approveMap, flash } = useStore();
   const postings = availableMappingPostings();
-  const pending = ACCOUNTS.filter((a) => !a.approved && !approvedMaps[a.account]).length;
+  const pending = DATA.accounts.filter((a) => !a.approved && !approvedMaps[a.account]).length;
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -23,8 +23,8 @@ export default function MappingPage() {
         </div>
       </div>
       <div className="kpi-grid cols-3" style={{ marginBottom: 20 }}>
-        <div className="kpi"><div className="kpi-label">Accounts</div><div className="kpi-val">{ACCOUNTS.length}</div><div className="kpi-sub">TH001 sample</div></div>
-        <div className="kpi"><div className="kpi-label">Auto-approved</div><div className="kpi-val">{ACCOUNTS.filter((a) => a.approved).length}</div><div className="kpi-sub">≥ 88% confidence</div></div>
+        <div className="kpi"><div className="kpi-label">Accounts</div><div className="kpi-val">{DATA.accounts.length}</div><div className="kpi-sub">TH001 sample</div></div>
+        <div className="kpi"><div className="kpi-label">Auto-approved</div><div className="kpi-val">{DATA.accounts.filter((a) => a.approved).length}</div><div className="kpi-sub">≥ 88% confidence</div></div>
         <div className="kpi"><div className="kpi-label">Review required</div><div className="kpi-val">{pending}</div><div className="kpi-sub hot">FX gain 62%</div></div>
       </div>
       <div className="panel">
@@ -36,7 +36,7 @@ export default function MappingPage() {
               </tr>
             </thead>
             <tbody>
-              {ACCOUNTS.map((a) => {
+              {DATA.accounts.map((a) => {
                 const ok = a.approved || approvedMaps[a.account];
                 const mapped = postings.filter((p) => p.mappingAccount === a.account);
                 const potential = mapped.reduce((sum, p) => sum + p.amount, 0);

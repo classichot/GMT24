@@ -1,12 +1,4 @@
-import {
-  ADJUSTMENTS,
-  ENTITIES,
-  FILES,
-  FINANCIALS,
-  INCENTIVES,
-  type Entity,
-  type Financials,
-} from "./model";
+import { DATA, type Entity, type Financials } from "./model";
 import { CIT_RATE, deferredTaxRegister, enrich, recaptureClocks } from "./deferredTax";
 import { BOI_CERTS } from "./boiOptimizer";
 import { PAYROLL_LINES, ASSET_LINES } from "./thailand";
@@ -59,11 +51,11 @@ function evidenceGapSev(amount: number): XraySeverity {
 }
 
 function ent(id: string): Entity | undefined {
-  return ENTITIES.find((e) => e.id === id);
+  return DATA.entities.find((e) => e.id === id);
 }
 
 function fin(id: string): Financials | undefined {
-  return FINANCIALS.find((f) => f.entityId === id);
+  return DATA.financials.find((f) => f.entityId === id);
 }
 
 function base(e: Entity) {
@@ -77,7 +69,7 @@ function base(e: Entity) {
 }
 
 function hasFile(kind: string, entityId: string) {
-  return FILES.some((f) => f.kind === kind && f.entity === entityId);
+  return DATA.files.some((f) => f.kind === kind && f.entity === entityId);
 }
 
 function yesNo(id: string, prompt: string, dept: XrayFinding["dept"], yes: string, no: string): XrayQuestion {
@@ -96,7 +88,7 @@ function yesNo(id: string, prompt: string, dept: XrayFinding["dept"], yes: strin
  * claimed exclusion is an assumption until the share register proves it.
  */
 export function dividendXray(): XrayFinding[] {
-  return ADJUSTMENTS.filter((a) => a.category === "Excluded dividends").map((a) => {
+  return DATA.adjustments.filter((a) => a.category === "Excluded dividends").map((a) => {
     const e = ent(a.entityId)!;
     const amount = a.original;
     const questions: XrayQuestion[] = [
@@ -214,7 +206,7 @@ export function dividendXray(): XrayFinding[] {
 export function payrollXray(): XrayFinding[] {
   const out: XrayFinding[] = [];
 
-  for (const f of FINANCIALS) {
+  for (const f of DATA.financials) {
     const e = ent(f.entityId);
     if (!e || f.employees <= 0 || f.payrollEligible <= 0) continue;
     const perHead = f.payrollEligible / f.employees;
@@ -280,7 +272,7 @@ export function payrollXray(): XrayFinding[] {
     });
   }
 
-  const noRegister = FINANCIALS
+  const noRegister = DATA.financials
     .filter((f) => {
       const e = ent(f.entityId);
       return e && f.payrollEligible * PAYROLL_RATE >= 1_000_000 && !hasFile("Payroll", f.entityId);
@@ -361,7 +353,7 @@ export function payrollXray(): XrayFinding[] {
     });
   }
 
-  for (const f of FINANCIALS) {
+  for (const f of DATA.financials) {
     const e = ent(f.entityId);
     if (!e || f.employees <= 0 || f.payrollEligible > 0) continue;
     out.push({
@@ -429,7 +421,7 @@ export function payrollXray(): XrayFinding[] {
 export function assetXray(): XrayFinding[] {
   const out: XrayFinding[] = [];
 
-  const noRegister = FINANCIALS
+  const noRegister = DATA.financials
     .filter((f) => {
       const e = ent(f.entityId);
       return e && f.tangibleEligible * ASSET_RATE >= 1_000_000 && !hasFile("Fixed-asset register", f.entityId);
@@ -518,7 +510,7 @@ export function assetXray(): XrayFinding[] {
     });
   }
 
-  for (const f of FINANCIALS) {
+  for (const f of DATA.financials) {
     const e = ent(f.entityId);
     if (!e || f.employees <= 0 || f.tangibleEligible <= 0) continue;
     const perHead = f.tangibleEligible / f.employees;
@@ -592,9 +584,9 @@ export function assetXray(): XrayFinding[] {
  */
 export function boiXray(): XrayFinding[] {
   const byEntity = new Map<string, number>();
-  for (const i of INCENTIVES) byEntity.set(i.entityId, (byEntity.get(i.entityId) ?? 0) + 1);
+  for (const i of DATA.incentives) byEntity.set(i.entityId, (byEntity.get(i.entityId) ?? 0) + 1);
 
-  const rows = INCENTIVES.map((i) => {
+  const rows = DATA.incentives.map((i) => {
     const e = ent(i.entityId);
     const f = fin(i.entityId);
     if (!e || !f) return null;
@@ -803,7 +795,7 @@ export function deferredXray(): XrayFinding[] {
     noReversal.set(p.iso, { count: cur.count + 1, amount: cur.amount + Math.abs(v.globeClosing) });
   }
   for (const [iso, agg] of [...noReversal.entries()].sort((a, b) => b[1].amount - a[1].amount).slice(0, 2)) {
-    const e = ENTITIES.find((x) => x.iso === iso);
+    const e = DATA.entities.find((x) => x.iso === iso);
     if (!e) continue;
     out.push({
       id: `XR-DT-REV-${iso}`,
@@ -865,7 +857,7 @@ export function deferredXray(): XrayFinding[] {
     });
   }
 
-  const noOpening = FINANCIALS
+  const noOpening = DATA.financials
     .filter((f) => ent(f.entityId) && f.deferredTax !== 0 && f.priorDta === 0 && f.priorDtl === 0)
     .sort((a, b) => Math.abs(b.deferredTax) - Math.abs(a.deferredTax))
     .slice(0, 2);
@@ -992,7 +984,7 @@ export function deferredXray(): XrayFinding[] {
 export function coveredXray(): XrayFinding[] {
   const out: XrayFinding[] = [];
 
-  const nonCovered = FINANCIALS
+  const nonCovered = DATA.financials
     .filter((f) => f.nonCovered > 0 && ent(f.entityId))
     .sort((a, b) => b.nonCovered - a.nonCovered)
     .slice(0, 3);
@@ -1059,7 +1051,7 @@ export function coveredXray(): XrayFinding[] {
     });
   }
 
-  for (const f of FINANCIALS.filter((x) => x.currentTax < 0)) {
+  for (const f of DATA.financials.filter((x) => x.currentTax < 0)) {
     const e = ent(f.entityId);
     if (!e) continue;
     const amount = Math.abs(f.currentTax);
@@ -1133,7 +1125,7 @@ export function coveredXray(): XrayFinding[] {
     });
   }
 
-  for (const a of ADJUSTMENTS.filter((x) => x.category === "Excluded dividends")) {
+  for (const a of DATA.adjustments.filter((x) => x.category === "Excluded dividends")) {
     const e = ent(a.entityId);
     if (!e) continue;
     out.push({
@@ -1210,7 +1202,7 @@ export function coveredXray(): XrayFinding[] {
  * on facts held outside the accounting system.
  */
 export function entityXray(): XrayFinding[] {
-  const targets = ENTITIES.filter(
+  const targets = DATA.entities.filter(
     (e) =>
       e.type === "Tax-transparent"
       || e.type === "Stateless"
@@ -1324,9 +1316,9 @@ export function entityXray(): XrayFinding[] {
  */
 export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFinding[] {
   const out: XrayFinding[] = [];
-  const upe = ENTITIES.find((e) => e.type === "UPE")!;
+  const upe = DATA.entities.find((e) => e.type === "UPE")!;
 
-  const priorGir = FILES.find((f) => f.kind === "Previous GIR");
+  const priorGir = DATA.files.find((f) => f.kind === "Previous GIR");
   if (priorGir && priorGir.status !== "Validated" && priorGir.status !== "Reviewed") {
     out.push({
       id: "XR-EL-PRIOR",
@@ -1401,7 +1393,7 @@ export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFin
     });
   }
 
-  const tp = FILES.find((f) => f.kind === "TP report");
+  const tp = DATA.files.find((f) => f.kind === "TP report");
   if (tp && tp.status === "Imported") {
     out.push({
       id: "XR-EL-TP",
@@ -1462,7 +1454,7 @@ export function electionXray(electionsOn: Record<string, boolean> = {}): XrayFin
     const [id, iso] = key.split("@");
     const def = electionById(id);
     if (!def) continue;
-    const e = ENTITIES.find((x) => x.iso === iso) ?? upe;
+    const e = DATA.entities.find((x) => x.iso === iso) ?? upe;
     out.push({
       id: `XR-EL-${key}`,
       engine: "election",

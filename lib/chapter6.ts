@@ -1,5 +1,5 @@
 import { money } from "./format";
-import { ENTITIES, FINANCIALS } from "./model";
+import { DATA } from "./model";
 
 export type Chapter6EventKind = "join" | "leave" | "reorg" | "transfer-6.3.4";
 
@@ -176,5 +176,5 @@ export function entityInGroup(entityId: string, asOf = "2026-12-31") {
   if (leave && leave.date <= asOf) return false;
   const join = CHAPTER6_EVENTS.find((e) => e.kind === "join" && e.entityId === entityId);
   if (join && join.date > asOf) return false;
-  return Boolean(ENTITIES.find((e) => e.id === entityId) || FINANCIALS.find((f) => f.entityId === entityId));
+  return Boolean(DATA.entities.find((e) => e.id === entityId) || DATA.financials.find((f) => f.entityId === entityId));
 }

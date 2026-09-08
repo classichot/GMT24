@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ENTITIES, FINANCIALS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { EUR_1M_USD, EUR_75M_USD, FX_RATES, fxRate, gaapScreen, usdFromFc } from "@/lib/fx";
 import { eur } from "@/lib/format";
 
@@ -55,8 +55,8 @@ export default function FxPage() {
               </tr>
             </thead>
             <tbody>
-              {ENTITIES.map((e) => {
-                const f = FINANCIALS.find((x) => x.entityId === e.id);
+              {DATA.entities.map((e) => {
+                const f = DATA.financials.find((x) => x.entityId === e.id);
                 if (!f) return null;
                 const fx = fxRate(e.iso);
                 const usd = f.fanilFc != null ? usdFromFc(e.iso, f.fanilFc) : f.fanil;

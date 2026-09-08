@@ -1,6 +1,7 @@
 import type { JurCalc } from "./engine";
 import { totals } from "./engine";
-import { ENTITIES, type Entity, type Group } from "./model";
+import { DATA, type Entity, type Group } from "./model";
+import { isSeededGroup } from "./seeds";
 import { effectivePack, type PackOverlay } from "./packAmendments";
 import { utprAllocation } from "./utpr";
 import { entityPopulation, type PopulationRecord } from "./population";
@@ -153,8 +154,8 @@ export function buildGirPackage(opts: {
 }): GirPackage {
   const { group, calcs, electionsOn = {}, activeFy = group.fy, packOverlay } = opts;
   const t = totals(calcs);
-  const entities = group.id === "aetherion" ? ENTITIES : ENTITIES.slice(0, Math.min(ENTITIES.length, group.entities));
-  const population = group.id === "aetherion" ? entityPopulation() : entities.map((entity) => ({
+  const entities = isSeededGroup(group.id) ? DATA.entities : DATA.entities.slice(0, Math.min(DATA.entities.length, group.entities));
+  const population = isSeededGroup(group.id) ? entityPopulation() : entities.map((entity) => ({
     id: entity.id,
     code: entity.code,
     name: entity.name,
@@ -164,7 +165,7 @@ export function buildGirPackage(opts: {
     source: "Entity register",
   }));
   const nonMaterial = population.filter((entity) => entity.detail === "non-material");
-  const upe = entities.find((e) => e.type === "UPE") ?? ENTITIES[0];
+  const upe = entities.find((e) => e.type === "UPE") ?? DATA.entities[0];
   const year = group.fyEnd.slice(0, 4);
   const messageRefId = `${country(group.upeIso)}${year}${country(group.upeIso)}GMT24${activeFy.replace(/\D/g, "")}`;
   const elections = Object.entries(electionsOn).filter(([, on]) => on).map(([key]) => key);

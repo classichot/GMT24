@@ -1,5 +1,5 @@
 import { money } from "./format";
-import { ADJUSTMENTS, ENTITIES, FINANCIALS } from "./model";
+import { DATA } from "./model";
 import { shippingPost } from "./shipping";
 import { deferredTaxAdjustment } from "./deferredTax";
 
@@ -59,9 +59,9 @@ export const ARTICLE43_FACTS: Article43Fact[] = [
 ];
 
 function targetBaseRate(entityId: string) {
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!f) return 0;
-  const adjustments = ADJUSTMENTS
+  const adjustments = DATA.adjustments
     .filter((a) => a.entityId === entityId)
     .reduce((sum, a) => sum + a.amount, 0);
   const globe = money(f.fanil + adjustments - shippingPost(entityId).excludedIncome);
@@ -72,8 +72,8 @@ function targetBaseRate(entityId: string) {
 
 export function article43Lines(): Article43Line[] {
   return ARTICLE43_FACTS.map((fact) => {
-    const source = ENTITIES.find((e) => e.id === fact.sourceEntityId);
-    const target = ENTITIES.find((e) => e.id === fact.targetEntityId);
+    const source = DATA.entities.find((e) => e.id === fact.sourceEntityId);
+    const target = DATA.entities.find((e) => e.id === fact.targetEntityId);
     let passiveCap: number | null = null;
     let allocated = fact.tax;
     if ((fact.kind === "CFC" || fact.kind === "hybrid") && fact.passiveIncome != null) {

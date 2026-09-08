@@ -1,4 +1,4 @@
-import { ACCOUNTS, ADJUSTMENTS, ADVISOR_USER, ENTITIES, INHOUSE_USER, ISSUES, type ProductMode } from "../model";
+import { DATA, ADVISOR_USER, type ProductMode } from "../model";
 import { playbookBySlug } from "../playbooks";
 import type { PackAmendment, PackChangeRecord } from "../packAmendments";
 import type { HardStop } from "../xray";
@@ -148,21 +148,21 @@ export type ContextInput = {
  */
 export function buildContext(i: ContextInput): WorkContext {
   const role = i.role ?? defaultRole(i.mode);
-  const user = i.mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const user = i.mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const screen = screenFor(i.path);
   const iso = i.search?.get("iso") ?? null;
   const entityId = i.search?.get("entity") ?? null;
   const blendKey = i.search?.get("blend") ?? null;
-  const ent = entityId ? ENTITIES.find((e) => e.id === entityId) : null;
-  const jur = ent?.jurisdiction ?? (iso ? ENTITIES.find((e) => e.iso === iso)?.jurisdiction ?? iso : null);
-  const mapsPending = ACCOUNTS.filter((a) => !a.approved && !i.approvedMaps[a.account]).map((a) => a.account);
-  const adjUnsigned = ADJUSTMENTS.filter((a) => !a.reviewer).map((a) => a.id);
+  const ent = entityId ? DATA.entities.find((e) => e.id === entityId) : null;
+  const jur = ent?.jurisdiction ?? (iso ? DATA.entities.find((e) => e.iso === iso)?.jurisdiction ?? iso : null);
+  const mapsPending = DATA.accounts.filter((a) => !a.approved && !i.approvedMaps[a.account]).map((a) => a.account);
+  const adjUnsigned = DATA.adjustments.filter((a) => !a.reviewer).map((a) => a.id);
   const outstanding: OutstandingWork = {
     xrayOpen: i.stop.open,
     xrayMaterial: i.stop.reasons.length,
     xrayExposure: i.stop.exposure,
-    issuesBlock: ISSUES.filter((x) => x.severity === "block").length,
-    issuesWarn: ISSUES.filter((x) => x.severity === "warn").length,
+    issuesBlock: DATA.issues.filter((x) => x.severity === "block").length,
+    issuesWarn: DATA.issues.filter((x) => x.severity === "warn").length,
     mapsPending,
     adjUnsigned,
     packPending: i.packAmendments.filter((a) => a.status === "proposed" && !a.guard).length,

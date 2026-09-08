@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ACTIVITY, MAP_COORDS } from "@/lib/model";
+import { DATA, MAP_COORDS } from "@/lib/model";
 import { eur, pct } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
@@ -185,7 +185,7 @@ export default function OverviewPage() {
         <div className="panel">
           <div className="panel-head"><h4>Activity</h4></div>
           <div style={{ padding: "8px 16px 16px" }}>
-            {ACTIVITY.map((a, i) => (
+            {DATA.activity.map((a, i) => (
               <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid var(--color-divider)" }}>
                 <div style={{ fontSize: 13 }}>{a.text}</div>
                 <div className="text-muted" style={{ fontSize: 11 }}>{a.who} · {a.when}</div>

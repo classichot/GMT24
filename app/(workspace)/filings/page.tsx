@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FILINGS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
@@ -36,7 +36,7 @@ export default function FilingsPage() {
           <table className="table">
             <thead><tr><th>Country</th><th>Requirement</th><th>Deadline</th><th>Countdown</th><th>Status</th><th>Top-up</th><th>Preparer</th><th>Reviewer</th><th>Filed</th></tr></thead>
             <tbody>
-              {FILINGS.map((f) => {
+              {DATA.filings.map((f) => {
                 const c = calcs.find((x) => x.name === f.jurisdiction);
                 const status = f.central && workflow.girExported ? "Covered — GIR exported" : workflow.snapshotApproved && f.status === "Preparing" ? "Ready for reviewer" : f.status;
                 return (

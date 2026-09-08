@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ENTITIES, FINANCIALS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { entityCalc, MIN_RATE, traceCoveredEntity, traceDeferredEntity } from "@/lib/engine";
 import { deferredTaxAdjustment } from "@/lib/deferredTax";
 import { eur, pct } from "@/lib/format";
@@ -110,7 +110,7 @@ export default function CoveredTaxesPage() {
       </div>
 
       <select className="input" style={{ maxWidth: 420, marginBottom: 16 }} value={id} onChange={(e) => setId(e.target.value)}>
-        {ENTITIES.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        {DATA.entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
 
       <div className="grid-split">
@@ -247,8 +247,8 @@ export default function CoveredTaxesPage() {
               </tr>
             </thead>
             <tbody>
-              {FINANCIALS.map((fin) => {
-                const e = ENTITIES.find((x) => x.id === fin.entityId)!;
+              {DATA.financials.map((fin) => {
+                const e = DATA.entities.find((x) => x.id === fin.entityId)!;
                 const deferred = deferredTaxAdjustment(fin.entityId) ?? fin.deferredTax;
                 const entityRow = entityCalc(fin.entityId, { approvedMaps, electionsOn, fy: activeFy });
                 const covered = entityRow?.covered ?? 0;

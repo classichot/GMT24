@@ -1,4 +1,4 @@
-import { ACCOUNTS } from "../model";
+import { DATA } from "../model";
 import { propose } from "./actions";
 import { catalogForPath, locateCatalog } from "./catalog";
 import { SCREENS, screenFor } from "./context";
@@ -179,7 +179,7 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
     sections.push({ kind: "conclusion", text: err.cause });
     sections.push({ kind: "steps", title: "Corrective steps", items: err.fix });
     if (err.title.includes("Mapping")) {
-      const row = ACCOUNTS.find((a) => a.account === "830010");
+      const row = DATA.accounts.find((a) => a.account === "830010");
       if (row) sections.push({ kind: "facts", items: [`Actual validation state: ${row.account} ${row.name} · ${row.confidence}% · ${row.globe} → ${row.adjustment}`] });
     }
     if (err.title.includes("X-Ray")) sections.push({ kind: "facts", items: [`Actual state: ${ctx.outstanding.xrayMaterial} material unresolved · $${ctx.outstanding.xrayExposure.toLocaleString()} top-up at risk.`] });
@@ -195,7 +195,7 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
       else actions.push(propose("navigate", { href: s.href, label: s.title }, ctx));
     }
     if (ctx.outstanding.mapsPending.length && !actions.some((a) => a.actionId === "approve-map")) {
-      const row = ACCOUNTS.find((a) => a.account === ctx.outstanding.mapsPending[0]);
+      const row = DATA.accounts.find((a) => a.account === ctx.outstanding.mapsPending[0]);
       if (row) sections.push({ kind: "text", title: "Assisted completion", text: `Proposed value for ${row.account} ${row.name}: ${row.globe}${row.adjustment ? ` → ${row.adjustment}` : ""}. Preview before saving is on the action below.` });
     }
   } else if (onboardRole || /onboard|getting started|new here|first time|เริ่มต้น/.test(l)) {

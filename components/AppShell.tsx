@@ -30,7 +30,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
+import { DATA, ADVISOR_USER } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
@@ -228,7 +228,7 @@ function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
   const ai = useAi();
-  const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
   const { stop } = useXray();
   const packAlert = changeAlert(packChanges);

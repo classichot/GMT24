@@ -1,4 +1,4 @@
-import { ENTITIES, FINANCIALS, JURISDICTION_PACKS, RULES } from "./model";
+import { DATA, RULES } from "./model";
 import { money } from "./format";
 
 export const DT_FY = 2026;
@@ -551,7 +551,7 @@ function plugToTarget(rows: DtPosition[], entityId: string, target: number): DtP
   const current = entityRows.reduce((a, r) => a + enrich(r).pnl, 0);
   const gap = money(target - current);
   if (gap === 0) return rows;
-  const iso = ENTITIES.find((e) => e.id === entityId)?.iso ?? "TH";
+  const iso = DATA.entities.find((e) => e.id === entityId)?.iso ?? "TH";
   const rate = CIT_RATE[iso] ?? MIN_RATE;
   const accounting = money(Math.abs(gap) / (globeRate(rate) / rate || 1));
   const asDtl = gap > 0;
@@ -580,7 +580,7 @@ export function deferredTaxRegister(): DtPosition[] {
   if (CACHE) return CACHE;
   let rows = [...buildThailand(), ...buildOther()];
   const withLedger = new Set(rows.map((r) => r.entityId));
-  for (const f of FINANCIALS) {
+  for (const f of DATA.financials) {
     if (withLedger.has(f.entityId)) {
       rows = plugToTarget(rows, f.entityId, f.deferredTax);
     }
@@ -633,7 +633,7 @@ export type DtJurisdiction = {
 
 export function jurisdictionDt(iso: string): DtJurisdiction {
   const positions = viewsForIso(iso);
-  const pack = JURISDICTION_PACKS.find((p) => p.iso === iso);
+  const pack = DATA.packs.find((p) => p.iso === iso);
   const cit = CIT_RATE[iso] ?? MIN_RATE;
   const approaching = money(
     positions.filter((p) => statusAt(p) === "approaching").reduce((a, p) => a + remainingAt(p, DT_FY), 0),

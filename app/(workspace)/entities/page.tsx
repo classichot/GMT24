@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
 import { classifyAll, classFor, ENTITY_TEST_STEPS } from "@/lib/entityClass";
 import { Amount } from "@/components/Amount";
@@ -18,7 +18,7 @@ export default function EntitiesPage() {
   const router = useRouter();
   const [sel, setSel] = useState(classes.find((c) => c.moce)?.id ?? classes.find((c) => c.pope)?.id ?? "TH-CE");
   const row = classFor(sel);
-  const entity = ENTITIES.find((e) => e.id === sel)!;
+  const entity = DATA.entities.find((e) => e.id === sel)!;
   const jc = calcs.find((c) => c.entities.some((n) => n.id === sel));
   const moceN = classes.filter((c) => c.moce).length;
   const popeN = classes.filter((c) => c.pope).length;
@@ -96,7 +96,7 @@ export default function EntitiesPage() {
               </tr>
             </thead>
             <tbody>
-              {ENTITIES.map((e) => {
+              {DATA.entities.map((e) => {
                 const cls = classes.find((c) => c.id === e.id)!;
                 const c = calcs.find((x) => x.entities.some((n) => n.id === e.id));
                 return (

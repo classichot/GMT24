@@ -1,6 +1,6 @@
 "use client";
 
-import { ISSUES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
 
@@ -16,7 +16,7 @@ export default function IssuesPage() {
     <div className="grid-split">
       <div className="panel">
         <div className="panel-head"><h4>Open issues</h4><Link href="/requests" className="btn btn-ghost">Send requests</Link></div>
-        {ISSUES.map((i) => (
+        {DATA.issues.map((i) => (
           <div key={i.id} style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-divider)" }}>
             <span className={i.severity === "block" ? "tag tag-hot" : i.severity === "warn" ? "tag tag-warn" : "tag-neutral tag"}>{i.severity}</span>{" "}
             <strong>{i.title}</strong>

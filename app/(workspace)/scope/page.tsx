@@ -1,6 +1,6 @@
 "use client";
 
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { scopeTest } from "@/lib/engine";
 import { classFor } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
@@ -38,7 +38,7 @@ export default function ScopePage() {
           <table className="table">
             <thead><tr><th>Entity</th><th>Type</th><th>GloBE class</th><th>UPE %</th><th>Excluded?</th><th>Effective</th></tr></thead>
             <tbody>
-              {ENTITIES.map((e) => {
+              {DATA.entities.map((e) => {
                 const cls = classFor(e.id);
                 return (
                 <tr key={e.id}>

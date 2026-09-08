@@ -1,7 +1,7 @@
 import type { JurCalc } from "./engine";
 import { totals } from "./engine";
 import { eur, pct } from "./format";
-import { ACCOUNTS, FILES } from "./model";
+import { DATA } from "./model";
 
 export type ReviewPhase = {
   id: string;
@@ -78,7 +78,7 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
   const ie = ctx.calcs.find((c) => c.iso === "IE");
   const vn = ctx.calcs.find((c) => c.iso === "VN");
   const hk = ctx.calcs.find((c) => c.iso === "HK");
-  const autoApproved = ACCOUNTS.filter((a) => a.approved).length;
+  const autoApproved = DATA.accounts.filter((a) => a.approved).length;
 
   return [
     {
@@ -89,8 +89,8 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
       href: "/data",
       hrefLabel: "Data Hub",
       ok: ctx.ingestReady,
-      actual: ctx.ingestReady ? `${FILES.length} files · Mapped / Validated` : "Empty pack",
-      expected: `${FILES.length} files posted`,
+      actual: ctx.ingestReady ? `${DATA.files.length} files · Mapped / Validated` : "Empty pack",
+      expected: `${DATA.files.length} files posted`,
     },
     {
       id: "map-pending",

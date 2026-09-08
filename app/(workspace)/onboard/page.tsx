@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { JURISDICTION_PACKS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { EMPTY_DRAFT, ONBOARD_STEPS, PACK_DOCS, type EngagementDraft } from "@/lib/onboard";
 import { useStore } from "@/lib/store";
 import { StartEngage } from "@/components/StartEngage";
@@ -101,7 +101,7 @@ export default function OnboardPage() {
             <label className="field">
               <span>UPE jurisdiction</span>
               <select className="input" value={draft.upeIso} onChange={(e) => set("upeIso", e.target.value)}>
-                {JURISDICTION_PACKS.map((p) => (
+                {DATA.packs.map((p) => (
                   <option key={p.iso} value={p.iso}>{p.name} ({p.iso})</option>
                 ))}
               </select>

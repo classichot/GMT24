@@ -1,5 +1,5 @@
 import { money } from "./format";
-import { ACCOUNTS, ADJUSTMENTS, type Adjustment } from "./model";
+import { DATA, type Adjustment } from "./model";
 
 export type MappingPosting = Adjustment & {
   article: string;
@@ -92,7 +92,7 @@ const POSTING_FACTS: Omit<MappingPosting, "autoApproved">[] = [
 
 export function mappedPostings(approvedMaps: Record<string, boolean> = {}): MappingPosting[] {
   return POSTING_FACTS.map((fact) => {
-    const map = ACCOUNTS.find(
+    const map = DATA.accounts.find(
       (a) => a.account === fact.mappingAccount
         && (a.entityId === fact.entityId || fact.mappingAccount === "390100"),
     );
@@ -102,7 +102,7 @@ export function mappedPostings(approvedMaps: Record<string, boolean> = {}): Mapp
 
 export function availableMappingPostings() {
   return POSTING_FACTS.map((fact) => {
-    const map = ACCOUNTS.find(
+    const map = DATA.accounts.find(
       (a) => a.account === fact.mappingAccount
         && (a.entityId === fact.entityId || fact.mappingAccount === "390100"),
     );
@@ -112,7 +112,7 @@ export function availableMappingPostings() {
 
 export function entityAdjustments(entityId: string, approvedMaps: Record<string, boolean> = {}) {
   return [
-    ...ADJUSTMENTS.filter((a) => a.entityId === entityId),
+    ...DATA.adjustments.filter((a) => a.entityId === entityId),
     ...mappedPostings(approvedMaps).filter((a) => a.entityId === entityId),
   ];
 }

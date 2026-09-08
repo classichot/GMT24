@@ -1,11 +1,11 @@
 "use client";
 
-import { ISSUES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 
 export default function RequestsPage() {
   const { flash, mode, workflow, patchWorkflow } = useStore();
-  const blocks = ISSUES.filter((i) => i.severity !== "info");
+  const blocks = DATA.issues.filter((i) => i.severity !== "info");
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20 }}>

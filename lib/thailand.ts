@@ -1,4 +1,4 @@
-import { ENTITIES, FINANCIALS, GROUPS, INCENTIVES } from "./model";
+import { DATA, GROUPS } from "./model";
 import { money } from "./format";
 import type { AuditNode, JurCalc } from "./engine";
 import { entityCalc } from "./engine";
@@ -334,7 +334,7 @@ export function filingDeadline(fyEnd: string, months: number) {
 }
 
 export function boiValue(th: JurCalc, holidayRemain = true) {
-  const inc = INCENTIVES.find((i) => i.id === "TH-BOI")!;
+  const inc = DATA.incentives.find((i) => i.id === "TH-BOI")!;
   const ce = entityCalc("TH-CE")!;
   const promotedGlobe = 28_400_000;
   const nonPromotedGlobe = money(ce.globe - promotedGlobe);
@@ -401,9 +401,9 @@ export const DEFENCE_CHAPTERS = [
 ];
 
 export function thaiEntities() {
-  return ENTITIES.filter((e) => e.iso === "TH");
+  return DATA.entities.filter((e) => e.iso === "TH");
 }
 
 export function thaiFinancials() {
-  return FINANCIALS.filter((f) => thaiEntities().some((e) => e.id === f.entityId));
+  return DATA.financials.filter((f) => thaiEntities().some((e) => e.id === f.entityId));
 }

@@ -2,7 +2,7 @@ import { money } from "./format";
 import { MIN_RATE } from "./deferredTax";
 import { transitionLines } from "./transition";
 import { deferredTaxAdjustment } from "./deferredTax";
-import { FINANCIALS, ENTITIES } from "./model";
+import { DATA } from "./model";
 
 /** Seeded Art. 6.3.4 transfer for election restatement. */
 export const TRANSFER_634 = {
@@ -37,7 +37,7 @@ export type ElectionEffect = {
 };
 
 export function effect45(iso: string, globe: number, covered: number): ElectionEffect {
-  const ents = ENTITIES.filter((e) => e.iso === iso).map((e) => e.id);
+  const ents = DATA.entities.filter((e) => e.iso === iso).map((e) => e.id);
   const dt = money(ents.reduce((a, id) => a + (deferredTaxAdjustment(id) ?? 0), 0));
   // Replace Art. 4.4: strip DT movement; if GloBE loss, post deemed loss DTA at Minimum Rate.
   let coveredAdj = money(-dt);
@@ -51,7 +51,7 @@ export function effect45(iso: string, globe: number, covered: number): ElectionE
 }
 
 export function effect447(iso: string): ElectionEffect {
-  const ents = ENTITIES.filter((e) => e.iso === iso).map((e) => e.id);
+  const ents = DATA.entities.filter((e) => e.iso === iso).map((e) => e.id);
   const dt = money(ents.reduce((a, id) => a + Math.max(0, deferredTaxAdjustment(id) ?? 0), 0));
   return {
     globeAdj: 0,
@@ -104,9 +104,9 @@ export function effect913(iso: string): ElectionEffect {
 
 /** Owner share of Investment Entity GloBE / Covered when Art. 7.5 transparency elected. */
 export function effect75(iso: string): ElectionEffect | null {
-  const ie = ENTITIES.find((e) => e.type === "Investment" && e.iso === iso);
+  const ie = DATA.entities.find((e) => e.type === "Investment" && e.iso === iso);
   if (!ie) return null;
-  const f = FINANCIALS.find((x) => x.entityId === ie.id);
+  const f = DATA.financials.find((x) => x.entityId === ie.id);
   if (!f) return null;
   // Transparency moves IE out of separate blend into owner — effect applied on IE blend (zero) and owner (add).
   return {
@@ -117,14 +117,14 @@ export function effect75(iso: string): ElectionEffect | null {
 }
 
 export function effect75Owner(ownerIso: string): ElectionEffect | null {
-  const ies = ENTITIES.filter((e) => e.type === "Investment");
+  const ies = DATA.entities.filter((e) => e.type === "Investment");
   let globe = 0;
   let covered = 0;
   const notes: string[] = [];
   for (const ie of ies) {
-    const owner = ENTITIES.find((e) => e.id === ie.parentId);
+    const owner = DATA.entities.find((e) => e.id === ie.parentId);
     if (!owner || owner.iso !== ownerIso) continue;
-    const f = FINANCIALS.find((x) => x.entityId === ie.id);
+    const f = DATA.financials.find((x) => x.entityId === ie.id);
     if (!f) continue;
     const share = ie.ownership / 100;
     globe += money(f.fanil * share);
@@ -140,9 +140,9 @@ export function effect75Owner(ownerIso: string): ElectionEffect | null {
 }
 
 export function effect76(iso: string): ElectionEffect | null {
-  const ie = ENTITIES.find((e) => e.type === "Investment" && e.iso === iso);
+  const ie = DATA.entities.find((e) => e.type === "Investment" && e.iso === iso);
   if (!ie) return null;
-  const f = FINANCIALS.find((x) => x.entityId === ie.id);
+  const f = DATA.financials.find((x) => x.entityId === ie.id);
   if (!f) return null;
   // Taxable distribution method: exclude undistributed IE income from IE ETR (demo: strip 70% retained).
   const retained = money(f.fanil * 0.7);

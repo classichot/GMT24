@@ -1,5 +1,5 @@
 import { money } from "./format";
-import { ENTITIES, FINANCIALS, INCENTIVES, type Entity, type ShResult } from "./model";
+import { DATA, type Entity, type ShResult } from "./model";
 import { populationReconciliation } from "./population";
 import { MIN_RATE } from "./deferredTax";
 
@@ -59,11 +59,11 @@ export function sbtishTrace(entityId: string) {
 /** Simplified Income proxy for SETR SH — CbCR PBT ± limited adjustments. */
 export function setrSimplified(calc: Pick<HarbourCalc, "entities">) {
   const cbcrProfit = money(calc.entities.reduce((a, e) => {
-    const f = FINANCIALS.find((x) => x.entityId === e.id);
+    const f = DATA.financials.find((x) => x.entityId === e.id);
     return a + (f?.cbcrProfit ?? 0);
   }, 0));
   const cbcrTax = money(calc.entities.reduce((a, e) => {
-    const f = FINANCIALS.find((x) => x.entityId === e.id);
+    const f = DATA.financials.find((x) => x.entityId === e.id);
     return a + (f?.cbcrTax ?? 0);
   }, 0));
   const simplifiedIncome = cbcrProfit;
@@ -186,8 +186,8 @@ export function runAllSafeHarbours(calcs: HarbourCalc[]): HarbourRunSummary {
 }
 
 export function incentiveEntities() {
-  return INCENTIVES.map((i) => {
-    const e = ENTITIES.find((x) => x.id === i.entityId);
+  return DATA.incentives.map((i) => {
+    const e = DATA.entities.find((x) => x.id === i.entityId);
     return { incentive: i, entity: e, trace: sbtishTrace(i.entityId) };
   });
 }

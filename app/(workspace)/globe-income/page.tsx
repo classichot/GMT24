@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { entityCalc, traceAdj } from "@/lib/engine";
 import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -111,7 +111,7 @@ export default function GlobeIncomePage() {
       </div>
 
       <select className="input" style={{ maxWidth: 420, marginBottom: 16 }} value={id} onChange={(e) => setId(e.target.value)}>
-        {ENTITIES.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        {DATA.entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
 
       <div className="panel">

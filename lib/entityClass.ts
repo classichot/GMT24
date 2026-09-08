@@ -1,4 +1,4 @@
-import { ENTITIES, type Entity, type EntityType } from "./model";
+import { DATA, type Entity, type EntityType } from "./model";
 
 /** Art. 10.1 / 5.1.3 — UPE Ownership Interests of 30% or less. */
 export const MOCE_UPE_MAX = 30;
@@ -50,10 +50,22 @@ export const ENTITY_TEST_STEPS = [
   { n: "10", title: "IIR Inclusion Ratio", body: "Art. 2.2.2: Parent IIR = Top-up × Inclusion Ratio (Ownership Interests the Parent holds in the LTCE). QDMTT still collects first. Residual after POPE IIR goes to the UPE, then UTPR." },
 ];
 
-const byId = Object.fromEntries(ENTITIES.map((e) => [e.id, e]));
+// Per-seed memo: the index and classification depend only on the active dataset.
+type SeedMemo = { byId: Record<string, Entity>; classes: GlobeClass[] | null };
+const memo = new Map<string, SeedMemo>();
+
+function seedMemo(): SeedMemo {
+  const key = DATA.seedId;
+  let m = memo.get(key);
+  if (!m) {
+    m = { byId: Object.fromEntries(DATA.entities.map((e) => [e.id, e])), classes: null };
+    memo.set(key, m);
+  }
+  return m;
+}
 
 export function lookThroughToUpe(entityId: string): number {
-  const e = byId[entityId];
+  const e = seedMemo().byId[entityId];
   if (!e) return 0;
   if (e.type === "UPE" || !e.parentId) return 100;
   let pct = 1;
@@ -63,7 +75,7 @@ export function lookThroughToUpe(entityId: string): number {
     if (seen.has(cur.id)) break;
     seen.add(cur.id);
     pct *= cur.ownership / 100;
-    cur = byId[cur.parentId];
+    cur = seedMemo().byId[cur.parentId];
   }
   return Math.round(pct * 10000) / 100;
 }
@@ -72,14 +84,14 @@ export function lookThroughToUpe(entityId: string): number {
 export function ownershipOf(ancestorId: string, descendantId: string): number {
   if (ancestorId === descendantId) return 100;
   let pct = 1;
-  let cur: Entity | undefined = byId[descendantId];
+  let cur: Entity | undefined = seedMemo().byId[descendantId];
   const seen = new Set<string>();
   while (cur && cur.id !== ancestorId) {
     if (seen.has(cur.id)) return 0;
     seen.add(cur.id);
     pct *= cur.ownership / 100;
     if (!cur.parentId) return 0;
-    cur = byId[cur.parentId];
+    cur = seedMemo().byId[cur.parentId];
   }
   return cur ? Math.round(pct * 10000) / 100 : 0;
 }
@@ -101,19 +113,19 @@ function jvRootId(e: Entity): string {
     if (isJvRoot(cur)) found = cur.id;
     if (!cur.parentId || seen.has(cur.id)) break;
     seen.add(cur.id);
-    cur = byId[cur.parentId];
+    cur = seedMemo().byId[cur.parentId];
   }
   return found ?? e.id;
 }
 
 function isJvMember(e: Entity): boolean {
   if (e.type === "JV Sub") return true;
-  const root = byId[jvRootId(e)];
+  const root = seedMemo().byId[jvRootId(e)];
   return isJvRoot(e) || isJvRoot(root);
 }
 
 function hasCeChild(id: string) {
-  return ENTITIES.some((x) => x.parentId === id && x.type !== "Excluded");
+  return DATA.entities.some((x) => x.parentId === id && x.type !== "Excluded");
 }
 
 function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
@@ -130,10 +142,10 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
     !excluded && !upe && !jv && !investment && !transparent && !stateless && upeOwnership > 0 && upeOwnership <= MOCE_UPE_MAX;
   const isMope = moce && mopeIds.has(e.id);
   const ancestorMope = (() => {
-    let cur: Entity | undefined = e.parentId ? byId[e.parentId] : undefined;
+    let cur: Entity | undefined = e.parentId ? seedMemo().byId[e.parentId] : undefined;
     while (cur) {
       if (mopeIds.has(cur.id)) return cur.id;
-      cur = cur.parentId ? byId[cur.parentId] : undefined;
+      cur = cur.parentId ? seedMemo().byId[cur.parentId] : undefined;
     }
     return null;
   })();
@@ -216,7 +228,7 @@ function classifyOne(e: Entity, mopeIds: Set<string>): GlobeClass {
 
 function mopeSet(): Set<string> {
   const ids = new Set<string>();
-  for (const e of ENTITIES) {
+  for (const e of DATA.entities) {
     if (e.type === "UPE" || e.type === "Excluded") continue;
     const own = lookThroughToUpe(e.id);
     if (own > 0 && own <= MOCE_UPE_MAX && hasCeChild(e.id)) ids.add(e.id);
@@ -224,27 +236,26 @@ function mopeSet(): Set<string> {
   return ids;
 }
 
-let cache: GlobeClass[] | null = null;
-
 export function classifyAll(): GlobeClass[] {
-  if (cache) return cache;
+  const m = seedMemo();
+  if (m.classes) return m.classes;
   const mopes = mopeSet();
-  cache = ENTITIES.map((e) => classifyOne(e, mopes));
-  return cache;
+  m.classes = DATA.entities.map((e) => classifyOne(e, mopes));
+  return m.classes;
 }
 
 export function classFor(entityId: string): GlobeClass {
-  return classifyAll().find((c) => c.id === entityId) ?? classifyOne(byId[entityId], mopeSet());
+  return classifyAll().find((c) => c.id === entityId) ?? classifyOne(seedMemo().byId[entityId], mopeSet());
 }
 
 export function nearestPope(entityId: string): GlobeClass | null {
   const classes = classifyAll();
-  const start = byId[entityId];
-  let cur: Entity | undefined = start?.parentId ? byId[start.parentId] : undefined;
+  const start = seedMemo().byId[entityId];
+  let cur: Entity | undefined = start?.parentId ? seedMemo().byId[start.parentId] : undefined;
   while (cur) {
     const cls = classes.find((c) => c.id === cur!.id);
     if (cls?.pope) return cls;
-    cur = cur.parentId ? byId[cur.parentId] : undefined;
+    cur = cur.parentId ? seedMemo().byId[cur.parentId] : undefined;
   }
   return null;
 }
@@ -265,5 +276,5 @@ export function inclusionRatio(parentId: string, entities: Entity[]): number {
 }
 
 export function upeEntity(): Entity {
-  return ENTITIES.find((e) => e.type === "UPE") ?? ENTITIES[0];
+  return DATA.entities.find((e) => e.type === "UPE") ?? DATA.entities[0];
 }

@@ -1,4 +1,4 @@
-import { ACCOUNTS } from "../model";
+import { DATA } from "../model";
 import { labelElection } from "../evidenceHistory";
 import type { ActionId, ActionKind, Permission, ProposedAction, WorkContext } from "./types";
 
@@ -63,13 +63,13 @@ export const ACTIONS: Record<ActionId, Def> = {
     kind: "save", requires: "save-working",
     label: (p) => `Approve mapping ${s(p.account)}`,
     preview: (p) => {
-      const row = ACCOUNTS.find((a) => a.account === s(p.account));
+      const row = DATA.accounts.find((a) => a.account === s(p.account));
       return row
         ? `Account ${row.account} ${row.name} → ${row.globe}${row.adjustment ? ` → ${row.adjustment}` : ""} (confidence ${row.confidence}%). Stored for subsequent years; GIR preflight resets. Recorded in Evidence history.`
         : `Account ${s(p.account)} is not on the mapping table.`;
     },
     run: (p, api) => {
-      if (!ACCOUNTS.some((a) => a.account === s(p.account))) return "Account not found.";
+      if (!DATA.accounts.some((a) => a.account === s(p.account))) return "Account not found.";
       api.approveMap(s(p.account));
       return null;
     },

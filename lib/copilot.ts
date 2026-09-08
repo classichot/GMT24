@@ -1,4 +1,4 @@
-import { ACCOUNTS, ENTITIES, INCENTIVES, ISSUES, RULES } from "./model";
+import { DATA, RULES } from "./model";
 import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
 import { shippingPost } from "./shipping";
 import { eur, pct, thb } from "./format";
@@ -293,7 +293,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   {
     match: /boi|holiday|expire/i,
     answer: () => {
-      const inc = INCENTIVES.find((i) => i.id === "TH-BOI")!;
+      const inc = DATA.incentives.find((i) => i.id === "TH-BOI")!;
       return {
         role: "assistant",
         text: `The Thai BOI certificates run as a portfolio, not a single 0% promise.\n\nElectronics manufacturing (TH-BOI): ${inc.start} → ${inc.end}: ${inc.rate}.\nAutomation annex (TH-BOI-AUTO) is a separate project account, blended in the same Thai ETR.\n\nIf the holiday expires, current tax rises toward 20% CIT and Thai top-up falls. That is one of four optimizer scenarios — not a reason to drop BOI without an NPV.\n\nAnnouncement 1/2566 (convert to 10%) is not automatically cheaper: 10% is still below 15%. QRTC is not enacted; do not book it.\n\nSource: ${inc.extractedFrom} · rule TH-BOI-OPT-2566 v2567.2.`,
@@ -381,7 +381,7 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
       cites: [{ label: named.pack?.qualified ?? "Rulebook 2026.2" }],
     };
   }
-  const gaps = ISSUES.filter((i) => i.severity === "block");
+  const gaps = DATA.issues.filter((i) => i.severity === "block");
   return {
     role: "assistant",
     text: `I can only answer from the GMT24 calculation snapshot and the approved rulebook.\n\nGroup top-up is ${eur(list.reduce((a, c) => a + c.jurisdictionalTopUp, 0))} across ${list.filter((c) => c.jurisdictionalTopUp > 0).length} jurisdictions.\n\nOpen blockers: ${gaps.map((g) => g.title).join("; ") || "none"}.\n\nTry: “Why is Thailand’s ETR 10.8%?”, “Can Thailand qualify for a safe harbour?”, “What happens if the BOI tax holiday expires?”, “Which data is missing from Singapore?”`,
@@ -411,8 +411,8 @@ export const SUGGESTIONS = [
 ];
 
 export function mappingHint(account: string) {
-  const row = ACCOUNTS.find((a) => a.account === account);
+  const row = DATA.accounts.find((a) => a.account === account);
   if (!row) return null;
-  const e = ENTITIES.find((x) => x.id === row.entityId);
+  const e = DATA.entities.find((x) => x.id === row.entityId);
   return `${row.account} ${row.name} → ${row.financial} → ${row.globe}${row.adjustment ? ` → ${row.adjustment}` : ""}${row.sbie ? ` → ${row.sbie}` : ""} · confidence ${row.confidence}% · ${e?.name}`;
 }
