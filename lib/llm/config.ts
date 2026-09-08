@@ -11,7 +11,7 @@ import "server-only";
  *   GMT24_LLM_MODEL      model id for the default profile (e.g. gpt-4o-mini, claude-3-5-haiku-latest, qwen2.5:3b)
  *   GMT24_LLM_API_KEY    provider key (not needed for ollama)
  *   GMT24_LLM_BASE_URL   override endpoint (OpenAI-compatible gateways, Ollama host)
- *   GMT24_LLM_MODEL_REASONING   optional stronger model for memo/strategy/review profiles
+ *   GMT24_LLM_MODEL_REASONING   optional stronger model for memo/strategy/review and classification (fact→question mapping, change triage)
  *   GMT24_LLM_MODEL_EXTRACTION  optional model for document extraction (long context)
  *   GMT24_LLM_TIMEOUT_MS        per-call timeout (default 60000)
  *   GMT24_LLM_MAX_TOKENS        output cap (default 1800)
@@ -74,7 +74,8 @@ function detectProvider(): { provider: ProviderKind; model: string; apiKey: stri
 export function modelFor(profile: TaskProfile): ModelConfig {
   const d = detectProvider();
   let model = d.model;
-  if (profile === "reasoning") model = env("GMT24_LLM_MODEL_REASONING") ?? model;
+  // Mapping evidence to answer options and judging regulatory changes are reasoning tasks, not chat.
+  if (profile === "reasoning" || profile === "classify") model = env("GMT24_LLM_MODEL_REASONING") ?? model;
   if (profile === "extraction") model = env("GMT24_LLM_MODEL_EXTRACTION") ?? model;
   const toolsEnv = env("GMT24_LLM_TOOL_MODE"); // native | json
   return {

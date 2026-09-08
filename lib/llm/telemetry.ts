@@ -42,6 +42,8 @@ export function logCall(rec: CallRecord) {
 
 export function recordResult(cfg: ModelConfig, feature: string, profile: string, r: LlmResult, outcome: CallRecord["outcome"], extra?: Partial<CallRecord>) {
   logCall({ at: new Date().toISOString(), feature, profile, provider: r.provider, model: r.model, inputTokens: r.usage.input, outputTokens: r.usage.output, latencyMs: r.latencyMs, costUsd: costOf(cfg, r.usage), outcome, ...extra });
+  // Opt-in raw model output for prompt tuning; never on by default because it echoes document text.
+  if (process.env.GMT24_LLM_DEBUG === "1") console.log(`[llm:raw] ${feature}/${profile}\n${r.text}`);
 }
 
 export function usageSummary() {

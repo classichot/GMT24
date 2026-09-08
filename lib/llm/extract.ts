@@ -59,7 +59,7 @@ export function selectPages(pages: { n: number; text: string }[], maxChars: numb
   return picked.sort((a, b) => a.n - b.n);
 }
 
-function chunk(pages: { n: number; text: string }[], size: number): { n: number; text: string }[][] {
+export function chunk(pages: { n: number; text: string }[], size: number): { n: number; text: string }[][] {
   const out: { n: number; text: string }[][] = [];
   let cur: { n: number; text: string }[] = [];
   let used = 0;
@@ -71,9 +71,9 @@ function chunk(pages: { n: number; text: string }[], size: number): { n: number;
   return out;
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/[\s\u200b]+/g, " ").replace(/[“”"'’‘,.;:()\[\]]/g, "").trim();
+export const norm = (s: string) => s.toLowerCase().replace(/[\s\u200b]+/g, " ").replace(/[“”"'’‘,.;:()\[\]]/g, "").trim();
 
-function verifyQuote(pages: Map<number, string>, page: number, quote: string): boolean {
+export function verifyQuote(pages: Map<number, string>, page: number, quote: string): boolean {
   const t = pages.get(page);
   if (!t) return false;
   const q = norm(quote);

@@ -448,6 +448,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     featurePack: (f, q) => { try { return rulesReply(q, c, f, null, undefined); } catch { return null; } },
     saveScenario: (sc) => patch((s) => ({ scenarios: [sc, ...s.scenarios.filter((o) => o.id !== sc.id)].slice(0, 30) })),
     holdTicket: (t) => pendingTickets.current.set(t.id, t),
+    addFacts: (list) => patch((s) => ({ manualFacts: [...s.manualFacts.filter((m) => !list.some((n) => n.id === m.id)), ...list] })),
   }), [x.calcs, x.findings, x.state, inputs, facts, tasks, reviewFindings, groupAudit, store, rulesReply, patch]);
 
   const askRules = useCallback((q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }): Reply | null => {

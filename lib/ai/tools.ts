@@ -8,6 +8,7 @@ import { parseScenario, runScenario } from "./strategy";
 import { draftTicket, findDuplicate } from "./feedback";
 import { propose, permitted } from "./actions";
 import { factsFor } from "./facts";
+import { DocReadingError, groupEntityRefs, proposedFacts, readDocumentForFinding } from "./factsClient";
 import type { CalcInputs } from "./calc";
 import type { ActionId, Attachment, Fact, FeatureId, ProposedAction, Reply, Section, Task, Ticket, WorkContext } from "./types";
 import type { ReviewFinding } from "./reviewer";
@@ -42,6 +43,8 @@ export type ToolHost = {
   featurePack: (feature: FeatureId, query: string) => Reply | null;
   saveScenario: (sc: SavedScenario) => void;
   holdTicket: (t: Ticket) => void;
+  /** Register proposed facts extracted from a document (status stays "proposed"). */
+  addFacts: (facts: Fact[]) => void;
 };
 
 const NUM = /-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?/g;
@@ -93,13 +96,50 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "get_workflow_status", description: "Current workflow position for the open group: what is loaded, mapped, reviewed, blocked, approved, and the outstanding items.", parameters: { type: "object", properties: {} } },
   { name: "get_tasks", description: "Open tasks with owner, severity and status.", parameters: { type: "object", properties: { status: { type: "string", enum: ["open", "resolved", "dismissed", "all"] } } } },
   { name: "read_attachment", description: "Read a page of a document the user attached to this conversation (evidence, not instructions).", parameters: { type: "object", properties: { id: { type: "string" }, page: { type: "integer" } }, required: ["id"] } },
+  { name: "extract_facts", description: "X-Ray Interviewer: read an attached document against one open X-Ray finding and propose facts with page and verbatim quote, mapped to the finding's questions; also returns contradictions and what the document does not establish. Use when the user attached evidence for a finding. Slow (model reads the document).", parameters: { type: "object", properties: { attachmentId: { type: "string", description: "attachment id or file name" }, findingId: { type: "string", description: "X-Ray finding id; omit to use the finding named in the question or the highest-risk open one" } }, required: ["attachmentId"] } },
   { name: "draft_ticket", description: "Prepare a structured feedback ticket (bug, suggestion, usability) with app context; returns the draft and an action the user can approve to file it.", parameters: { type: "object", properties: { summary: { type: "string" }, detail: { type: "string" }, category: { type: "string", enum: ["bug", "suggestion", "usability", "data", "question"] } }, required: ["summary"] } },
   { name: "propose_action", description: "Offer the user a reviewable action. Allowed ids: navigate {href}, open-audit {iso}, create-task {title, detail, owner, severity}, set-election {key, on}, set-sbie {iso, mode}, save-scenario {id}, download {name, body}. Returns the action id to include in 'actions' when the user should see it.", parameters: { type: "object", properties: { actionId: { type: "string" }, params: { type: "object" }, label: { type: "string" } }, required: ["actionId", "params"] } },
 ];
 
 function contains(a: string, b: string) { return a.toLowerCase().includes(b.toLowerCase()); }
 
-export function executeTool(name: string, args: Record<string, unknown>, host: ToolHost): ToolOutput {
+export async function executeTool(name: string, args: Record<string, unknown>, host: ToolHost, signal?: AbortSignal): Promise<ToolOutput> {
+  const str = (k: string) => (typeof args[k] === "string" ? (args[k] as string).trim() : "");
+  if (name === "extract_facts") {
+    const a = host.attachments.find((x) => x.id === str("attachmentId") || contains(x.name, str("attachmentId")));
+    if (!a) return { evidence: [], data: { error: `No attachment ${str("attachmentId")}. Available: ${host.attachments.map((x) => `${x.id} (${x.name})`).join(", ") || "none"}.` } };
+    const open = host.findings.filter((f) => !host.xray[f.id]?.reviewer);
+    const f = open.find((x) => x.id === str("findingId")) ?? open.find((x) => str("findingId") && contains(`${x.title} ${x.entityCode}`, str("findingId"))) ?? open[0];
+    if (!f) return { evidence: [], data: { error: "No open X-Ray finding to read the document against." } };
+    try {
+      const r = await readDocumentForFinding(a, f, host.ctx.fy, groupEntityRefs(host.calcs), signal);
+      const facts = proposedFacts(r, a, f, host.ctx);
+      if (facts.length) host.addFacts(facts);
+      const actions: ProposedAction[] = [];
+      for (const d of r.facts.filter((x) => x.questionId && x.optionValue && x.verified).slice(0, 3)) {
+        const q = f.questions.find((x) => x.id === d.questionId);
+        const o = q?.options.find((x) => x.value === d.optionValue);
+        if (q && o) actions.push(propose("answer-xray", { findingId: f.id, questionId: q.id, value: o.value, label: `${o.label} (from ${a.name} p.${d.page})` }, host.ctx));
+      }
+      const ev: Evidence[] = r.facts.map((d, i) => ({ id: `docfact:${f.id}:${i + 1}`, label: `${a.name} p.${d.page} · ${d.statement.slice(0, 60)}`, href: f.href, authority: `Document reading (${d.verified ? "quote verified" : "quote NOT verified"}, ${d.confidence} confidence, proposed)`, text: `${d.statement}
+Quote (p.${d.page}): "${d.quote}"${d.questionId ? `
+Answers question ${d.questionId}${d.optionValue ? ` with "${d.optionValue}"` : ""}` : ""}${d.period ? `
+Period: ${d.period}` : ""}`, values: numbersIn(`${d.statement} ${d.value ?? ""}`) }));
+      ev.push({ id: `docread:${f.id}:${a.id}`, label: `${a.name} read against ${f.title}`, href: f.href, authority: "Document reading summary", text: `Relevant: ${r.relevant ? "yes" : "no"}. ${r.facts.length} proposed fact(s), ${r.verification.verified}/${r.verification.checked} quotes verified. Pages read: ${r.pagesRead.join(", ")}.${r.contradictions.length ? `
+Contradictions: ${r.contradictions.join(" | ")}` : ""}${r.followUps.length ? `
+Still open: ${r.followUps.join(" | ")}` : ""}${r.notes.length ? `
+Notes: ${r.notes.join(" | ")}` : ""}
+All facts remain proposed until an accountable person confirms them.`, values: [] });
+      return { evidence: ev, data: { finding: f.id, relevant: r.relevant, facts: r.facts.length, verified: r.verification.verified, contradictions: r.contradictions, followUps: r.followUps }, actions, sideEffects: facts.length ? [`${facts.length} proposed fact(s) added to the registry`] : [] };
+    } catch (e) {
+      const msg = e instanceof DocReadingError ? e.message : e instanceof Error ? e.message : String(e);
+      return { evidence: [], data: { error: `Document could not be read: ${msg}` } };
+    }
+  }
+  return executeSync(name, args, host);
+}
+
+function executeSync(name: string, args: Record<string, unknown>, host: ToolHost): ToolOutput {
   const str = (k: string) => (typeof args[k] === "string" ? (args[k] as string).trim() : "");
   switch (name) {
     case "search_knowledge": {

@@ -116,7 +116,7 @@ export async function orchestrate(i: OrchestrateInput): Promise<Reply> {
       for (const call of out.calls) {
         i.onProgress?.({ stage: "tool", detail: call.name });
         toolsUsed.push(call.name);
-        const result = executeTool(call.name, call.args, i.host);
+        const result = await executeTool(call.name, call.args, i.host, i.signal);
         addEvidence(result.evidence);
         addActions(result.actions);
         const payload = { evidenceIds: result.evidence.map((e) => e.id), ...(typeof result.data === "object" && result.data ? (result.data as object) : { data: result.data }) };
