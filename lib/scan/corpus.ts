@@ -65,6 +65,7 @@ export const REGISTRY: RegistryEntry[] = [
   { id: "chaophraya", name: "Chao Phraya Industrial Holdings PCL", nameTh: "บริษัท เจ้าพระยา อินดัสเตรียล โฮลดิ้งส์ จำกัด (มหาชน)", aliases: ["chao phraya industrial", "cpih", "chao phraya holdings", "เจ้าพระยา อินดัสเตรียล"], ticker: "CPIH", exchange: "SET", upeIso: "TH", subsidiaryNames: ["CPI Precision (Malaysia) Sdn. Bhd.", "Chao Phraya Electronics Vietnam", "CPIH Singapore Pte. Ltd."], demo: true },
   { id: "lannadigital", name: "Lanna Digital Group PCL", nameTh: "บริษัท ล้านนา ดิจิทัล กรุ๊ป จำกัด (มหาชน)", aliases: ["lanna digital", "ldg", "ล้านนา ดิจิทัล"], formerNames: ["Lanna Software Co., Ltd."], ticker: "LDG", exchange: "SET (mai)", upeIso: "TH", subsidiaryNames: ["Lanna Labs Singapore Pte. Ltd.", "LDG Technologies Ireland Ltd"], demo: true },
   { id: "aetherion", name: "Aetherion Holdings PCL", nameTh: "บริษัท เอเทอเรียน โฮลดิ้งส์ จำกัด (มหาชน)", aliases: ["aetherion", "aetherion holdings", "เอเทอเรียน"], ticker: "AETH", exchange: "SET", upeIso: "TH", subsidiaryNames: ["Aetherion Technologies Ireland", "Aetherion Manufacturing Vietnam", "Aetherion Asia Hong Kong"], demo: true },
+  { id: "thaicoal", name: "ThaiCoal PCL", nameTh: "บริษัท ไทยโคล จำกัด (มหาชน)", aliases: ["thaicoal", "thai coal", "thaicoal pcl", "thaicoal public company", "ไทยโคล"], ticker: "TCOAL", exchange: "SET", upeIso: "TH", subsidiaryNames: ["ThaiCoal Power", "ThaiCoal Singapore", "PT ThaiCoal Indo", "ThaiCoal Australia", "ThaiCoal NextGen Energy"], demo: true },
 ];
 
 const THB_TO_EUR = 1 / 38.5;
@@ -217,6 +218,37 @@ export const CORPUS: CorpusGroup[] = [
         disclosures: [
           { topic: "pillar-two-statement", docId: "aeth-fs-2025", page: 90, section: "Note 33 Income tax", text: "The Group is within the scope of Pillar Two. Thailand's top-up tax legislation applies from 1 January 2025. The Group has assessed exposure in Ireland, Vietnam, Thailand and Hong Kong.", isos: ["IE", "VN", "TH", "HK"] },
           { topic: "expected-impact", docId: "aeth-fs-2025", page: 90, section: "Note 33 Income tax", text: "Management expects the most significant top-up tax to arise in Ireland in respect of income benefiting from the Knowledge Development Box, collected through the Irish qualified domestic minimum top-up tax.", isos: ["IE"] },
+        ],
+      },
+    ],
+  },
+  {
+    registryId: "thaicoal",
+    periods: [
+      {
+        period: "FY2025",
+        docs: [D("tc-ar-2025", "ThaiCoal PCL — Form 56-1 One Report 2025", "form-56-1", "FY2025", "ThaiCoal PCL", 312), D("tc-fs-2025", "Consolidated financial statements 31 Dec 2025", "financial-statements", "FY2025", "ThaiCoal PCL", 138)],
+        revenue: [{ period: "FY2022", amountThbMillion: 214_000, page: 92, docId: "tc-ar-2025" }, { period: "FY2023", amountThbMillion: 178_600, page: 92, docId: "tc-ar-2025" }, { period: "FY2024", amountThbMillion: 187_300, page: 92, docId: "tc-ar-2025" }, { period: "FY2025", amountThbMillion: 168_400, page: 92, docId: "tc-ar-2025" }],
+        entities: [
+          { id: "tc", name: "ThaiCoal PCL", nameTh: "บริษัท ไทยโคล จำกัด (มหาชน)", iso: "TH", relationship: "upe", ownerId: null, ownership: null, activity: "Coal trading and mining; energy holding", page: 12, text: "ThaiCoal Public Company Limited is the ultimate parent entity, listed on the Stock Exchange of Thailand." },
+          { id: "tc-pwr", name: "ThaiCoal Power PCL", iso: "TH", relationship: "subsidiary", ownerId: "tc", ownership: 78, activity: "Power generation (listed)", page: 118, text: "ThaiCoal Power Public Company Limited — Thailand — 78.00% (listed; 22% held by the public)." },
+          { id: "tc-nrg", name: "ThaiCoal NextGen Energy Co., Ltd.", iso: "TH", relationship: "subsidiary", ownerId: "tc-pwr", ownership: 100, activity: "Solar and battery storage", page: 118, text: "ThaiCoal NextGen Energy Co., Ltd. — Thailand — 100.00% (held through ThaiCoal Power PCL).", incentives: [{ schemeId: "TH-boi-holiday", page: 214, text: "BOI Category 7.1 promotion for solar farm and battery storage at Lopburi with CIT exemption to 31 December 2026, then 50% reduction to 2031.", to: "2031-12" }] },
+          { id: "tc-sg", name: "ThaiCoal Singapore Pte. Ltd.", iso: "SG", relationship: "subsidiary", ownerId: "tc", ownership: 100, activity: "Coal trading hub", page: 119, text: "ThaiCoal Singapore Pte. Ltd. — Singapore — 100.00%.", incentives: [{ schemeId: "SG-gtp", page: 215, text: "Global Trader Programme award at 10% on qualifying coal trading income to June 2029.", from: "2019-07", to: "2029-06" }] },
+          { id: "tc-id", name: "PT ThaiCoal Indo Tbk", iso: "ID", relationship: "subsidiary", ownerId: "tc-sg", ownership: 65, activity: "Coal mining (listed on IDX)", page: 119, text: "PT ThaiCoal Indo Tbk — Indonesia — 65.00% (listed; 35% held by the public)." },
+          { id: "tc-au", name: "ThaiCoal Australia Pty Ltd", iso: "AU", relationship: "subsidiary", ownerId: "tc", ownership: 100, activity: "Underground coal mining", page: 120, text: "ThaiCoal Australia Pty Ltd — Australia — 100.00%." },
+          { id: "tc-us", name: "ThaiCoal Energy US Corp.", iso: "US", relationship: "subsidiary", ownerId: "tc", ownership: 75, activity: "Shale gas and power", page: 120, text: "ThaiCoal Energy US Corp. — United States — 75.00%." },
+          { id: "tc-jp", name: "ThaiCoal Power Japan K.K.", iso: "JP", relationship: "subsidiary", ownerId: "tc-pwr", ownership: 100, activity: "Solar power", page: 121, text: "ThaiCoal Power Japan K.K. — Japan — 100.00% (held through ThaiCoal Power PCL)." },
+          { id: "tc-cn", name: "ThaiCoal Power (Shanxi) Co., Ltd.", iso: "CN", relationship: "subsidiary", ownerId: "tc-pwr", ownership: 100, activity: "Combined heat and power", page: 121, text: "ThaiCoal Power (Shanxi) Co., Ltd. — China — 100.00% (held through ThaiCoal Power PCL).", incentives: [{ schemeId: "CN-hnte", page: 216, text: "High and New Technology Enterprise certification at 15% EIT to 31 December 2025; renewal pending.", from: "2023-01", to: "2025-12" }] },
+          { id: "tc-la", name: "ThaiCoal-Lao Lignite Power Co., Ltd.", iso: "LA", relationship: "associate", ownerId: "tc-pwr", ownership: 40, activity: "Lignite power (equity-accounted)", page: 122, text: "ThaiCoal-Lao Lignite Power Co., Ltd. — Lao PDR — 40.00% associate, equity method." },
+          { id: "tc-vn", name: "ThaiCoal-Trang Wind Power JV", iso: "VN", relationship: "joint-venture", ownerId: "tc", ownership: 50, activity: "Wind power (joint venture)", page: 122, text: "ThaiCoal-Trang Wind Power Joint Venture — Vietnam — 50.00%, equity method.", incentives: [{ schemeId: "VN-high-tech", page: 216, text: "Renewable power EIT incentive: 4-year exemption, 50% reduction for 9 years, 10% preferential rate to 2037.", from: "2023-01", to: "2037-12" }] },
+        ],
+        disclosures: [
+          { topic: "pillar-two-statement", docId: "tc-fs-2025", page: 104, section: "Note 36 Income tax", text: "The Group is within the scope of the OECD Pillar Two model rules. Thailand's Emergency Decree on Top-up Tax B.E. 2567 applies to fiscal years beginning on or after 1 January 2025. As the ultimate parent entity is in Thailand, the Group is subject to the Thai income inclusion rule and the Thai domestic minimum top-up tax.", isos: ["TH"] },
+          { topic: "expected-impact", docId: "tc-fs-2025", page: 104, section: "Note 36 Income tax", text: "Management expects top-up tax to arise principally in Thailand, in respect of BOI-promoted solar income, and in Singapore, in respect of trading income under the Global Trader Programme, collected through the respective domestic minimum top-up taxes. A Thai income inclusion rule charge is expected on the Group's Chinese power operations.", isos: ["TH", "SG", "CN"] },
+          { topic: "top-up-recognised", docId: "tc-fs-2025", page: 105, section: "Note 36 Income tax", text: "Current tax expense includes THB 168 million of Pillar Two top-up tax for the year ended 31 December 2025.", isos: ["TH", "SG"] },
+          { topic: "uncertainty", docId: "tc-fs-2025", page: 105, section: "Note 36 Income tax", text: "The Group has applied the transitional country-by-country reporting safe harbour where available. Australian operations recorded a loss for the year and no effective tax rate is computed for that jurisdiction.", isos: ["AU", "JP", "ID"] },
+          { topic: "incentive", docId: "tc-ar-2025", page: 214, section: "Investment promotion", text: "ThaiCoal NextGen Energy holds a BOI promotion certificate (Category 7.1) for its 480 MW solar and battery storage project at Lopburi, with corporate income tax exemption to 31 December 2026.", isos: ["TH"] },
+          { topic: "tax-reconciliation", docId: "tc-fs-2025", page: 103, section: "Note 36 Income tax", text: "Profit before tax THB 22,410m; tax at 20% THB 4,482m; effect of different rates in foreign jurisdictions THB 610m; BOI-exempt income THB (1,240)m; non-taxable dividend income THB (3,660)m; income tax expense THB 3,228m (effective rate 14.4%).", isos: ["TH", "SG", "AU", "US"] },
         ],
       },
     ],

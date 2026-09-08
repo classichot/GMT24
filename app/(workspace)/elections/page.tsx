@@ -6,6 +6,7 @@ import { Amount } from "@/components/Amount";
 import { ElectionBar } from "@/components/ElectionBar";
 import { ElectionSwitch } from "@/components/ElectionSwitch";
 import { useCalc } from "@/lib/useCalc";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { eur, pct, thb } from "@/lib/format";
 import {
@@ -169,7 +170,7 @@ export default function ElectionsPage() {
             </div>
             <div className="kpi">
               <div className="kpi-label">Bound entities</div>
-              <div className="kpi-val" style={{ fontSize: 16 }}>TH001 · TH-PE1</div>
+              <div className="kpi-val" style={{ fontSize: 16 }}>{DATA.entities.filter((e) => e.iso === "TH").map((e) => e.code).join(" · ")}</div>
               <div className="kpi-sub">One Thailand toggle — not two entity toggles</div>
             </div>
           </div>

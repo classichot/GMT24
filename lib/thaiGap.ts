@@ -102,7 +102,7 @@ const BASE: GapItem[] = [
     rd: "Must be interpreted in line with GloBE. Detailed adjustment list is delegated to a further instrument.",
     rdCite: "Decree s 31 (pending)",
     kind: "pending",
-    core: "Art. 3.2 deltas posted for TH001 (excluded dividends, net tax, FX hold).",
+    core: "Art. 3.2 deltas posted for the Thai CEs (excluded dividends, net tax, FX hold).",
     pack: "Inherits Core. Does not invent s 31 adjustments.",
     action: "Document that Thai GloBE income currently follows OECD 3.2. Re-run when s 31 is published.",
     href: "/globe-income",

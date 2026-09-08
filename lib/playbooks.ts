@@ -39,7 +39,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Lock the UPE, ownership graph and constituent-entity list before any GloBE blending.",
     owner: "Group Tax / legal entity control",
     steps: [
-      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: Aetherion is the working group.", href: "/clients", hrefLabel: "Clients" },
+      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: the demo group you signed in to (Aetherion or ThaiCoal) is the working group.", href: "/clients", hrefLabel: "Clients" },
       { n: "02", title: "Run the $750m test", body: "Scope must be IN SCOPE (or documented REVIEW) before mapping starts.", href: "/group", hrefLabel: "Group structure" },
       { n: "03", title: "Walk entities into ETR", body: "Run the entity test (MOCE ≤ 30% UPE ownership; POPE if outsiders hold > 20% of a non-UPE Parent). Open an entity row to land on that blend’s ETR — not a mixed country rate.", href: "/entities", hrefLabel: "Entities" },
     ],
@@ -132,7 +132,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "External reviewer / QA",
     steps: [
       { n: "01", title: "Start on the review guide", body: "Open the checklist. Progress tracks ingest, mapping, calculation anchors, trace logic and GIR preflight.", href: "/review-guide", hrefLabel: "Review guide" },
-      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load all 19 Aetherion FY2026 sources in one click.", href: "/data", hrefLabel: "Data Hub" },
+      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load the full FY2026 demo pack for the open group in one click.", href: "/data", hrefLabel: "Data Hub" },
       { n: "03", title: "Approve the FX mapping", body: "Account 830010 is held at 62% confidence. Approve it to post the Art. 3.2 delta and rerun ETR.", href: "/mapping", hrefLabel: "Mapping" },
       { n: "04", title: "Verify anchors", body: "Group top-up ~$19.1M after Hong Kong ENTE. Thailand ETR ~11.02%. Ireland largest top-up ~$12.6M. Click amounts for audit trail.", href: "/overview", hrefLabel: "Dashboard" },
       { n: "05", title: "Trace collection & GIR", body: "UTPR Art. 2.6 keys on Allocation. Art. 4.3 on Covered taxes. Preflight GIR on Compliance.", href: "/allocation", hrefLabel: "Allocation" },

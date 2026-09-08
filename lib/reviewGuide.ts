@@ -15,7 +15,7 @@ export const REVIEW_PHASES: ReviewPhase[] = [
     id: "ingest",
     n: "01",
     title: "Ingest the close pack",
-    body: "Drop sample CSVs or load the full Aetherion FY2026 demo pack. Classification runs before mapping; the engine does not calculate until maps are approved.",
+    body: "Drop sample CSVs or load the full FY2026 demo pack for the open group. Classification runs before mapping; the engine does not calculate until maps are approved.",
   },
   {
     id: "map",

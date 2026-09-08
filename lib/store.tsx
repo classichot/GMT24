@@ -685,7 +685,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     appendHistory({
       kind: "doc",
       title: "Close pack ingested",
-      detail: "Aetherion FY2026 demo pack classified and posted to the canonical model. Next: approve mappings on Account mapping.",
+      detail: `${DATA.group.name} ${DATA.group.fy} demo pack classified and posted to the canonical model. Next: approve mappings on Account mapping.`,
       href: "/data",
       ref: "ingest-pack",
     });

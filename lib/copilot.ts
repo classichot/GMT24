@@ -3,6 +3,7 @@ import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
 import { shippingPost } from "./shipping";
 import { eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
+import { thaiLiability } from "./thailand";
 import { optimizeBoi } from "./boiOptimizer";
 import { optimizeGlobe } from "./electionEngine";
 import { WORKED_SBC_THB } from "./elections";
@@ -18,8 +19,126 @@ function th() {
   return calcForIso("TH")!;
 }
 
+/** ThaiCoal answers: a Thai UPE, so Thai IIR is live and the Thai blend is UPE + listed POPE + BOI solar CE + logistics CE. */
+const THAICOAL_CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
+  {
+    match: /thailand pack|jurisdiction pack|thai liability|who pays the thai|thai qdmtt|residual utpr|thai iir/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      const L = thaiLiability(j, calculateGroup());
+      const iirLine = L.thaiIirRows.length
+        ? L.thaiIirRows.map((r) => `${r.name} ${eur(r.popeIir + r.upeIir)}${r.popeIir ? ` (POPE IIR ${eur(r.popeIir)} at ThaiCoal Power PCL)` : ""}`).join("; ")
+        : "none";
+      return {
+        role: "assistant",
+        text: `ThaiCoal is a Thai UPE, so Thailand collects twice.\n\n1. Thai QDMTT on the Thai blend (UPE + ThaiCoal Power PCL + NextGen Energy + Minerals & Logistics): ${eur(L.thaiQdmtt)}. Driver is the BOI solar holiday at NextGen Energy.\n2. Thai IIR on low-taxed foreign blends where no local QDMTT collects first: ${eur(L.thaiIir)} — ${iirLine}. ThaiCoal Power PCL is a POPE (22% outside), so the IIR on its Chinese power CE is applied at the POPE × Inclusion Ratio before the UPE takes the residual. Singapore and the Vietnamese JV are low-taxed too, but their own QDMTTs collect first, so Thailand gets nothing on them.\n\nThai amount ultimately payable ${eur(L.payable)}. Designated Thai taxpayer: ${L.designatedLabel} (draft election; joint and several remains). Indonesia and Australia are not in the IIR line — Indonesia is above 15% and Australia has a net GloBE loss.\n\nOpen the Thai Liability Dashboard.`,
+        cites: [
+          { label: "Thai liability dashboard", href: "/thailand/liability" },
+          { label: "TH-PACK-2567 v2567.2", href: "/thailand" },
+          { label: "OECD-POPE-214", href: "/rulebook" },
+        ],
+      };
+    },
+  },
+  {
+    match: /\bmoce\b|minority-owned|pope|partially-owned parent|inclusion ratio|entity test/i,
+    seed: "thaicoal",
+    answer: () => {
+      const list = calculateGroup();
+      const special = list.filter((c) => c.blendKind !== "main" && c.jurisdictionalTopUp > 0);
+      return {
+        role: "assistant",
+        text: `Entity test is computed from the ownership chain (OECD-MOCE-513 / OECD-POPE-214 / OECD-IR-222 / OECD-JV-64 v2026.1).\n\nPOPE — Art. 2.1.4: a non-UPE Parent where outsiders hold more than 20%. This snapshot has two: ThaiCoal Power PCL (78% group-owned, listed on the SET) and PT ThaiCoal Indo Tbk (65%, listed on the IDX). IIR applies at the POPE first × Inclusion Ratio; the UPE takes the residual. Indonesia is above 15% so the Indo POPE has nothing to collect; ThaiCoal Power PCL collects Thai IIR on China (Singapore QDMTT collects first on the renewables platform).\n\nMOCE — Art. 5.1.3: UPE Ownership Interests ≤ 30%. No CE fails this test — the lowest look-through is PT ThaiCoal Kalimantan Mining at 64%. ThaiCoal-Lao Lignite Power (40%, equity-accounted) is not a CE at all.\n\nJV — Art. 6.4: ThaiCoal-Trang Wind Power (50/50, equity-accounted) is a separate Vietnamese JV Group ETR.\n\nSpecial blends with top-up: ${special.map((c) => `${c.name} (${c.collection.payer})`).join("; ") || "none on this snapshot"}. Open the entity register.`,
+        cites: [
+          { label: "Entity test", href: "/entities" },
+          { label: "OECD-POPE-214", href: "/rulebook" },
+          { label: "OECD-JV-64", href: "/rulebook" },
+          { label: "Allocation", href: "/allocation" },
+        ],
+      };
+    },
+  },
+  {
+    match: /thailand.*etr|etr.*thailand|10\./i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe blend is four Thai entities: ThaiCoal PCL (UPE, coal trading and mining at 20% CIT), ThaiCoal Power PCL (POPE, 20%), ThaiCoal NextGen Energy (BOI solar holiday at 0% CIT to 31 Dec 2026) and Minerals & Logistics (20%). The shortfall against 15% is the holiday income at NextGen Energy, plus excluded dividends of $124M at the UPE and $59M at the POPE under Art. 3.2.1(b), which pull GloBE income down without any Covered Tax attached.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
+        cites: [
+          { label: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+          { label: "TC001 Trial Balance FY2026.xlsx", href: "/data" },
+          { label: "BOI_Certificate_TC031_solar.pdf", href: "/incentives" },
+        ],
+      };
+    },
+  },
+  {
+    match: /safe harbour|safe harbor|qualify|de minimis|mongolia/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      const mn = calcForIso("MN");
+      const us = calcForIso("US");
+      return {
+        role: "assistant",
+        text: `Thailand does not qualify for the Transitional CbCR Safe Harbour in FY2026.\n\n${j.sh.navigator}\n\nMongolia (ThaiCoal Mongolia LLC) ${mn ? `passes the de minimis test — revenue below €10M and profit below €1M — ${mn.sh.navigator}` : "is the de minimis candidate"}. Elect SH_TCSH on the GIR; the prior-year deferred-tax opening balances are still a blocker for the full calculation.\n\nUnited States ${us ? `is treated under Side-by-Side: ${us.sh.navigator}` : "is under Side-by-Side"}.\n\nSBTISH is under review for the BOI solar holiday at NextGen Energy — the solar CapEx is qualifying substance expenditure but the trace must be signed before the harbour is elected.\n\nRule versions: OECD-TCSH-2026 v2026.2 · OECD-SBTISH v2026.2 · TH-QDMTT-2025 v2025.1.`,
+        cites: [{ label: "OECD-TCSH-2026 v2026.2", href: "/safe-harbours" }, { label: "Side-by-Side", href: "/harbours-2026" }, { label: "TH-QDMTT-2025", href: "/rulebook" }],
+      };
+    },
+  },
+  {
+    match: /boi|holiday|expire|solar/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `The BOI Category 7.1 promotion at ThaiCoal NextGen Energy (Lopburi solar and battery storage) runs 0% CIT to 31 Dec 2026, then a 50% reduction (10%) to 2031.\n\nToday the holiday income lands in the Thai blend at 0% and Thai QDMTT collects ${eur(j.jurisdictionalTopUp)} on the whole Thai jurisdiction — so the group pays most of the incentive back to the Revenue Department rather than keeping it.\n\nFrom FY2027 the 10% step-down lifts the Thai ETR but still leaves it below 15% unless the SBTISH trace is signed. The BOI Optimizer ranks keep-holiday vs 10% conversion vs QRTC (not bookable yet) vs 20% baseline on a 10-year NPV.\n\nOpen the BOI Optimizer.`,
+        cites: [{ label: "BOI Optimizer", href: "/thailand/boi" }, { label: "TC-BOI-SOLAR certificate", href: "/incentives" }, { label: "Playbook", href: "/playbook/boi-optimizer" }],
+      };
+    },
+  },
+  {
+    match: /adjustment|810020|dividend/i,
+    seed: "thaicoal",
+    answer: () => ({
+      role: "assistant",
+      text: `Excluded dividends are the largest GloBE adjustment in this group.\n\n• ThaiCoal PCL (TC001): −$124.0M — dividends from PT ThaiCoal Indo Tbk, ThaiCoal Singapore and ThaiCoal Power PCL, ownership ≥ 10%, Art. 3.2.1(b).\n• ThaiCoal Power PCL (TC010): −$59.0M — dividends from the Japan and China power CEs and the Lao associate (the associate sits outside the GloBE perimeter, the dividend is still excluded).\n• ThaiCoal Renewables Asia (TC041): −$8.2M — Asian solar portfolio dividends.\n\nAll three are account 810020, rule OECD-DIV-EXCL v2026.1, preparer local tax, reviewer K. Suksawat. Because Thai dividend income carries no Covered Tax, stripping it raises the Thai ETR rather than lowering it.\n\nThese are canonical GloBE adjustments, not an LLM estimate.`,
+      cites: [{ label: "OECD-DIV-EXCL v2026.1" }, { label: "GloBE income", href: "/globe-income" }],
+    }),
+  },
+  {
+    match: /australia|globe loss|loss.making|no etr/i,
+    seed: "thaicoal",
+    answer: () => {
+      const au = calcForIso("AU");
+      return {
+        role: "assistant",
+        text: `ThaiCoal Australia Pty Ltd is loss-making in FY2026.\n\nNet GloBE Loss ${au ? eur(au.globeIncome) : "(see snapshot)"}: under Art. 5.1.2 no ETR is computed for a jurisdiction with no Net GloBE Income, so there is no top-up and Australia does not appear on the Thai IIR line. The Australian tax-loss DTA is recast from 30% to 15% (Art. 4.4.1) and carried for later years.\n\nThe open blocker is the payroll split by mine site — the SBIE payroll file only covers the Mandalong site.\n\nOpen the Australian blend in Jurisdictions.`,
+        cites: [{ label: "Jurisdictions", href: "/jurisdictions" }, { label: "Deferred tax", href: "/deferred-tax" }, { label: "OECD-DT-441", href: "/rulebook" }],
+      };
+    },
+  },
+  {
+    match: /singapore|global trader|gtp|trading hub/i,
+    seed: "thaicoal",
+    answer: () => {
+      const sg = calcForIso("SG");
+      return {
+        role: "assistant",
+        text: `Singapore is the second-largest top-up in this group${sg ? `: ETR ${pct(sg.etr, 2)}, top-up ${eur(sg.jurisdictionalTopUp)}` : ""}.\n\nThaiCoal Singapore Pte. Ltd. trades coal under the Global Trader Programme at 10% (standard 17%), and ThaiCoal Renewables Asia holds the Asian solar portfolio. Singapore's Domestic Top-up Tax is in force from 2025, so the Singapore QDMTT collects the whole amount first and the Thai IIR residual on Singapore is $0 — Thailand only sees the ThaiCoal Power PCL POPE IIR on China.\n\nOpen the Singapore blend for the collection waterfall.`,
+        cites: [{ label: "Jurisdictions", href: "/jurisdictions" }, { label: "Allocation", href: "/allocation" }],
+      };
+    },
+  },
+];
+
 /** `seed` pins a scripted answer whose narrative quotes one demo group's facts; other groups fall through to the live snapshot answer. */
 const CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
+  ...THAICOAL_CANNED,
   {
     match: /evidence history|immutable (log|chronicle)|who (changed|approved|commented)|chronicle|evidence locker/i,
     answer: () => ({

@@ -162,7 +162,7 @@ export function runAllSafeHarbours(calcs: HarbourCalc[]): HarbourRunSummary {
 
   rows.push({
     iso: "GROUP",
-    name: "Aetherion Group",
+    name: DATA.group.name,
     blendKey: "group:nmce",
     harbour: "NMCE simplified",
     article: "NMCE SH",

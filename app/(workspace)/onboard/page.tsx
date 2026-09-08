@@ -69,7 +69,7 @@ export default function OnboardPage() {
 
       {justAdded && (
         <div className="callout" style={{ marginBottom: 16, fontSize: 13 }}>
-          <strong>{group.name}</strong> is open{group.upeTin ? ` · UPE ID ${group.upeTin}` : ""}. Drop the close pack next. Live numbers still use the Aetherion teaching snapshot until this pack is posted.{" "}
+          <strong>{group.name}</strong> is open{group.upeTin ? ` · UPE ID ${group.upeTin}` : ""}. Drop the close pack next. Live numbers still use the teaching snapshot until this pack is posted.{" "}
           <Link href="/data">Go to Data Hub →</Link>
         </div>
       )}

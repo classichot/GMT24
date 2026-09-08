@@ -35,7 +35,7 @@ export default function OverviewPage() {
       )}
       {group.custom && (
         <div className="callout" style={{ marginBottom: 16 }}>
-          <strong>{group.name} is in onboarding.</strong> Drop the close pack, map the chart, then run the entity test. Numbers below are still the Aetherion teaching snapshot until this pack is posted.{" "}
+          <strong>{group.name} is in onboarding.</strong> Drop the close pack, map the chart, then run the entity test. Numbers below are still the teaching snapshot until this pack is posted.{" "}
           <Link href="/data">Open Data Hub</Link>
         </div>
       )}

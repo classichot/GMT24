@@ -23,7 +23,7 @@ export default function MappingPage() {
         </div>
       </div>
       <div className="kpi-grid cols-3" style={{ marginBottom: 20 }}>
-        <div className="kpi"><div className="kpi-label">Accounts</div><div className="kpi-val">{DATA.accounts.length}</div><div className="kpi-sub">TH001 sample</div></div>
+        <div className="kpi"><div className="kpi-label">Accounts</div><div className="kpi-val">{DATA.accounts.length}</div><div className="kpi-sub">{DATA.group.name} sample</div></div>
         <div className="kpi"><div className="kpi-label">Auto-approved</div><div className="kpi-val">{DATA.accounts.filter((a) => a.approved).length}</div><div className="kpi-sub">≥ 88% confidence</div></div>
         <div className="kpi"><div className="kpi-label">Review required</div><div className="kpi-val">{pending}</div><div className="kpi-sub hot">FX gain 62%</div></div>
       </div>
