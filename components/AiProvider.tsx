@@ -33,6 +33,7 @@ import { buildScan, reassess, type ScanOptions } from "@/lib/scan/pipeline";
 import { extractUpload } from "@/lib/scan/extract";
 import { onboardingPackage } from "@/lib/scan/onboard";
 import type { Correction, ScanResult } from "@/lib/scan/types";
+import { scanDiscover, scanUpload, type DiscoverOutcome, type ScanProgress } from "@/lib/scan/discoverClient";
 
 const KEY = "gmt24_ai_v1";
 
@@ -76,6 +77,10 @@ type Ai = {
   addFact: (f: Fact) => void;
   scans: ScanResult[];
   runScan: (query: string, opts?: ScanOptions & { attachmentId?: string }) => ScanResult;
+  /** Company-name entry: discover official sources on the web, read the report, structure it with the model, assess. */
+  discoverScan: (company: string, opts?: { period?: string; url?: string; onProgress?: (p: ScanProgress) => void; signal?: AbortSignal }) => Promise<DiscoverOutcome>;
+  /** Upload entry: structure an attached report with the model (falls back to heuristics, labelled, when no model). */
+  uploadScan: (attachmentId: string, opts?: { period?: string; query?: string; onProgress?: (p: ScanProgress) => void; signal?: AbortSignal }) => Promise<DiscoverOutcome>;
   answerScan: (scanId: string, qid: string, value: string) => void;
   correctScan: (scanId: string, c: Correction) => void;
   deleteScan: (scanId: string) => void;
@@ -85,6 +90,7 @@ type Ai = {
   guideEnd: () => void;
 };
 
+export type { DiscoverOutcome, ScanProgress } from "@/lib/scan/discoverClient";
 export type ModelStatus = { checked: boolean; configured: boolean; reachable: boolean; provider: string; model: string; detail: string; store: string };
 const NO_MODEL: ModelStatus = { checked: false, configured: false, reachable: false, provider: "none", model: "", detail: "", store: "memory" };
 
@@ -205,6 +211,27 @@ export function AiProvider({ children }: { children: ReactNode }) {
   const answerScan = useCallback((scanId: string, qid: string, value: string) => { mutateScan(scanId, (r) => ({ ...r, answers: { ...r.answers, [qid]: { value, by: ctx.user.name, at: new Date().toISOString() } } })); record({ kind: "action", feature: "quickscan", summary: `Quick Scan answer ${qid} = ${value}`, sources: [] }); }, [mutateScan, ctx.user.name, record]);
   const correctScan = useCallback((scanId: string, c: Correction) => { mutateScan(scanId, (r) => ({ ...r, corrections: [...r.corrections, c] })); record({ kind: "action", feature: "quickscan", summary: `Quick Scan structure correction: ${c.kind}`, sources: [] }); }, [mutateScan, record]);
   const deleteScan = useCallback((scanId: string) => patch((s) => ({ scans: (s.scans as ScanResult[]).filter((r) => r.id !== scanId) })), [patch]);
+
+  const finishScan = useCallback((query: string, r: ScanResult, extraNotes: string[]) => {
+    r.notes.push(...extraNotes);
+    patch((s) => ({ scans: [r, ...(s.scans as ScanResult[])].slice(0, 20) }));
+    record({ kind: "answer", feature: "quickscan", summary: `Quick Scan run: ${r.resolved?.name ?? query} · ${r.period}${r.discovery ? ` · discovered via ${r.discovery.provider}` : ""}`, sources: r.sources.map((d) => d.title) });
+    return r;
+  }, [patch, record]);
+
+  const uploadScan = useCallback(async (attachmentId: string, opts: { period?: string; query?: string; onProgress?: (p: ScanProgress) => void; signal?: AbortSignal } = {}): Promise<DiscoverOutcome> => {
+    const att = stateRef.current.attachments.find((a) => a.id === attachmentId);
+    if (!att) return { kind: "error", code: "missing", message: "Attachment not found." };
+    const out = await scanUpload(att, { ...opts, modelConfigured: model.configured });
+    if (out.kind === "scan") finishScan(out.scan.query, out.scan, []);
+    return out;
+  }, [model.configured, finishScan]);
+
+  const discoverScan = useCallback(async (company: string, opts: { period?: string; url?: string; onProgress?: (p: ScanProgress) => void; signal?: AbortSignal } = {}): Promise<DiscoverOutcome> => {
+    const out = await scanDiscover(company, { ...opts, modelConfigured: model.configured, contextKey: ctx.contextKey, onAttachment: (att) => patch((s) => ({ attachments: [att, ...s.attachments].slice(0, 12) })) });
+    if (out.kind === "scan") finishScan(out.scan.query, out.scan, []);
+    return out;
+  }, [ctx.contextKey, model.configured, patch, finishScan]);
 
   const onboard = useCallback((scanId: string): string | null => {
     const r = (stateRef.current.scans as ScanResult[]).find((s) => s.id === scanId);
@@ -428,11 +455,11 @@ export function AiProvider({ children }: { children: ReactNode }) {
     submitTicket: (t) => { pendingTickets.current.set(t.id, t); return run(propose("create-ticket", { id: t.id }, ctx)); },
     reviewReg: api.reviewReg, confirmFact: api.confirmFact,
     addFact: (f) => patch((s) => ({ manualFacts: [...s.manualFacts.filter((m) => m.id !== f.id), f] })),
-    scans, runScan, answerScan, correctScan, deleteScan, onboard,
+    scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard,
     clearThread: () => patch((s) => ({ threads: s.threads.filter((t) => t.contextKey !== ctx.contextKey) })),
     guideNext: () => patch((s) => (s.guide ? { guide: s.guide.index + 1 >= s.guide.steps.length ? null : { ...s.guide, index: s.guide.index + 1 } } : {})),
     guideEnd: () => patch(() => ({ guide: null })),
-  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, answerScan, correctScan, deleteScan, onboard]);
+  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, discoverScan, uploadScan, answerScan, correctScan, deleteScan, onboard]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

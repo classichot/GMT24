@@ -152,6 +152,25 @@ export function ungroundedFigures(answer: Answer, evidence: Evidence[], userText
   return [...new Set(bad)];
 }
 
+/** Remove the padding smaller models add: duplicated items, table fields on non-table sections, empty sections. */
+function normaliseAnswer(a: Answer): Answer {
+  const seen = new Set<string>();
+  const sections = a.sections.map((s) => {
+    const items = (s.items ?? []).filter((it) => it.trim() && it.trim() !== (s.text ?? "").trim());
+    const out: Answer["sections"][number] = { kind: s.kind, title: s.title, text: s.text?.trim() || undefined, items: items.length ? items : undefined };
+    if (s.kind === "table" && s.rows?.length) { out.head = s.head; out.rows = s.rows; }
+    return out;
+  }).filter((s) => {
+    const key = `${s.title ?? ""}|${s.text ?? ""}|${(s.items ?? []).join("|")}`;
+    if (!s.text && !s.items && !s.rows) return false;
+    if (s.text && s.text.trim() === a.conclusion.trim() && !s.items) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { ...a, sections };
+}
+
 /* ---------- step ---------- */
 
 export async function runStep(req: StepRequest): Promise<StepResult> {
@@ -212,11 +231,20 @@ export async function runStep(req: StepRequest): Promise<StepResult> {
     }
   }
 
-  const answer = check.data;
+  const answer = normaliseAnswer(check.data);
   const knownIds = new Set(req.evidence.map((e) => e.id));
   const allowed = new Set(req.allowedActions.map((a) => a.id));
-  const droppedCites = answer.cites.filter((c) => !knownIds.has(c));
-  answer.cites = answer.cites.filter((c) => knownIds.has(c));
+  // Models often cite "[id] label" or the label alone; map back to the evidence id before judging.
+  const resolveCite = (c: string): string | null => {
+    if (knownIds.has(c)) return c;
+    const br = c.match(/\[([^\]]+)\]/)?.[1];
+    if (br && knownIds.has(br)) return br;
+    const hit = req.evidence.find((e) => c.startsWith(e.id) || c.includes(`[${e.id}]`) || (e.label.length > 8 && c.includes(e.label)));
+    return hit ? hit.id : null;
+  };
+  const resolved = answer.cites.map((c) => ({ raw: c, id: resolveCite(c) }));
+  const droppedCites = resolved.filter((r) => !r.id).map((r) => r.raw);
+  answer.cites = [...new Set(resolved.map((r) => r.id).filter((x): x is string => !!x))];
   answer.actions = answer.actions.filter((a) => allowed.has(a));
   const bad = ungroundedFigures(answer, req.evidence, userText);
   const unsupported: string[] = [];

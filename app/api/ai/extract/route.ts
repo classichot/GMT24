@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pdfRows, pdfRuns } from "@/lib/pdfText";
+import { pdfPages } from "@/lib/server/pdf";
 import { csvRows, stripInstructions } from "@/lib/ai/documents";
 
 export const runtime = "nodejs";
@@ -24,18 +24,12 @@ export async function POST(req: Request) {
 
   if (name.endsWith(".pdf") || buf.subarray(0, 5).toString() === "%PDF-") {
     type = "pdf";
-    try {
-      const rows = pdfRows(pdfRuns(buf));
-      const byPage = new Map<number, string[]>();
-      for (const r of rows) byPage.set(r.page, [...(byPage.get(r.page) ?? []), r.text]);
-      pages = [...byPage.entries()].sort((a, b) => a[0] - b[0]).map(([p, lines]) => {
-        const s = stripInstructions(lines);
-        stripped += s.stripped;
-        return { n: p + 1, text: s.kept.join("\n") };
-      });
-    } catch {
-      pages = [];
-    }
+    const r = await pdfPages(buf);
+    pages = r.pages.map((p) => {
+      const s = stripInstructions(p.text.split("\n"));
+      stripped += s.stripped;
+      return { n: p.n, text: s.kept.join("\n") };
+    });
   } else if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".docx")) {
     type = "binary";
     pages = [];

@@ -214,4 +214,8 @@ export type ScanResult = {
   supportedIsos: string[];
   unsupportedIsos: string[];
   notes: string[];
+  /** Jurisdiction data that came from an upload or a discovered document (kept so reassessment can reuse it). */
+  extraJurisdictionData?: { iso: string; docId: string; page: number; text: string; profitBeforeTaxThbM?: number; incomeTaxThbM?: number }[];
+  /** Provenance of a discovery-based scan: where the sources came from and how extraction verified. */
+  discovery?: { provider: string; searchedAt: string; hits: number; extractionModel: string; quotesChecked: number; quotesVerified: number; unverified: { kind: string; page: number; quote: string }[]; fxNote?: string };
 };
