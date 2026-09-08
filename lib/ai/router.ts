@@ -1,3 +1,4 @@
+import { isCatalogQuestion } from "./catalog";
 import type { FeatureId, InteractionMode, Lang } from "./types";
 
 /**
@@ -19,7 +20,7 @@ const RULES: Rule[] = [
   { feature: "reviewer", re: /\b(review (the|my|this) (calc|calculation|numbers|package)|anything (wrong|off|missing)|check (the|my|this) (calc|numbers|mapping)|reconcil|second[- ]level|findings)\b|ตรวจสอบการคำนวณ|ตรวจการคำนวณ/i, weight: 0.8 },
   { feature: "interviewer", re: /\b(x-?ray|open questions?|what do you need from me|confirm(ation)?s? (for|of)|which facts|interview)\b|คำถามที่เปิด|ยืนยันข้อเท็จจริง/i, weight: 0.8 },
   { feature: "explain", re: /\b(why is (the|this|our)? ?[\w ]*(top-?up|etr|number|amount|figure|sbie|covered tax|globe income)|explain (this|the|that) (number|amount|figure|top-?up|etr)|how (is|was|did) .* (calculated|computed|derived|arrive)|where does .* come from|break(down)? (this|the) (number|amount)|source of (this|the))\b|ทำไม.*(ตัวเลข|top-?up|etr)|อธิบาย.*(ตัวเลข|จำนวน|top-?up|etr|sbie|globe)|อธิบายตัวเลข|คำนวณอย่างไร|มาจากไหน/i, weight: 0.85 },
-  { feature: "trainer", re: /\b(how do i|how can i|where (do|can) i|what does this (screen|page|button|field|column)|what (is|does) (this|the) (screen|page|button|field|column)|walk me|show me (how|where)|next step|what should i do|onboard|get started|i'?m (new|lost)|guide me)\b|ทำอย่างไร|อยู่ที่ไหน|ขั้นตอนต่อไป|เริ่มต้น|หน้านี้/i, weight: 0.8 },
+  { feature: "trainer", re: /\b(how do i|how can i|where (do|can) i|what does this (screen|page|button|field|column|menu)|what (is|does) (this|the) (screen|page|button|field|column|menu)|what is .+ (for|for\?|built for)|walk me|show me (how|where)|next step|what should i do|onboard|get started|i'?m (new|lost)|guide me|playbook)\b|ทำอย่างไร|อยู่ที่ไหน|ขั้นตอนต่อไป|เริ่มต้น|หน้านี้|เมนูนี้|คู่มือ|สำหรับอะไร/i, weight: 0.8 },
 ];
 
 const MODE_RE: [RegExp, InteractionMode][] = [
@@ -33,6 +34,7 @@ export function detectIntent(q: string, screenKey: string | null, forced: Featur
   const mode = MODE_RE.find(([re]) => re.test(q))?.[1] ?? null;
   const audience = AUDIENCE_RE.find(([re]) => re.test(q))?.[1];
   if (forced) return { feature: forced, mode, confidence: 1, why: "Mode selected by user.", audience };
+  if (isCatalogQuestion(q)) return { feature: "trainer", mode, confidence: 0.95, why: "Named a GMT24 menu or playbook.", audience };
   let best: { r: Rule; score: number } | null = null;
   for (const r of RULES) {
     if (!r.re.test(q)) continue;
@@ -60,6 +62,8 @@ const SCREEN_BIAS: Record<string, FeatureId> = {
   briefing: "briefing",
   feedback: "feedback",
   trainer: "trainer",
+  copilot: "trainer",
+  tasks: "trainer",
   quickscan: "quickscan",
   audit: "explain",
   data: "trainer",
@@ -81,9 +85,9 @@ export const FEATURE_CHIPS: { id: FeatureId; label: string; labelTh: string }[] 
 ];
 
 export const SUGGESTIONS: Record<string, { en: string[]; th: string[] }> = {
-  general: { en: ["Why is the Vietnam top-up what it is?", "What if we extend the BOI holiday?", "Review the calculation", "What would the RD ask about Ireland?"], th: ["ทำไม top-up เวียดนามเป็นตัวเลขนี้", "ถ้าเราขยาย BOI จะเป็นอย่างไร", "ตรวจสอบการคำนวณ", "กรมสรรพากรจะถามอะไรเรื่องไอร์แลนด์"] },
+  general: { en: ["What is this menu for?", "Show the AI Co-Pilot playbook", "What is Quick Scan built for?", "Why is the Vietnam top-up what it is?"], th: ["เมนูนี้ทำอะไร", "เปิดคู่มือ AI Co-Pilot", "Quick Scan สร้างมาเพื่ออะไร", "ทำไม top-up เวียดนามเป็นตัวเลขนี้"] },
   xray: { en: ["What do you need from me?", "Which X-Ray questions matter most?", "Explain the Thailand finding"], th: ["ต้องการข้อมูลอะไรจากฉัน", "คำถาม X-Ray ข้อไหนสำคัญที่สุด"] },
-  data: { en: ["How do I approve a mapping?", "What does confidence mean here?", "What is the next step?"], th: ["อนุมัติการจับคู่บัญชีอย่างไร", "ขั้นตอนต่อไปคืออะไร"] },
+  data: { en: ["What is this menu for?", "How do I approve a mapping?", "What is the next step?"], th: ["เมนูนี้ทำอะไร", "อนุมัติการจับคู่บัญชีอย่างไร", "ขั้นตอนต่อไปคืออะไร"] },
   audit: { en: ["Explain this number", "Why did it change from the prior year?"], th: ["อธิบายตัวเลขนี้"] },
   quickscan: { en: ["Scan Siam Verdant Foods", "Explain the Vietnam flag", "What would change the Cambodia assessment?"], th: ["สแกน สยามเวอร์แดนท์", "อธิบายธงเวียดนาม"] },
   briefing: { en: ["Draft the CFO briefing", "Brief the board on exposure and uncertainty"], th: ["ร่างสรุปสำหรับ CFO"] },

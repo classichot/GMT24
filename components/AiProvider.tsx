@@ -12,7 +12,7 @@ import { detectIntent } from "@/lib/ai/router";
 import { execute, propose, type GatewayApi, type GatewayResult } from "@/lib/ai/actions";
 import { allFacts } from "@/lib/ai/facts";
 import { deriveTasks, newManualTask } from "@/lib/ai/tasks";
-import { trainerReply } from "@/lib/ai/trainer";
+import { explainCatalog, trainerReply } from "@/lib/ai/trainer";
 import { specialistReply } from "@/lib/ai/specialist";
 import { draftTicket, feedbackReply, findDuplicate } from "@/lib/ai/feedback";
 import { explainNode, locateNode } from "@/lib/ai/explain";
@@ -53,6 +53,7 @@ type Ai = {
   ask: (q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }) => Promise<Reply | null>;
   run: (a: ProposedAction) => GatewayResult;
   explain: (node: AuditNode, calc?: JurCalc) => Reply;
+  explainMenu: (href?: string) => Reply | null;
   interview: (findingId: string, q?: string) => Reply;
   briefingFor: (audience: Audience) => ReturnType<typeof briefing>;
   attach: (file: File) => Promise<Attachment | null>;
@@ -234,6 +235,13 @@ export function AiProvider({ children }: { children: ReactNode }) {
     return r;
   }, [x.calcs, x.findings, x.state, inputs, ctx, append]);
 
+  const explainMenu = useCallback((href?: string) => {
+    const target = href ?? ctx.path;
+    const r = explainCatalog("What is this menu for?", ctx, target);
+    if (r) append(`What is ${r.title.replace(/^This menu · /, "")} for?`, r);
+    return r;
+  }, [ctx, append]);
+
   const interview = useCallback((findingId: string, q?: string) => {
     const f = x.findings.find((k) => k.id === findingId);
     const r = f ? interviewReply({ finding: f, xray: x.state, calcs: x.calcs, facts, attachments: state.attachments.filter((a) => a.contextKey === ctx.contextKey), ctx, q }) : interviewOverview(x.findings, x.state, x.calcs, ctx);
@@ -325,7 +333,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
   const value: Ai = useMemo(() => ({
     state, ctx, lang, setLang: setLangState, setRole: (r) => patch(() => ({ role: r })),
     calcs: x.calcs, inputs, findings: x.findings, facts, tasks, reviewFindings, watch, rehearsal, thread, busy,
-    ask, run, explain, interview, briefingFor, attach,
+    ask, run, explain, explainMenu, interview, briefingFor, attach,
     removeAttachment: (id) => patch((s) => ({ attachments: s.attachments.filter((a) => a.id !== id) })),
     createTask: api.createTask, updateTask: api.updateTask,
     updateTicket: (id, p) => patch((s) => ({ tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...(p.status ? { status: p.status } : {}), updates: [...t.updates, { at: new Date().toISOString(), note: p.note ?? `Status → ${p.status}` }] } : t)) })),
@@ -336,7 +344,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     clearThread: () => patch((s) => ({ threads: s.threads.filter((t) => t.contextKey !== ctx.contextKey) })),
     guideNext: () => patch((s) => (s.guide ? { guide: s.guide.index + 1 >= s.guide.steps.length ? null : { ...s.guide, index: s.guide.index + 1 } } : {})),
     guideEnd: () => patch(() => ({ guide: null })),
-  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, ask, run, explain, interview, briefingFor, attach, api, scans, runScan, answerScan, correctScan, deleteScan, onboard]);
+  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, ask, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, answerScan, correctScan, deleteScan, onboard]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

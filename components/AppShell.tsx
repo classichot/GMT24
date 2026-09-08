@@ -11,6 +11,7 @@ import {
   FileText,
   GitBranch,
   Globe,
+  HelpCircle,
   History,
   Landmark,
   LayoutGrid,
@@ -37,7 +38,7 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import AiReadyBadge from "@/components/AiReadyBadge";
-import { AiProvider } from "@/components/AiProvider";
+import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
@@ -227,6 +228,7 @@ function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
+  const ai = useAi();
   const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
   const { t } = useCalc();
   const { stop } = useXray();
@@ -335,6 +337,7 @@ function Shell({ children }: { children: ReactNode }) {
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
           )}
+          <button className="btn btn-ghost header-hide-sm" title="Explain what this menu is built for" onClick={() => { setCopilotOpen(true); ai.explainMenu(); }}><HelpCircle size={16} />Explain menu</button>
           <button className="btn btn-secondary header-hide-sm" onClick={() => setCopilotOpen(!copilotOpen)}><MessageSquare size={16} />Ask GMT24</button>
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>

@@ -1,7 +1,9 @@
 import { ACCOUNTS } from "../model";
 import { propose } from "./actions";
+import { catalogForPath, locateCatalog } from "./catalog";
 import { SCREENS, screenFor } from "./context";
-import type { InteractionMode, Reply, Section, UserRole, WorkContext } from "./types";
+import type { Playbook } from "../playbooks";
+import type { InteractionMode, Reply, ScreenMeta, Section, UserRole, WorkContext } from "./types";
 import { ROLE_LABEL } from "./types";
 
 /**
@@ -81,6 +83,74 @@ export function nextStep(ctx: WorkContext): { title: string; why: string; href: 
   return out;
 }
 
+function playbookSections(book: Playbook): Section[] {
+  return [
+    { kind: "conclusion", text: `${book.title}. ${book.summary}` },
+    { kind: "facts", items: [`Owner: ${book.owner}`] },
+    { kind: "steps", title: "Playbook", items: book.steps.map((s) => `${s.n}. ${s.title} — ${s.body}`) },
+  ];
+}
+
+function screenSections(screen: ScreenMeta): Section[] {
+  const sections: Section[] = [{ kind: "conclusion", text: `${screen.title} is built to: ${screen.purpose}` }];
+  if (screen.fields.length) sections.push({ kind: "table", title: "Fields and terms", head: ["Term", "Meaning"], rows: screen.fields.map((f) => [f.term, f.meaning]) });
+  if (screen.actions.length) sections.push({ kind: "list", title: "What you can do here", items: screen.actions });
+  return sections;
+}
+
+/** Reply that explains a named menu or its playbook. Used by Ask GMT24 and the sidebar Explain control. */
+export function explainCatalog(q: string, ctx: WorkContext, forcedHref?: string): Reply | null {
+  const hit = forcedHref
+    ? (() => {
+        const { screen, book } = catalogForPath(forcedHref);
+        if (screen) return { kind: "screen" as const, screen, book, score: 99, matched: screen.title };
+        if (book) return { kind: "playbook" as const, book, score: 99, matched: book.title };
+        return null;
+      })()
+    : locateCatalog(q);
+  if (!hit) return null;
+  const wantBook = /playbook|walkthrough|คู่มือ|ขั้นตอน/i.test(q);
+  const sections: Section[] = [];
+  const actions: ReturnType<typeof propose>[] = [];
+  const cites: { label: string; href: string }[] = [{ label: `${ctx.appVersion} · product catalog`, href: "/trainer" }];
+  let title = "App Trainer";
+
+  if (hit.kind === "playbook" || (wantBook && hit.kind === "screen" && hit.book)) {
+    const book = hit.kind === "playbook" ? hit.book : hit.book!;
+    title = `Playbook · ${book.menu}`;
+    sections.push(...playbookSections(book));
+    cites.push({ label: book.title, href: `/playbook/${book.slug}` });
+    actions.push(propose("navigate", { href: `/playbook/${book.slug}`, label: `Open ${book.menu} playbook` }, ctx));
+    actions.push(propose("navigate", { href: book.steps[0].href, label: book.steps[0].hrefLabel }, ctx));
+  } else if (hit.kind === "screen") {
+    title = `This menu · ${hit.screen.title}`;
+    sections.push(...screenSections(hit.screen));
+    cites.push({ label: hit.screen.title, href: hit.screen.href });
+    if (hit.book) {
+      sections.push({ kind: "next", title: `${hit.book.menu} playbook`, items: hit.book.steps.map((s) => `${s.n}. ${s.title}`) });
+      cites.push({ label: hit.book.title, href: `/playbook/${hit.book.slug}` });
+      actions.push(propose("navigate", { href: hit.screen.href, label: `Open ${hit.screen.title}` }, ctx));
+      actions.push(propose("navigate", { href: `/playbook/${hit.book.slug}`, label: "Open the playbook" }, ctx));
+    } else {
+      actions.push(propose("navigate", { href: hit.screen.href, label: `Open ${hit.screen.title}` }, ctx));
+    }
+  }
+  return {
+    id: `r-${Date.now().toString(36)}`,
+    at: new Date().toISOString(),
+    feature: "trainer",
+    title,
+    sections,
+    cites,
+    actions,
+    grounded: true,
+    unsupported: [],
+    version: ctx.calcVersion,
+    lang: ctx.lang,
+    chips: ["What is this menu for?", "Show the playbook", "What should I do next?"],
+  };
+}
+
 export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode | null): Reply {
   const l = q.toLowerCase();
   const sections: Section[] = [];
@@ -88,6 +158,11 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
   const cites = [{ label: `${ctx.appVersion}`, href: "/trainer" }];
   let title = "App Trainer";
   const screen = ctx.screen ?? screenFor("/overview")!;
+
+  const named = explainCatalog(q, ctx);
+  if (named && (locateCatalog(q) || /this (screen|page|menu)|หน้านี้|เมนูนี้|playbook|คู่มือ/i.test(q))) {
+    return named;
+  }
 
   const err = ERRORS.find((e) => e.match.test(l));
   const onboardRole = (Object.keys(ROLE_LABEL) as UserRole[]).find((r) => l.includes(r.replace("-", " ")) || l.includes(r));
@@ -131,10 +206,14 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
     sections.push({ kind: "steps", items: ob.steps.map((s, i) => `${i + 1}. ${s.text}`) });
     actions.push(propose("navigate", { href: `/trainer?role=${role}`, label: "Open onboarding track" }, ctx));
   } else {
-    title = `This screen · ${screen.title}`;
-    sections.push({ kind: "conclusion", text: screen.purpose });
-    if (screen.fields.length) sections.push({ kind: "table", title: "Fields and terms", head: ["Term", "Meaning"], rows: screen.fields.map((f) => [f.term, f.meaning]) });
-    if (screen.actions.length) sections.push({ kind: "list", title: "Available actions", items: screen.actions });
+    const here = catalogForPath(ctx.path);
+    title = `This menu · ${here.screen?.title ?? screen.title}`;
+    sections.push(...screenSections(here.screen ?? screen));
+    if (here.book) {
+      sections.push({ kind: "next", title: `${here.book.menu} playbook`, items: here.book.steps.map((s) => `${s.n}. ${s.title}`) });
+      cites.push({ label: here.book.title, href: `/playbook/${here.book.slug}` });
+      actions.push(propose("navigate", { href: `/playbook/${here.book.slug}`, label: "Open the playbook" }, ctx));
+    }
     const glossary = SCREENS.flatMap((s) => s.fields).find((f) => l.includes(f.term.toLowerCase().split(" ")[0]) && f.term.length > 3 && l.includes(f.term.toLowerCase()));
     if (glossary) sections.push({ kind: "text", title: glossary.term, text: glossary.meaning });
     const steps = nextStep(ctx).slice(0, 2);

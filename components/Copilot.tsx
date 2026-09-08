@@ -54,7 +54,7 @@ export function Copilot() {
       <div className="copilot-log">
         {msgs.length === 0 && (
           <div className="bubble ai">
-            {ai.lang === "th" ? "ถามได้ทั้งภาษาไทยและอังกฤษ ทุกตัวเลขมาจากเครื่องคำนวณ ทุกข้อกฎหมายมาจากฐานความรู้ที่อนุมัติแล้ว การกระทำใด ๆ จะเสนอให้ยืนยันก่อนเสมอ" : "Ask in Thai or English. Numbers come from the calculation engine, law from the approved knowledge base, and every action is proposed before it runs. The feature that answers is shown on each reply."}
+            {ai.lang === "th" ? "ถามได้ทั้งภาษาไทยและอังกฤษ — เมนูไหนทำอะไร คู่มือของแต่ละเมนู ตัวเลขจากเครื่องคำนวณ และกฎหมายจากฐานความรู้ที่อนุมัติแล้ว" : "Ask in Thai or English. What a menu is built for and its playbook come from the product catalog; numbers from the engine; law from the approved knowledge base. Every action is proposed before it runs."}
             <div className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>{ai.ctx.calcVersion} · {ai.ctx.datasetVersion}</div>
           </div>
         )}
