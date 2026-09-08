@@ -257,9 +257,20 @@ pre { font-size: 12px; line-height: 1.65; }
   background: var(--color-accent-100); color: var(--color-accent-800); font-weight: 700;
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
+.nav-btn.active .nav-num { color: inherit; }
 .nav-group {
+  display: flex; align-items: center; gap: 8px;
   padding: 8px 12px 4px; font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--color-neutral-500);
+}
+.nav-num {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-neutral-500);
+  min-width: 2.1em;
 }
 
 .chip {
@@ -314,10 +325,30 @@ pre { font-size: 12px; line-height: 1.65; }
   border: 0; background: transparent; color: inherit; cursor: pointer; flex: none;
 }
 .shell { display: flex; height: 100dvh; overflow: hidden; background: var(--color-bg); color: var(--color-text); }
+.sidebar,
+.bottom-nav {
+  --color-bg: #1a0e2e;
+  --color-surface: #2a1648;
+  --color-text: #f4edfb;
+  --color-divider: color-mix(in srgb, #e8d6ff 18%, transparent);
+  --color-neutral-100: #2a1648;
+  --color-neutral-200: #3a1f5c;
+  --color-neutral-300: #3d2266;
+  --color-neutral-500: #9b86b8;
+  --color-neutral-600: #c4b0d8;
+  --color-neutral-700: #ddd0ec;
+  --color-accent: #c9b0f5;
+  --color-accent-100: #3d2270;
+  --color-accent-700: #d8c4f8;
+  --color-accent-800: #efe4fc;
+  --color-on-accent: #1a0e2e;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
 .sidebar {
   width: 248px; flex: none; border-right: 2px solid var(--color-divider);
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh;
-  background: var(--color-bg); z-index: 40; overflow: hidden;
+  z-index: 40; overflow: hidden;
 }
 .sidebar.resizing { user-select: none; }
 .sidebar.resizing * { cursor: col-resize !important; }
@@ -875,6 +906,7 @@ html[data-theme="bw"] .map-dot.topup {
     padding: 8px 4px 10px; text-decoration: none; color: var(--color-neutral-600);
     font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; min-height: 56px;
   }
+  .bottom-nav .nav-num { min-width: 0; }
   .bottom-nav a.active { color: var(--color-accent); box-shadow: inset 0 2px 0 var(--color-accent); }
 }
 

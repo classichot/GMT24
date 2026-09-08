@@ -389,22 +389,25 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
-          {NAV.map((g) => {
+          {NAV.flatMap((g) => {
             const items = g.items.filter((i) => {
               if ("advisor" in i && i.advisor && mode !== "advisor") return false;
               if ("inviteHide" in i && i.inviteHide && invite) return false;
               return true;
             });
-            if (!items.length) return null;
+            return items.length ? [{ g, items }] : [];
+          }).map(({ g, items }, gi) => {
+            const n = gi + 1;
             const book = playbookByNavGroup(g.group);
             return (
               <div key={g.group}>
-                <div className="nav-group">{g.group}</div>
-                {items.map((item) => {
+                <div className="nav-group"><span className="nav-num">{n}</span>{g.group}</div>
+                {items.map((item, ii) => {
                   const Icon = item.icon;
                   return (
                     <div key={`${g.group}:${item.href}`} className="nav-row">
                       <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                        <span className="nav-num">{n}.{ii + 1}</span>
                         <Icon size={15} />
                         <span className="nav-label">{item.label}</span>
                         {"ai" in item && item.ai ? <AiMenuBadge live={llmLive} /> : null}
@@ -423,6 +426,7 @@ function Shell({ children }: { children: ReactNode }) {
                 })}
                 {book && (
                   <Link href={`/playbook/${book.slug}`} onClick={() => setNavOpen(false)} className={`nav-btn${path === `/playbook/${book.slug}` ? " active" : ""}`}>
+                    <span className="nav-num">{n}.{items.length + 1}</span>
                     <ClipboardList size={15} />
                     Playbook
                   </Link>
@@ -531,11 +535,12 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="bottom-nav no-print">
-        {TABS.map((t) => {
+        {TABS.map((t, i) => {
           const Icon = t.icon;
           return (
             <Link key={t.href} href={t.href} className={isActive(path, t.href) ? "active" : ""}>
               <Icon size={18} />
+              <span className="nav-num">{i + 1}</span>
               {t.label}
             </Link>
           );
