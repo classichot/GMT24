@@ -321,8 +321,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setApprovedMaps(loadApprovedMaps(gid));
       applyLedger(loadLedger(gid));
       if (opts?.invite) {
-        writeIngestStatus(gid, "empty");
-        setIngestStatus("empty");
+        // A review link lands on a loaded close pack so every screen shows numbers at once;
+        // the Review guide's Reset ingest replays the pipeline on demand.
+        writeIngestStatus(gid, "ready");
+        setIngestStatus("ready");
         setIngestProgress(null);
       } else {
         applyIngestForGroup(gid, false);

@@ -26,8 +26,9 @@ export function writeIngestStatus(groupId: string, status: IngestStatus) {
 }
 
 /** Seeded groups are pre-loaded for normal sign-in; invite reviewers start empty. */
-export function defaultIngestStatus(groupId: string, inviteReview: boolean): IngestStatus {
-  if (isSeededGroup(groupId) && !inviteReview) return "ready";
+/** Seeded demo groups open with the close pack posted, for staff and review-link guests alike; onboarded groups start empty. */
+export function defaultIngestStatus(groupId: string, _inviteReview: boolean): IngestStatus {
+  if (isSeededGroup(groupId)) return "ready";
   return "empty";
 }
 

@@ -8,14 +8,23 @@ import { ModeToggle } from "@/components/ModeToggle";
 import type { ProductMode } from "@/lib/model";
 import { useCalc } from "@/lib/useCalc";
 import { eur } from "@/lib/format";
+import { DEFAULT_SEED_ID, SEEDS } from "@/lib/seeds";
+
+const DEMO_GROUPS = Object.values(SEEDS).map((s) => s.group);
 
 export default function LoginPage() {
   const { login, authed, ready, mode: sessionMode } = useStore();
   const { t } = useCalc();
   const router = useRouter();
-  const [email, setEmail] = useState("m.sato@aetherion.com");
+  const [group, setGroup] = useState(DEFAULT_SEED_ID);
+  const [email, setEmail] = useState(SEEDS[DEFAULT_SEED_ID].inhouseUser.email);
   const [password, setPassword] = useState("demo1234");
   const [mode, setMode] = useState<ProductMode>("inhouse");
+
+  function pickGroup(id: string) {
+    setGroup(id);
+    setEmail(SEEDS[id]?.inhouseUser.email ?? email);
+  }
 
   useEffect(() => {
     if (ready && authed) router.replace(sessionMode === "advisor" ? "/clients" : "/overview");
@@ -23,7 +32,7 @@ export default function LoginPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    login(mode);
+    login(mode, mode === "inhouse" ? { groupId: group } : undefined);
     router.push(mode === "advisor" ? "/clients" : "/overview");
   }
 
@@ -79,7 +88,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 className={`login-mode${mode === "inhouse" ? " on" : ""}`}
-                onClick={() => { setMode("inhouse"); setEmail("m.sato@aetherion.com"); }}
+                onClick={() => { setMode("inhouse"); setEmail(SEEDS[group]?.inhouseUser.email ?? email); }}
               >
                 <Building2 size={18} />
                 <strong>In-house team</strong>
@@ -95,6 +104,16 @@ export default function LoginPage() {
                 <span>Multi-client portfolio. Same engine — different roles and approval chain.</span>
               </button>
             </div>
+            {mode === "inhouse" && (
+              <div className="field">
+                <label htmlFor="loginGroup">Demo group</label>
+                <select className="input" id="loginGroup" value={group} onChange={(e) => pickGroup(e.target.value)}>
+                  {DEMO_GROUPS.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name} · {g.upeIso} UPE · {g.fy}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="field">
               <label>Work email</label>
               <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />

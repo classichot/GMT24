@@ -7,6 +7,8 @@ import { useStore } from "@/lib/store";
 import {
   formatExpiry,
   hoursLeft,
+  inviteGroupId,
+  inviteGroupName,
   readInviteSession,
   saveInviteSession,
   verifyInvite,
@@ -78,8 +80,8 @@ export default function ReviewInvitePage() {
   function enter() {
     if (!payload) return;
     saveInviteSession(payload, raw);
-    login(payload.mode, { invite: true });
-    router.push("/review-guide");
+    login(payload.mode, { invite: true, groupId: inviteGroupId(payload) });
+    router.push(payload.mode === "advisor" ? "/clients" : "/overview");
   }
 
   if (!ready || state === "checking") {
@@ -137,20 +139,24 @@ export default function ReviewInvitePage() {
   const left = hoursLeft(payload.exp);
   const daysLeft = Math.max(1, Math.ceil(left / 24));
   const existing = readInviteSession();
+  const groupName = inviteGroupName(payload);
 
   return (
     <Shell
-      kicker="Advisor review"
+      kicker={payload.mode === "advisor" ? "Advisor review" : `${groupName} review`}
       title="Continue your GMT24 review"
       lede={`This link still works until ${formatExpiry(payload.exp)} (about ${daysLeft} day${daysLeft === 1 ? "" : "s"} left). After that it will not open.`}
     >
-      <p className="eyebrow" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{payload.label || "Aetherion Group demo"}</p>
+      <p className="eyebrow" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{payload.label || `${groupName} demo`}</p>
       <h2>Welcome{existing ? " back" : ""}</h2>
       <p className="text-muted login-card-note">
-        You are in a time-limited {payload.mode === "advisor" ? "advisor" : "in-house"} review. The review guide walks ingest → mapping → calculation checks. Demo only — not a filing.
+        {payload.mode === "advisor"
+          ? "You are in a time-limited advisor review across the 7L demo clients."
+          : `You are in a time-limited in-house review of ${groupName}. The FY2026 close pack is already loaded, so every screen shows live engine output; the Review guide in the sidebar replays ingest → mapping → calculation if you want to see the pipeline run.`}{" "}
+        Demo data only — nothing is filed with any tax authority.
       </p>
       <button className="btn btn-primary btn-block" type="button" onClick={enter}>
-        Start review walkthrough
+        Open {payload.mode === "advisor" ? "the advisor workspace" : groupName}
       </button>
     </Shell>
   );
