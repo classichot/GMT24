@@ -915,9 +915,11 @@ export function deferredXray(): XrayFinding[] {
     });
   }
 
+  const thaiAnchor = DATA.entities.find((x) => x.iso === "TH" && x.type !== "PE") ?? DATA.entities.find((x) => x.iso === "TH");
   for (const clock of recaptureClocks("TH")) {
     if (clock.status !== "approaching" && clock.status !== "recapture") continue;
-    const e = ent("TH-CE")!;
+    if (!thaiAnchor) break;
+    const e = thaiAnchor;
     out.push({
       id: `XR-DT-CLOCK-${clock.originYear}`,
       engine: "deferred",
@@ -1261,7 +1263,7 @@ export function entityXray(): XrayFinding[] {
       article: "Art. 10.1 / 10.3",
       owner: "Group Tax",
       dept: "Legal" as const,
-      sourceDoc: "Aetherion_Legal_Entity_List_FY2026.xlsx",
+      sourceDoc: DATA.files.find((f) => f.kind === "Legal entity list")?.name ?? "Legal entity list",
       evidence: ["Corporate structure document", "Tax return"] as EvidenceKind[],
       questions,
       branches: [

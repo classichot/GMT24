@@ -6,6 +6,7 @@ import { reviewOecdRdGap } from "./thaiGap";
 import { optimizeBoi } from "./boiOptimizer";
 import { optimizeGlobe } from "./electionEngine";
 import { WORKED_SBC_THB } from "./elections";
+import { activeSeedId } from "./seeds";
 
 export type CopilotMsg = {
   role: "user" | "assistant";
@@ -17,7 +18,8 @@ function th() {
   return calcForIso("TH")!;
 }
 
-const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
+/** `seed` pins a scripted answer whose narrative quotes one demo group's facts; other groups fall through to the live snapshot answer. */
+const CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
   {
     match: /evidence history|immutable (log|chronicle)|who (changed|approved|commented)|chronicle|evidence locker/i,
     answer: () => ({
@@ -47,7 +49,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /host desk|\bbhd\b|demo (invite|link)|review link|mint (a )?link/i,
     answer: () => ({
       role: "assistant",
-      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, set days (1–30, default 3), Generate, then send only that URL.\n\nThe expiry is signed into /review/{token}, so a recipient on another device can open Aetherion until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
+      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, set days (1–30, default 3), Generate, then send only that URL.\n\nThe expiry is signed into /review/{token}, so a recipient on another device can open the demo group until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
       cites: [
         { label: "Host desk", href: "/host" },
         { label: "Approvals", href: "/approvals" },
@@ -56,6 +58,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /optimize (my )?globe|scenario optimizer|election package|lowest (fy|5-year|compliance)|pillar two scenario/i,
+    seed: "aetherion",
     answer: () => {
       const O = optimizeGlobe(calculateGroup());
       const rec = O.recs[4].scenario;
@@ -74,6 +77,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /3\.2\.2|stock.?comp|stock.?option|equity compensation|sbc election/i,
+    seed: "aetherion",
     answer: () => {
       const O = optimizeGlobe(calculateGroup());
       const W = WORKED_SBC_THB;
@@ -122,6 +126,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thailand pack|jurisdiction pack|thai liability|who pays the thai|thai qdmtt|residual utpr/i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -156,6 +161,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thai (return|filing|section 57|section 54)|when is the thai/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Thai Filing Command Centre clocks (Emergency Decree):\n\n• s 54 UPE / GIR-filer notification — 15 months from FY end → 31 Mar 2028 for FY2026\n• ss 55–56 local GIR or exchange exemption — 15 months → 31 Mar 2028\n• s 57 Thai return and payment — 15 months → 31 Mar 2028\n• s 58 first in-scope year (FY2025) — 18 months → 30 Jun 2027 (filed in this demo)\n\nCAA/exchange with Japan is under review before relying on a local GIR exemption. Electronic form schema is not in the pack. Do not market GMT24 as fully ready for Thai filing.\n\nThai tax ID for TH001 (demo): 0107558000121.`,
@@ -164,6 +170,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /rayong pe|situs|dual.resid|notification no\.?\s*3/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Rayong is a fixed-place / manufacturing PE of Aetherion (Thailand) Ltd., located in Thailand, blended in the Thai QDMTT. Notification No. 3 four PE categories were reviewed; treaty tie-breaker is not required.\n\nTH001 itself is a Thai CE (TFRS, UPE look-through 100%, not dual-resident, not an Excluded Entity). Entity test: not MOCE (UPE ownership 100% > 30%), not POPE.\nNo Notification No. 7 excluded entity in Thailand.\n\nEach classification stores result, period, facts, evidence, Thai provision, OECD interpretation and reviewer. Open Entity situs or the group entity test.`,
@@ -172,6 +179,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /\bmoce\b|minority-owned|pope|partially-owned parent|inclusion ratio|entity test/i,
+    seed: "aetherion",
     answer: () => {
       const list = calculateGroup();
       const special = list.filter((c) => c.blendKind !== "main" && c.jurisdictionalTopUp > 0);
@@ -215,6 +223,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thailand.*etr|etr.*thailand|11\.|10\./i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -230,6 +239,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /safe harbour|safe harbor|qualify/i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -252,6 +262,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /ente|excess negative tax|30% top.?up|top.?up (tax )?(percentage|%) (exceeds|above|over)|max(imum)? rate under pillar|why.{0,60}30%|hong kong.{0,40}(top.?up|etr|negative)|negative (covered )?tax.{0,40}30/i,
+    seed: "aetherion",
     answer: () => {
       const hk = calcForIso("HK");
       return {
@@ -263,6 +274,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /4\.1\.5|additional current|acttt|negative tax expense/i,
+    seed: "aetherion",
     answer: () => {
       const lu = calcForIso("LU");
       return {
@@ -292,6 +304,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /boi|holiday|expire/i,
+    seed: "aetherion",
     answer: () => {
       const inc = DATA.incentives.find((i) => i.id === "TH-BOI")!;
       return {
@@ -303,6 +316,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /singapore.*missing|missing.*singapore|data.*sg/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Singapore data gaps:\n\n1. CbCR revenue $88.0M vs consolidation $86.4M ($1.6M). Likely the 50% JV is in CbCR but equity-accounted in consolidation.\n2. DEI incentive agreement conditions (headcount / spending) are extracted but not tied to SBIE payroll.\n3. Mapping for HoldCo dividend accounts is approved; JV TB is only 72% complete.\n\nGMT24 cannot finish a lock-quality Singapore harbour file until the CbCR bridge is signed off. A data request to L. Tan is ready in Data Requests.`,
@@ -311,6 +325,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /germany|yoy|increase/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Germany has no FY2026 top-up (ETR 25%+). There is no year-on-year top-up increase.\n\nIf you are looking at covered taxes, Germany current tax rose with higher FANIL. The AI Reviewer has not flagged an unexplained movement versus FY2025 GIR.\n\nRule OECD-GloBE-15 v2026.1 · source: DE001 tax provision / prior GIR FY2025.xml.`,
@@ -319,6 +334,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /shipp|3\.4|international shipping|qaisi|tonnage|marine/i,
+    seed: "aetherion",
     answer: () => {
       const sg = shippingPost("SG-SHIP");
       const hk = shippingPost("HK-CE");
@@ -336,6 +352,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /adjustment|810020|dividend/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `TH001 excluded dividends $1.84M (account 810020) are subtracted from FANIL under GloBE Model Rules Art. 3.2.1(b) — ownership ≥ 10%, intra-group dividend from MY-CE.\n\nOriginal amount $1.84M · adjustment −$1.84M · preparer N. Chai · reviewer M. Sato · source TH001 Trial Balance FY2026.xlsx · rule OECD-DIV-EXCL v2026.1.\n\nThis is a canonical GloBE adjustment, not an LLM estimate.`,
@@ -369,7 +386,8 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
 ];
 
 export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
-  const hit = CANNED.find((c) => c.match.test(q));
+  const seed = activeSeedId();
+  const hit = CANNED.find((c) => (!c.seed || c.seed === seed) && c.match.test(q));
   if (hit) return hit.answer(q);
   const list = calcs ?? calculateGroup();
   // ISO codes only count as whole words in upper case — "the" must not select Thailand, "in" must not select India.
@@ -384,7 +402,7 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
   const gaps = DATA.issues.filter((i) => i.severity === "block");
   return {
     role: "assistant",
-    text: `I can only answer from the GMT24 calculation snapshot and the approved rulebook.\n\nGroup top-up is ${eur(list.reduce((a, c) => a + c.jurisdictionalTopUp, 0))} across ${list.filter((c) => c.jurisdictionalTopUp > 0).length} jurisdictions.\n\nOpen blockers: ${gaps.map((g) => g.title).join("; ") || "none"}.\n\nTry: “Why is Thailand’s ETR 10.8%?”, “Can Thailand qualify for a safe harbour?”, “What happens if the BOI tax holiday expires?”, “Which data is missing from Singapore?”`,
+    text: `I can only answer from the GMT24 calculation snapshot and the approved rulebook.\n\nGroup top-up is ${eur(list.reduce((a, c) => a + c.jurisdictionalTopUp, 0))} across ${list.filter((c) => c.jurisdictionalTopUp > 0).length} jurisdictions.\n\nOpen blockers: ${gaps.map((g) => g.title).join("; ") || "none"}.\n\nTry: “Why is Thailand’s ETR below 15%?”, “Can Thailand qualify for a safe harbour?”, “What happens if the BOI tax holiday expires?”, “Which data is missing from Singapore?”`,
     cites: [{ label: "GMT24-CALC 2026.2" }],
   };
 }

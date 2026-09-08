@@ -20,7 +20,7 @@ export default function ThaiScopePage() {
         </div>
         <div className="stack-actions">
           <Link href="/scope" className="btn btn-secondary">OECD scope</Link>
-          <button className="btn btn-primary" onClick={() => ask("Is Aetherion in scope of Thai top-up tax?")}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(`Is ${memo.group} in scope of Thai top-up tax?`)}>Ask GMT24</button>
         </div>
       </div>
 

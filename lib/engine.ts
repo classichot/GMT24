@@ -10,7 +10,7 @@ import {
   type ShResult,
 } from "./model";
 import { findGroup } from "./onboard";
-import { DEFAULT_SEED_ID, isSeededGroup, setActiveSeed } from "./seeds";
+import { DEFAULT_SEED_ID, activeSeedId, isSeededGroup, setActiveSeed } from "./seeds";
 import { money } from "./format";
 import { deferredTaxAdjustment, viewsForEntity, type DtView } from "./deferredTax";
 import {
@@ -522,11 +522,11 @@ export function allocateCollection(opts: {
   };
 }
 
-export function groupMeta(groupId = DEFAULT_SEED_ID) {
+export function groupMeta(groupId = activeSeedId()) {
   return findGroup(groupId);
 }
 
-export function scopeTest(groupId = DEFAULT_SEED_ID) {
+export function scopeTest(groupId = activeSeedId()) {
   const g = groupMeta(groupId);
   const rule = RULES.find((r) => r.id === "OECD-SCOPE-750")!;
   const hits = g.revenueHistory.filter((r) => r.amount >= Number(rule.parameters.thresholdEur)).length;
@@ -563,7 +563,7 @@ export function scopeTest(groupId = DEFAULT_SEED_ID) {
   };
 }
 
-export function calculateGroup(groupId = DEFAULT_SEED_ID, ctx?: CalcCtx): JurCalc[] {
+export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc[] {
   // Placeholder clients have no dataset of their own: they are scaled from the default seed.
   if (!isSeededGroup(groupId)) return calculateGroup(DEFAULT_SEED_ID, ctx).map((j, i) => ({
     ...j,
@@ -1040,11 +1040,11 @@ export function uniqueIsoCalcs(calcs: JurCalc[]): JurCalc[] {
   return out;
 }
 
-export function calcForIso(iso: string, groupId = DEFAULT_SEED_ID) {
+export function calcForIso(iso: string, groupId = activeSeedId()) {
   return pickCalc(calculateGroup(groupId), iso);
 }
 
-export function calcForEntity(entityId: string, groupId = DEFAULT_SEED_ID) {
+export function calcForEntity(entityId: string, groupId = activeSeedId()) {
   return calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === entityId));
 }
 

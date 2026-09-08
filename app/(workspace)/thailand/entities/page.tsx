@@ -31,7 +31,7 @@ export default function ThaiEntitiesPage() {
         <div className="stack-actions">
           <Link href="/entities" className="btn btn-secondary">Group entities</Link>
           <Link href="/graph" className="btn btn-secondary">Ownership graph</Link>
-          <button className="btn btn-primary" onClick={() => ask("How is the Rayong PE classified for Thai Pillar Two?")}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(`How is ${row.result.toLowerCase()} classified for Thai Pillar Two?`)}>Ask GMT24</button>
         </div>
       </div>
 

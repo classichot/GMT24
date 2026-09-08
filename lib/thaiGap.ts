@@ -87,7 +87,7 @@ const BASE: GapItem[] = [
     rdCite: "DG Notification No. 1",
     kind: "overlay",
     core: "FANIL taken from UPE IFRS consolidation. No Thai whitelist check.",
-    pack: "Accounting Standard Validator. Aetherion: IFRS UPE + TFRS Thai CEs — accepted. Material tests below threshold.",
+    pack: "Accounting Standard Validator. UPE consolidation standard checked against the Notification No. 1 whitelist; Thai CEs on TFRS — accepted. Material tests below threshold.",
     action: "Keep the UPE consolidation-policy memo in the evidence locker.",
     href: "/thailand/scope",
     play: "01",

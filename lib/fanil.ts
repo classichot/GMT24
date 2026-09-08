@@ -1,5 +1,6 @@
 import { money } from "./format";
 import { DATA, type Adjustment } from "./model";
+import { seedFacts } from "./seeds";
 
 export type MappingPosting = Adjustment & {
   article: string;
@@ -7,7 +8,9 @@ export type MappingPosting = Adjustment & {
   autoApproved: boolean;
 };
 
-const POSTING_FACTS: Omit<MappingPosting, "autoApproved">[] = [
+type PostingFact = Omit<MappingPosting, "autoApproved">;
+
+const AETHERION_POSTINGS: PostingFact[] = [
   {
     id: "MAP-TH-PENSION",
     entityId: "TH-CE",
@@ -89,6 +92,59 @@ const POSTING_FACTS: Omit<MappingPosting, "autoApproved">[] = [
     status: "Reviewed",
   },
 ];
+
+const THAICOAL_POSTINGS: PostingFact[] = [
+  {
+    id: "MAP-TC-PENSION",
+    entityId: "TC-UPE",
+    category: "Accrued pension expense",
+    original: 1_600_000,
+    amount: 400_000,
+    article: "Art. 3.2.3",
+    mappingAccount: "610030",
+    account: "610030",
+    reason: "Replace the TFRS retirement-benefit accrual $1.60M with qualifying provident-fund contributions paid $2.00M.",
+    ruleId: "OECD-GloBE-15",
+    sourceDoc: "Payroll_TH_FY2026.csv",
+    preparer: "P. Wongchai",
+    reviewer: null,
+    status: "Prepared",
+  },
+  {
+    id: "MAP-TC-SG-ALP",
+    entityId: "TC-SG-HC",
+    category: "Arm's-length adjustment",
+    original: 1_900_000,
+    amount: 420_000,
+    article: "Art. 3.2.4",
+    mappingAccount: "640500",
+    account: "640500",
+    reason: "Increase the intra-group trading and marketing service fee charged to the UPE to the arm's-length amount, consistently in Thailand and Singapore.",
+    ruleId: "OECD-GloBE-15",
+    sourceDoc: "TP_Master_File_2026.pdf",
+    preparer: "J. Lim",
+    reviewer: "K. Suksawat",
+    status: "Reviewed",
+  },
+  {
+    id: "MAP-TC-AU-REHAB",
+    entityId: "TC-AU-COAL",
+    category: "Asymmetric FX / provision unwinding",
+    original: 3_400_000,
+    amount: 0,
+    article: "Art. 3.2.1(f)",
+    mappingAccount: "830010",
+    account: "830010",
+    reason: "Rehabilitation-provision unwinding and USD-debt FX reviewed against the tax functional currency — no asymmetric gain or loss, no GloBE adjustment.",
+    ruleId: "OECD-GloBE-15",
+    sourceDoc: "TC060 TB FY2026.xlsx",
+    preparer: "R. Hughes",
+    reviewer: null,
+    status: "Prepared",
+  },
+];
+
+const POSTING_FACTS = seedFacts<PostingFact>({ aetherion: AETHERION_POSTINGS, thaicoal: THAICOAL_POSTINGS });
 
 export function mappedPostings(approvedMaps: Record<string, boolean> = {}): MappingPosting[] {
   return POSTING_FACTS.map((fact) => {
