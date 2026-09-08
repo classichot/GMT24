@@ -1,0 +1,20 @@
+---
+description: How CPR (commit, push, redeploy) works for this repo
+alwaysApply: true
+---
+
+# CPR for GMT24
+
+`CPR` = commit, push, redeploy production. In this repo the redeploy is **Git-triggered**:
+Vercel's GitHub integration builds every push to `main` as the production deployment
+(project `7-l-advisory/gmt24`, alias `gmt24.vercel.app`).
+
+- Do **not** run `npx vercel --prod`. The `Vercel_token` secret cannot access the
+  `7-l-advisory` team (SAML-enforced; token returns 404/403), so the CLI path fails.
+- After pushing `main`, confirm the deploy instead:
+  `gh api repos/classichot/GMT24/deployments --jq '.[0]'` → newest `Production` entry
+  should carry the pushed SHA; its statuses endpoint reports `success` plus the
+  deployment URL. Then spot-check `https://gmt24.vercel.app`.
+- Report: commit hash, push status, deployment SHA/status, production URL.
+- PR merges into `main` are done locally (`git worktree` + `--no-ff` merge + push);
+  the GitHub token cannot merge via API.
