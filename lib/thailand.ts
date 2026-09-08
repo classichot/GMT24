@@ -404,7 +404,7 @@ const THAICOAL_THAI: ThaiFacts = {
     { id: "R9", flag: "QRTC not enacted", severity: "warn", detail: "Do not book a Thai qualified refundable tax credit. Cabinet reportedly withdrew the draft in December 2025. Hold as a coverage exception in the optimizer." },
     { id: "R10", flag: "IIR at the POPE", severity: "review", detail: "The RD will ask why the China residual is collected at ThaiCoal Power PCL and not at the UPE. Keep the Art. 2.1.4 ownership schedule and the Inclusion Ratio working in the defence book." },
     { id: "R2", flag: "Unrecognised loss carry-forward", severity: "review", detail: "FY2024–25 losses shelter FY2026 taxable profit with no DTA (IQ-10). Art. 4.4.1 / 4.5 treatment must be decided before locking the Thai ETR." },
-    { id: "R4", flag: "CbCR vs GloBE", severity: "warn", detail: "Thai CbCR profit $363.0M vs GloBE ~$179M after excluded dividends of $183M. The bridge is large and must be in the defence book." },
+    { id: "R4", flag: "CbCR vs GloBE", severity: "warn", detail: "Thai CbCR profit $544.5M vs GloBE ~$270M after excluded dividends of $274M. The bridge is large and must be in the defence book." },
     { id: "R5", flag: "BOT rates locked", severity: "ok", detail: "December-preceding BOT midpoint archived. No manual year-end override on this snapshot." },
     { id: "R6", flag: "GIR vs Thai return", severity: "warn", detail: "Filing schema pending (ss 53–57). Do not assert identity between GIR XML and the Thai return until the form pack is in." },
     { id: "R7", flag: "FX mapping 64%", severity: "warn", detail: "Account 830010 — FX on USD coal receivables — still unapproved (IQ-03)." },
