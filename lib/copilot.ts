@@ -66,7 +66,7 @@ const THAICOAL_CANNED: { match: RegExp; seed?: string; answer: (q: string) => Co
       const j = th();
       return {
         role: "assistant",
-        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe blend is four Thai entities: ThaiCoal PCL (UPE, coal trading and mining at 20% CIT), ThaiCoal Power PCL (POPE, 20%), ThaiCoal NextGen Energy (BOI solar holiday at 0% CIT to 31 Dec 2026) and Minerals & Logistics (20%). The shortfall against 15% is the holiday income at NextGen Energy, plus excluded dividends of $124M at the UPE and $59M at the POPE under Art. 3.2.1(b), which pull GloBE income down without any Covered Tax attached.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
+        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe blend is four Thai entities: ThaiCoal PCL (UPE, coal trading and mining at 20% CIT), ThaiCoal Power PCL (POPE, 20%), ThaiCoal NextGen Energy (BOI solar holiday at 0% CIT to 31 Dec 2026) and Minerals & Logistics (20%). The shortfall against 15% is the holiday income at NextGen Energy, plus excluded dividends of $186M at the UPE and $88M at the POPE under Art. 3.2.1(b), which pull GloBE income down without any Covered Tax attached.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
         cites: [
           { label: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
           { label: "TC001 Trial Balance FY2026.xlsx", href: "/data" },
@@ -106,7 +106,7 @@ const THAICOAL_CANNED: { match: RegExp; seed?: string; answer: (q: string) => Co
     seed: "thaicoal",
     answer: () => ({
       role: "assistant",
-      text: `Excluded dividends are the largest GloBE adjustment in this group.\n\n• ThaiCoal PCL (TC001): −$124.0M — dividends from PT ThaiCoal Indo Tbk, ThaiCoal Singapore and ThaiCoal Power PCL, ownership ≥ 10%, Art. 3.2.1(b).\n• ThaiCoal Power PCL (TC010): −$59.0M — dividends from the Japan and China power CEs and the Lao associate (the associate sits outside the GloBE perimeter, the dividend is still excluded).\n• ThaiCoal Renewables Asia (TC041): −$8.2M — Asian solar portfolio dividends.\n\nAll three are account 810020, rule OECD-DIV-EXCL v2026.1, preparer local tax, reviewer K. Suksawat. Because Thai dividend income carries no Covered Tax, stripping it raises the Thai ETR rather than lowering it.\n\nThese are canonical GloBE adjustments, not an LLM estimate.`,
+      text: `Excluded dividends are the largest GloBE adjustment in this group.\n\n• ThaiCoal PCL (TC001): −$186.0M — dividends from PT ThaiCoal Indo Tbk, ThaiCoal Singapore and ThaiCoal Power PCL, ownership ≥ 10%, Art. 3.2.1(b).\n• ThaiCoal Power PCL (TC010): −$88.0M — dividends from the Japan and China power CEs and the Lao associate (the associate sits outside the GloBE perimeter, the dividend is still excluded).\n• ThaiCoal Renewables Asia (TC041): −$12.3M — Asian solar portfolio dividends.\n\nAll three are account 810020, rule OECD-DIV-EXCL v2026.1, preparer local tax, reviewer K. Suksawat. Because Thai dividend income carries no Covered Tax, stripping it raises the Thai ETR rather than lowering it.\n\nThese are canonical GloBE adjustments, not an LLM estimate.`,
       cites: [{ label: "OECD-DIV-EXCL v2026.1" }, { label: "GloBE income", href: "/globe-income" }],
     }),
   },
