@@ -21,6 +21,12 @@ export const CIT_RATE: Record<string, number> = {
   HU: 0.09,
   US: 0.21,
   IE: 0.125,
+  AU: 0.3,
+  CN: 0.25,
+  LA: 0.2,
+  MN: 0.25,
+  HK: 0.165,
+  LU: 0.2494,
 };
 
 export type RecaptureExceptionCode =

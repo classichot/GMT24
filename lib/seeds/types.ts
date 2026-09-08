@@ -38,6 +38,8 @@ export type GroupSeed = {
   girSections: { id: string; title: string; status: string; fields: number; missing: number }[];
   activity: { text: string; who: string; when: string }[];
   forecast: { period: string; topUp: number }[];
+  /** Jurisdictions used to pad the entity population up to `group.entities` with non-material CEs. */
+  populationPool: readonly (readonly [string, string])[];
   demo: {
     /** Shown on the review-link door and Host desk. */
     label: string;

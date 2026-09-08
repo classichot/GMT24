@@ -230,6 +230,21 @@ const forecast: GroupSeed["forecast"] = [
   { period: "Q4 forecast", topUp: 5_100_000 },
 ];
 
+const populationPool = [
+  ["JP", "Japan"], ["SG", "Singapore"], ["TH", "Thailand"], ["VN", "Vietnam"],
+  ["MY", "Malaysia"], ["ID", "Indonesia"], ["AE", "United Arab Emirates"], ["GB", "United Kingdom"],
+  ["DE", "Germany"], ["FR", "France"], ["NL", "Netherlands"], ["HU", "Hungary"],
+  ["US", "United States"], ["IE", "Ireland"], ["LU", "Luxembourg"], ["HK", "Hong Kong"],
+  ["AU", "Australia"], ["AT", "Austria"], ["BE", "Belgium"], ["BR", "Brazil"],
+  ["CA", "Canada"], ["CH", "Switzerland"], ["CN", "China"], ["CZ", "Czech Republic"],
+  ["DK", "Denmark"], ["ES", "Spain"], ["FI", "Finland"], ["GR", "Greece"],
+  ["IN", "India"], ["IT", "Italy"], ["KR", "Korea"], ["MX", "Mexico"],
+  ["NO", "Norway"], ["NZ", "New Zealand"], ["PH", "Philippines"], ["PL", "Poland"],
+  ["PT", "Portugal"], ["RO", "Romania"], ["SA", "Saudi Arabia"], ["SE", "Sweden"],
+  ["SK", "Slovakia"], ["TR", "Türkiye"], ["TW", "Chinese Taipei"], ["ZA", "South Africa"],
+  ["KH", "Cambodia"], ["LA", "Lao PDR"], ["BD", "Bangladesh"], ["LK", "Sri Lanka"],
+] as const;
+
 export const AETHERION: GroupSeed = {
   id: "aetherion",
   group,
@@ -246,6 +261,7 @@ export const AETHERION: GroupSeed = {
   girSections,
   activity,
   forecast,
+  populationPool,
   demo: {
     label: "Aetherion Group demo",
     story: "Japanese-parent manufacturer with a Thai BOI subsidiary — the Thai-CE-of-a-foreign-UPE case.",

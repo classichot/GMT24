@@ -1,10 +1,12 @@
 import { AETHERION } from "./aetherion";
+import { THAICOAL } from "./thaicoal";
 import type { GroupSeed } from "./types";
 
 export type { GroupSeed, JurisdictionPack, SeedUser } from "./types";
 
 export const SEEDS: Record<string, GroupSeed> = {
   aetherion: AETHERION,
+  thaicoal: THAICOAL,
 };
 
 export const DEFAULT_SEED_ID = "aetherion";

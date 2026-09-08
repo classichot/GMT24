@@ -670,6 +670,7 @@ export const DATA = {
   get girSections() { return activeSeed().girSections; },
   get activity() { return activeSeed().activity; },
   get forecast() { return activeSeed().forecast; },
+  get populationPool() { return activeSeed().populationPool; },
   get demo() { return activeSeed().demo; },
 };
 
@@ -690,5 +691,10 @@ export const MAP_COORDS: Record<string, { x: number; y: number }> = {
   IE: { x: 47.7, y: 20.3 },
   LU: { x: 51.8, y: 22.4 },
   HK: { x: 81.7, y: 38.8 },
+  AU: { x: 87.5, y: 64.4 },
+  CN: { x: 79.2, y: 30.0 },
+  LA: { x: 78.6, y: 40.0 },
+  MN: { x: 79.2, y: 24.4 },
+  KH: { x: 79.2, y: 43.3 },
   XX: { x: 50, y: 50 },
 };
