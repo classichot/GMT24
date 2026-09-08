@@ -1,4 +1,5 @@
 import { ACCOUNTS, ADJUSTMENTS, ADVISOR_USER, ENTITIES, INHOUSE_USER, ISSUES, type ProductMode } from "../model";
+import { playbookBySlug } from "../playbooks";
 import type { PackAmendment, PackChangeRecord } from "../packAmendments";
 import type { HardStop } from "../xray";
 import { ROLE_PERMISSIONS, APP_VERSION, type Lang, type OutstandingWork, type ScreenMeta, type UserRole, type WorkContext } from "./types";
@@ -14,6 +15,39 @@ export const SCREENS: ScreenMeta[] = [
     { term: "Low-ETR jurisdiction", meaning: "Jurisdictional ETR below the 15% Minimum Rate." },
     { term: "48 jurisdictions vs 20 blends", meaning: "48 is the group perimeter. 20 is the number of jurisdictional blends that carry financial data and are calculated." },
   ], actions: ["Open ETR map", "Open Top-up", "Ask GMT24 about any number"] },
+  { key: "etr-map", module: "Overview", title: "ETR map", href: "/etr-map", purpose: "World map of jurisdictional ETR and top-up. Violet markers are exposure; blue markers are harbour or no top-up. Built to locate low-taxed jurisdictions before opening a calculation.", fields: [
+    { term: "Violet marker", meaning: "The jurisdiction has a posted top-up on the current snapshot." },
+    { term: "Blue marker", meaning: "Safe harbour taken, or ETR at or above 15% with no top-up." },
+  ], actions: ["Click a jurisdiction", "Open Top-up exposure"] },
+  { key: "exposure", module: "Overview", title: "Top-up exposure", href: "/exposure", purpose: "Who collects the group top-up (QDMTT / IIR / UTPR) and how much sits in each jurisdiction. Built to brief collection before anyone drafts a GIR.", fields: [{ term: "Collector", meaning: "The charging mechanism and the paying entity on the current snapshot." }], actions: ["Open allocation", "Open a jurisdiction trail"] },
+  { key: "clients", module: "Group", title: "Clients", href: "/clients", purpose: "Advisor-mode portfolio: pick the engagement whose books, elections and year ledger you are working. In-house mode does not use this menu.", fields: [{ term: "Engagement", meaning: "One client group with its own year record and evidence chain." }], actions: ["Open engagement", "Start new engagement"] },
+  { key: "group", module: "Group", title: "Group structure", href: "/group", purpose: "UPE, consolidation perimeter and the Art. 1.1 €750m two-of-four test. Built to lock who is in the MNE Group before any blend is calculated.", fields: [{ term: "UPE", meaning: "Ultimate Parent Entity — the owner whose consolidated statements drive scope." }], actions: ["Open entities", "Open ownership graph"] },
+  { key: "entities", module: "Group", title: "Entities", href: "/entities", purpose: "Constituent entities, MOCE, POPE and excluded-entity tests. Opening a row lands on that blend’s ETR, not a mixed country rate.", fields: [
+    { term: "CE", meaning: "Constituent Entity included in the GloBE group." },
+    { term: "MOCE", meaning: "Minority-Owned Constituent Entity — ownership by the UPE of 30% or less." },
+  ], actions: ["Open entity ETR"] },
+  { key: "graph", module: "Group", title: "Ownership graph", href: "/graph", purpose: "Visual ownership of the group: parent, subsidiaries, JVs and branches. Built to see control and tax residence before blending.", fields: [], actions: ["Filter by jurisdiction"] },
+  { key: "fx", module: "Pillar Two", title: "FX / FANIL GAAP", href: "/fx", purpose: "Locked presentation FX and the FANIL GAAP used for GloBE Income. Rates are not guessed; Thai BOT rates live on the Thailand pack.", fields: [{ term: "FANIL", meaning: "Financial Accounting Net Income or Loss in the entity’s accounting currency, before GloBE adjustments." }], actions: [] },
+  { key: "thailand-liability", module: "Thailand", title: "Liability dashboard", href: "/thailand/liability", purpose: "Thai collection waterfall: jurisdictional top-up − foreign QDMTT − IIR already imposed = residual UTPR → designated taxpayer.", fields: [], actions: ["Open filing command"] },
+  { key: "thailand-filing", module: "Thailand", title: "Filing command", href: "/thailand/filing", purpose: "Thai Top-up Tax Act clocks (ss 54–58): who files, when, and what is still pending. Calculation rules are live; the official filing schema is still pending.", fields: [], actions: [] },
+  { key: "thailand-gap", module: "Thailand", title: "OECD vs RD gap", href: "/thailand/gap", purpose: "Scores each topic aligned / overlay / diverge / pending so the GloBE Core is never treated as the Thai RD return.", fields: [{ term: "Diverge", meaning: "OECD and Thai instruments produce a different number or a different form — do not copy the GloBE figure onto the RD return." }], actions: ["Open source pin"] },
+  { key: "thailand-audit", module: "Thailand", title: "Audit defence", href: "/thailand/audit", purpose: "Assembles the Thai audit defence book: positions, evidence, gap scores and what is still pending enactment.", fields: [], actions: ["Download defence book"] },
+  { key: "thailand-scope", module: "Thailand", title: "Thai scope memo", href: "/thailand/scope", purpose: "Scope determination memorandum under the Thai Top-up Tax Act — group, excluded entities and the Thai filing perimeter.", fields: [], actions: [] },
+  { key: "thailand-entities", module: "Thailand", title: "Thai entity situs", href: "/thailand/entities", purpose: "Thai entity classification and tax situs (incorporation vs PE vs residence) for the RD overlay.", fields: [], actions: [] },
+  { key: "thailand-sbie", module: "Thailand", title: "Thai SBIE", href: "/thailand/sbie", purpose: "Thai SBIE under Notification No. 4 versus the OECD Art. 5.3 carve-out. The two ledgers are shown separately.", fields: [], actions: [] },
+  { key: "thailand-fx", module: "Thailand", title: "BOT FX", href: "/thailand/fx", purpose: "Bank of Thailand foreign-exchange rates locked for the Thai pack — not a live market feed.", fields: [], actions: [] },
+  { key: "incentives", module: "Incentives", title: "Tax incentives", href: "/incentives", purpose: "Certificate inventory: BOI, DEI, KDB and development allowances — rate, dates, remaining cap and source PDF. Built to feed the BOI Optimizer, not to treat a holiday as 0% CIT.", fields: [{ term: "Certificate", meaning: "The legal instrument. Promoted-activity accounts are not the jurisdictional GloBE ledger." }], actions: ["Open BOI Optimizer"] },
+  { key: "simulator", module: "Forecast", title: "Simulator", href: "/simulator", purpose: "Re-run the same engine under changed assumptions (BOI extension, Thai payroll, Ireland TP margin). Not a second model.", fields: [], actions: ["Set assumption"] },
+  { key: "forecast", module: "Forecast", title: "Forecast", href: "/forecast", purpose: "Year-to-date live calculation versus projected FY using the in-year pack.", fields: [{ term: "YTD", meaning: "The current working calculation, not a forecast." }], actions: [] },
+  { key: "filings", module: "Compliance", title: "Filing matrix", href: "/filings", purpose: "Which jurisdiction files GIR, QDMTT, IIR or a notification, and whether central filing relieves the local return.", fields: [], actions: [] },
+  { key: "notifications", module: "Compliance", title: "Notifications", href: "/notifications", purpose: "Local notifications and Side-by-Side / UTPR memos generated from the same snapshot as the GIR.", fields: [], actions: ["Generate notification"] },
+  { key: "archive", module: "Compliance", title: "Filing archive", href: "/archive", purpose: "Filed packs, exported XML and notifications kept with the year lock.", fields: [], actions: [] },
+  { key: "review-guide", module: "Review", title: "Review guide", href: "/review-guide", purpose: "External-reviewer walkthrough: ingest, mapping, calculation anchors, audit trail and GIR preflight.", fields: [], actions: [] },
+  { key: "evidence", module: "Review", title: "Evidence", href: "/evidence", purpose: "Evidence locker for the documents attached to mappings, X-Ray findings and adjustments.", fields: [], actions: ["Attach"] },
+  { key: "host", module: "Review", title: "Host desk", href: "/host", purpose: "7L-only desk that mints a signed /review/{token} URL. Expiry is 1–30 days (default 3). The host PIN never appears on the public login page.", fields: [{ term: "Review link", meaning: "Works on another device until it expires. It is a demo invite, not a filing submission." }], actions: ["Mint link"] },
+  { key: "onboard", module: "Group", title: "New engagement", href: "/onboard", purpose: "Advisor-mode wizard to create a client workspace from a name or a Quick Scan.", fields: [], actions: ["Create engagement"] },
+  { key: "rulebook", module: "Intelligence", title: "OECD rulebook", href: "/rulebook", purpose: "Effective-dated OECD Model Rules, Commentary and Administrative Guidance used by the engine. Clicking a rule id on an audit trail lands here.", fields: [{ term: "Rule version", meaning: "The pack version that posted the amount — not the latest PDF on the OECD site." }], actions: [] },
+  { key: "settings", module: "Workspace", title: "Settings", href: "/settings", purpose: "Operating mode, theme, evidence-history immutability and workspace preferences.", fields: [{ term: "Immutability", meaning: "When on, evidence-history rows cannot be deleted; turning it off is itself logged." }], actions: [] },
   { key: "data", module: "Data", title: "Data Hub", href: "/data", purpose: "Ingest the close pack. Classification runs before mapping; the engine does not calculate until mappings are approved.", fields: [
     { term: "Close pack", meaning: "Entity list, trial balances, consolidation, tax provision, CbCR, payroll, fixed assets, certificates, prior GIR." },
     { term: "Classified", meaning: "The classifier has typed the file (TB, CbCR, payroll…) and queued it for mapping." },
@@ -46,7 +80,7 @@ export const SCREENS: ScreenMeta[] = [
   { key: "issues", module: "Review", title: "Issues", href: "/issues", purpose: "Open issues and second-level reviewer findings.", fields: [], actions: ["Re-run reviewer"] },
   { key: "approvals", module: "Review", title: "Approvals", href: "/approvals", purpose: "Preparer / reviewer gates and the snapshot lock. Blocked while X-Ray has unresolved material items.", fields: [{ term: "Snapshot", meaning: "The calculation version being signed — not the GIR XML." }], actions: ["Approve snapshot", "Return to preparer"] },
   { key: "jurisdictions", module: "Intelligence", title: "Jurisdiction packs", href: "/jurisdictions", purpose: "OECD Central Record scan → AI proposals → reviewer decision → administrator review of the change record.", fields: [], actions: ["Scan OECD Record", "Accept / reject amendment", "Administrator review"] },
-  { key: "copilot", module: "AI Co-Pilot", title: "Co-Pilot hub", href: "/copilot", purpose: "Ten connected features on one context, one fact registry and one audit log.", fields: [], actions: [] },
+  { key: "copilot", module: "AI Co-Pilot", title: "Co-Pilot hub", href: "/copilot", purpose: "Eleven connected features on one context, one fact registry and one audit log.", fields: [], actions: [] },
   { key: "trainer", module: "AI Co-Pilot", title: "App Trainer", href: "/trainer", purpose: "Role-specific onboarding, walkthroughs, error diagnosis and next-step guidance.", fields: [], actions: [] },
   { key: "reviewer", module: "AI Co-Pilot", title: "Calculation Reviewer", href: "/reviewer", purpose: "Deterministic checks and suspected issues with a resolution workflow.", fields: [], actions: ["Assign", "Resolve", "Dismiss with reason", "Reopen"] },
   { key: "strategy", module: "AI Co-Pilot", title: "Strategy Simulator", href: "/strategy", purpose: "Natural-language scenarios run through the engine without touching the approved calculation.", fields: [], actions: ["Save scenario", "Adopt through review"] },
@@ -64,6 +98,20 @@ export const SCREENS: ScreenMeta[] = [
 
 export function screenFor(path: string): ScreenMeta | null {
   const clean = path.split("?")[0].replace(/\/$/, "") || "/";
+  if (clean.startsWith("/playbook/")) {
+    const book = playbookBySlug(clean.slice("/playbook/".length));
+    if (book) {
+      return {
+        key: `playbook-${book.slug}`,
+        module: book.navGroup ?? "Playbook",
+        title: book.title,
+        href: clean,
+        purpose: book.summary,
+        fields: [],
+        actions: book.steps.map((s) => s.title),
+      };
+    }
+  }
   const exact = SCREENS.find((s) => s.href === clean);
   if (exact) return exact;
   return SCREENS.filter((s) => clean.startsWith(s.href + "/")).sort((a, b) => b.href.length - a.href.length)[0] ?? null;

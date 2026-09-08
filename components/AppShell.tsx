@@ -41,7 +41,7 @@ import { AiProvider } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
-import { PLAYBOOKS } from "@/lib/playbooks";
+import { PLAYBOOKS, playbookByNavGroup } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -51,21 +51,18 @@ const NAV = [
     { href: "/overview", label: "Global dashboard", icon: LayoutGrid },
     { href: "/etr-map", label: "ETR map", icon: Map },
     { href: "/exposure", label: "Top-up exposure", icon: Shield },
-    { href: "/playbook/overview", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Group", items: [
     { href: "/clients", label: "Clients", icon: Building2, advisor: true },
     { href: "/group", label: "Group structure", icon: GitBranch },
     { href: "/entities", label: "Entities", icon: Building2 },
     { href: "/graph", label: "Ownership graph", icon: Globe },
-    { href: "/playbook/group", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Data", items: [
     { href: "/data", label: "Data Hub", icon: Upload },
     { href: "/mapping", label: "Account mapping", icon: Sparkles },
     { href: "/quality", label: "Data quality", icon: Database },
     { href: "/requests", label: "Data requests", icon: FileText },
-    { href: "/playbook/data", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Assurance", items: [
     { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine },
@@ -82,13 +79,11 @@ const NAV = [
     { href: "/sbie", label: "SBIE", icon: Scale },
     { href: "/top-up", label: "Top-up tax", icon: Shield },
     { href: "/allocation", label: "QDMTT / IIR / UTPR", icon: GitBranch },
-    { href: "/playbook/pillar-two", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Elections & Optimizer", items: [
     { href: "/elections", label: "Election engine", icon: SlidersHorizontal },
     { href: "/optimize", label: "Optimize GloBE", icon: Sparkles },
     { href: "/years", label: "Year record", icon: Timer },
-    { href: "/playbook/elections", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Thailand", items: [
     { href: "/thailand", label: "Jurisdiction pack", icon: Landmark },
@@ -97,24 +92,20 @@ const NAV = [
     { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
     { href: "/thailand/gap", label: "OECD vs RD gap", icon: GitBranch },
     { href: "/thailand/audit", label: "Audit defence", icon: FileText },
-    { href: "/playbook/thailand", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Incentives", items: [
     { href: "/incentives", label: "Tax incentives", icon: Sparkles },
     { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
-    { href: "/playbook/incentives", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Forecast", items: [
     { href: "/simulator", label: "Simulator", icon: Sparkles },
     { href: "/forecast", label: "Forecast", icon: LayoutGrid },
-    { href: "/playbook/forecast", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Compliance", items: [
     { href: "/gir", label: "GIR", icon: FileText },
     { href: "/filings", label: "Filing matrix", icon: Check },
     { href: "/notifications", label: "Notifications", icon: FileText },
     { href: "/archive", label: "Filing archive", icon: Database },
-    { href: "/playbook/compliance", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Review", items: [
     { href: "/review-guide", label: "Review guide", icon: ClipboardList },
@@ -124,7 +115,6 @@ const NAV = [
     { href: "/evidence-history", label: "Evidence history", icon: History },
     { href: "/approvals", label: "Approvals", icon: Check },
     { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
-    { href: "/playbook/review", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "AI Co-Pilot", items: [
     { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare },
@@ -142,7 +132,6 @@ const NAV = [
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
-    { href: "/playbook/intelligence", label: "Playbook", icon: ClipboardList },
   ]},
 ];
 
@@ -288,18 +277,25 @@ function Shell({ children }: { children: ReactNode }) {
               return true;
             });
             if (!items.length) return null;
+            const book = playbookByNavGroup(g.group);
             return (
               <div key={g.group}>
                 <div className="nav-group">{g.group}</div>
                 {items.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link key={item.href} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                    <Link key={`${g.group}:${item.href}`} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
                       <Icon size={15} />
                       {item.label}
                     </Link>
                   );
                 })}
+                {book && (
+                  <Link href={`/playbook/${book.slug}`} onClick={() => setNavOpen(false)} className={`nav-btn${path === `/playbook/${book.slug}` ? " active" : ""}`}>
+                    <ClipboardList size={15} />
+                    Playbook
+                  </Link>
+                )}
               </div>
             );
           })}

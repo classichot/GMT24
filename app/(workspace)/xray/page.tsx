@@ -71,6 +71,7 @@ export default function XrayPage() {
           </div>
         </div>
         <div className="stack-actions">
+          <Link href="/playbook/assurance" className="btn btn-secondary">Playbook</Link>
           <Link href="/xray/confirm" className="btn btn-primary"><ScanLine size={16} />Confirmation workflow</Link>
           <button className="btn btn-ghost" onClick={() => { resetXray(); flash("X-Ray confirmations cleared"); }}>Reset</button>
           <button className="btn btn-ghost" onClick={() => ask("What is blocking the FY2026 close in Pillar Two X-Ray?")}>Ask GMT24</button>

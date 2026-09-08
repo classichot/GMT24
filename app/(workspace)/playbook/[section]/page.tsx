@@ -42,7 +42,10 @@ export default function PlaybookPage() {
         ))}
       </div>
       <div className="stack-actions" style={{ marginTop: 16 }}>
-        {PLAYBOOKS.map((p) => (
+        {PLAYBOOKS.filter((p) => p.navGroup).map((p) => (
+          <Link key={p.slug} href={`/playbook/${p.slug}`} className={`btn ${p.slug === book.slug ? "btn-primary" : "btn-secondary"}`}>{p.menu}</Link>
+        ))}
+        {PLAYBOOKS.filter((p) => !p.navGroup).map((p) => (
           <Link key={p.slug} href={`/playbook/${p.slug}`} className={`btn ${p.slug === book.slug ? "btn-primary" : "btn-secondary"}`}>{p.menu}</Link>
         ))}
       </div>

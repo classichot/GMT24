@@ -73,7 +73,7 @@ export default function ReviewerPage() {
           </table>
         </div>
       </div>
-      <div className="text-muted" style={{ fontSize: 12 }}>The reviewer does not change any number. Validation checks are deterministic; suspected issues are hypotheses to be confirmed or dismissed by a person. Findings feed the shared <Link href="/tasks">task list</Link> and the CFO briefing.</div>
+      <div className="text-muted" style={{ fontSize: 12 }}>The reviewer does not change any number. Validation checks are deterministic; suspected issues are hypotheses to be confirmed or dismissed by a person. Findings feed the shared <Link href="/tasks">task list</Link> and the CFO briefing. Full path: <Link href="/playbook/copilot">AI Co-Pilot playbook</Link>.</div>
     </div>
   );
 }
