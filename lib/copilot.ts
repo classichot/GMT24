@@ -372,7 +372,8 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
   const hit = CANNED.find((c) => c.match.test(q));
   if (hit) return hit.answer(q);
   const list = calcs ?? calculateGroup();
-  const named = list.find((j) => q.toLowerCase().includes(j.name.toLowerCase()) || q.toUpperCase().includes(j.iso));
+  // ISO codes only count as whole words in upper case — "the" must not select Thailand, "in" must not select India.
+  const named = list.find((j) => q.toLowerCase().includes(j.name.toLowerCase()) || new RegExp(`(^|[^A-Za-z])${j.iso}(?![A-Za-z])`).test(q));
   if (named) {
     return {
       role: "assistant",
