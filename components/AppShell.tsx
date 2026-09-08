@@ -44,7 +44,7 @@ import { changeAlert } from "@/lib/packAmendments";
 import { PLAYBOOKS, playbookByNavGroup } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 const NAV = [
   { group: "Overview", items: [
@@ -223,6 +223,87 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+const NAV_W_KEY = "gmt24_nav_w";
+export const NAV_W_DEFAULT = 248;
+export const NAV_W_MIN = 200;
+export const NAV_W_MAX = 440;
+export const NAV_W_STEP = 16;
+
+export function clampNavWidth(n: unknown) {
+  const v = typeof n === "number" ? n : Number(n);
+  if (!Number.isFinite(v)) return NAV_W_DEFAULT;
+  return Math.min(NAV_W_MAX, Math.max(NAV_W_MIN, Math.round(v)));
+}
+
+/** Sidebar width the user last dragged to. Persisted per browser; drag the right edge, arrow keys nudge, double-click resets. */
+function useNavWidth() {
+  const [width, setWidth] = useState(NAV_W_DEFAULT);
+  const [dragging, setDragging] = useState(false);
+  const live = useRef(NAV_W_DEFAULT);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NAV_W_KEY);
+      if (stored) {
+        const w = clampNavWidth(stored);
+        live.current = w;
+        setWidth(w);
+      }
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const commit = useCallback((w: number) => {
+    const v = clampNavWidth(w);
+    live.current = v;
+    setWidth(v);
+    try {
+      if (v === NAV_W_DEFAULT) localStorage.removeItem(NAV_W_KEY);
+      else localStorage.setItem(NAV_W_KEY, String(v));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const onPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const startX = e.clientX;
+    const startW = live.current;
+    handle.setPointerCapture(e.pointerId);
+    setDragging(true);
+    const move = (ev: globalThis.PointerEvent) => {
+      const v = clampNavWidth(startW + (ev.clientX - startX));
+      live.current = v;
+      setWidth(v);
+    };
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      setDragging(false);
+      commit(live.current);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  }, [commit]);
+
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); commit(live.current - NAV_W_STEP); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); commit(live.current + NAV_W_STEP); }
+    else if (e.key === "Home") { e.preventDefault(); commit(NAV_W_MIN); }
+    else if (e.key === "End") { e.preventDefault(); commit(NAV_W_MAX); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commit(NAV_W_DEFAULT); }
+  }, [commit]);
+
+  const reset = useCallback(() => commit(NAV_W_DEFAULT), [commit]);
+
+  return { width, dragging, onPointerDown, onKeyDown, reset };
+}
+
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
@@ -234,6 +315,7 @@ function Shell({ children }: { children: ReactNode }) {
   const packAlert = changeAlert(packChanges);
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
+  const nav = useNavWidth();
 
   useEffect(() => { setNavOpen(false); }, [path, setNavOpen]);
   useEffect(() => { setInvite(readInviteSession()); }, [path]);
@@ -248,7 +330,7 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <div className={`sidebar-backdrop${navOpen ? " open" : ""}`} onClick={() => setNavOpen(false)} />
-      <aside className={`sidebar${navOpen ? " open" : ""}`}>
+      <aside className={`sidebar${navOpen ? " open" : ""}${nav.dragging ? " resizing" : ""}`} style={{ width: nav.width }}>
         <div style={{ padding: "18px 16px 14px", borderBottom: "2px solid var(--color-divider)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <div>
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -315,6 +397,20 @@ function Shell({ children }: { children: ReactNode }) {
             </button>
           </div>
         </div>
+        <div
+          className="sidebar-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize menu"
+          aria-valuemin={NAV_W_MIN}
+          aria-valuemax={NAV_W_MAX}
+          aria-valuenow={nav.width}
+          title="Drag to resize the menu · double-click to reset"
+          tabIndex={0}
+          onPointerDown={nav.onPointerDown}
+          onKeyDown={nav.onKeyDown}
+          onDoubleClick={nav.reset}
+        />
       </aside>
 
       <div className="shell-main">

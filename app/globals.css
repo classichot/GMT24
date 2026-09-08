@@ -316,6 +316,18 @@ pre { font-size: 12px; line-height: 1.65; }
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh;
   background: var(--color-bg); z-index: 40; overflow: hidden;
 }
+.sidebar.resizing { user-select: none; }
+.sidebar.resizing * { cursor: col-resize !important; }
+.sidebar-resize {
+  position: absolute; top: 0; right: 0; width: 8px; height: 100%;
+  cursor: col-resize; z-index: 3; touch-action: none; background: transparent;
+  transition: background 0.15s ease;
+}
+.sidebar-resize:hover, .sidebar-resize:focus-visible, .sidebar.resizing .sidebar-resize {
+  background: color-mix(in srgb, var(--color-accent) 55%, transparent); outline: none;
+}
+.nav-btn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-btn > svg { flex: none; }
 .sidebar-foot {
   flex: none;
   border-top: 2px solid var(--color-divider);
@@ -747,6 +759,8 @@ html[data-theme="bw"] .map-dot.topup {
     transition: transform 0.2s ease; box-shadow: var(--shadow-lg);
   }
   .sidebar.open { transform: translateX(0); }
+  .sidebar { width: 248px !important; }
+  .sidebar-resize { display: none; }
   .sidebar-backdrop.open {
     display: block; position: fixed; inset: 0;
     background: color-mix(in srgb, var(--color-neutral-900) 45%, transparent); z-index: 35;
