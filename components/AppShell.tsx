@@ -39,7 +39,7 @@ import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
 import { MenuGuide } from "@/components/MenuGuide";
-import { AiReadyBadge } from "@/components/AiReadyBadge";
+import { AiMenuBadge, AiReadyBadge } from "@/components/AiReadyBadge";
 import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
@@ -68,8 +68,8 @@ const NAV = [
     { href: "/requests", label: "Data requests", icon: FileText },
   ]},
   { group: "Assurance", items: [
-    { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine },
-    { href: "/xray/confirm", label: "Confirmations", icon: ClipboardList },
+    { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine, ai: true },
+    { href: "/xray/confirm", label: "Confirmations", icon: ClipboardList, ai: true },
   ]},
   { group: "Pillar Two", items: [
     { href: "/scope", label: "Scope", icon: Scale },
@@ -120,16 +120,16 @@ const NAV = [
     { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
   ]},
   { group: "AI Co-Pilot", items: [
-    { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare },
-    { href: "/quickscan", label: "Quick Scan", icon: ScanLine },
-    { href: "/trainer", label: "App Trainer", icon: BookOpen },
-    { href: "/reviewer", label: "Calculation Reviewer", icon: Check },
-    { href: "/strategy", label: "Strategy Simulator", icon: Sparkles },
-    { href: "/rehearsal", label: "Audit Rehearsal", icon: Shield },
-    { href: "/regwatch", label: "Regulatory Watch", icon: Globe },
-    { href: "/briefing", label: "CFO Briefing", icon: FileText },
+    { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare, ai: true },
+    { href: "/quickscan", label: "Quick Scan", icon: ScanLine, ai: true },
+    { href: "/trainer", label: "App Trainer", icon: BookOpen, ai: true },
+    { href: "/reviewer", label: "Calculation Reviewer", icon: Check, ai: true },
+    { href: "/strategy", label: "Strategy Simulator", icon: Sparkles, ai: true },
+    { href: "/rehearsal", label: "Audit Rehearsal", icon: Shield, ai: true },
+    { href: "/regwatch", label: "Regulatory Watch", icon: Globe, ai: true },
+    { href: "/briefing", label: "CFO Briefing", icon: FileText, ai: true },
     { href: "/tasks", label: "Tasks", icon: ClipboardList },
-    { href: "/feedback", label: "Feedback", icon: MessageSquare },
+    { href: "/feedback", label: "Feedback", icon: MessageSquare, ai: true },
   ]},
   { group: "Intelligence", items: [
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
@@ -312,6 +312,8 @@ function useNavWidth() {
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
+  const { model } = useAi();
+  const llmLive = model.configured && model.reachable;
   const { logout, toast, navOpen, setNavOpen, mode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
@@ -404,7 +406,8 @@ function Shell({ children }: { children: ReactNode }) {
                     <div key={`${g.group}:${item.href}`} className="nav-row">
                       <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
                         <Icon size={15} />
-                        {item.label}
+                        <span className="nav-label">{item.label}</span>
+                        {"ai" in item && item.ai ? <AiMenuBadge live={llmLive} /> : null}
                       </Link>
                       <button
                         type="button"

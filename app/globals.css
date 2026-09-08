@@ -331,6 +331,7 @@ pre { font-size: 12px; line-height: 1.65; }
 }
 .nav-btn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-btn > svg { flex: none; }
+.nav-btn .nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .nav-row { position: relative; display: flex; align-items: stretch; }
 .nav-row .nav-btn { flex: 1; min-width: 0; padding-right: 30px; }
 .nav-help {
@@ -495,6 +496,24 @@ pre { font-size: 12px; line-height: 1.65; }
   margin-top: 0;
 }
 .ai-ready.compact { font-size: 9px; padding: 3px 7px; }
+.ai-menu {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-600);
+}
+.ai-menu.live {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
 .login-kicker {
   display: inline-block;
   margin-top: 14px;
