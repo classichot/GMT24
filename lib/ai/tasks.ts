@@ -13,6 +13,8 @@ export type TaskInput = {
   findings: XrayFinding[];
   xray: XrayState;
   reviewer: { id: string; title: string; detail: string; owner: string; severity: Task["severity"]; href: string; iso?: string; entityId?: string }[];
+  /** Reassessment tasks: one per affected jurisdiction of each approved regulatory item. */
+  regwatch?: { id: string; title: string; detail: string; iso: string; approvedAt: string }[];
   overrides: Record<string, TaskOverride>;
   manual: ManualTask[];
   fy: string;
@@ -70,6 +72,22 @@ export function deriveTasks(i: TaskInput): Task[] {
       iso: r.iso,
       entityId: r.entityId,
       createdAt: SEED_AT,
+    });
+  }
+  for (const r of i.regwatch ?? []) {
+    out.push({
+      id: `task:regwatch:${r.id}:${r.iso}`,
+      source: "regwatch",
+      title: `Reassess ${r.iso} for: ${r.title}`,
+      detail: r.detail,
+      owner: "Reviewer",
+      due: null,
+      status: "open",
+      severity: "warn",
+      href: "/regwatch",
+      iso: r.iso,
+      entityId: undefined,
+      createdAt: r.approvedAt,
     });
   }
   for (const m of i.manual) out.push({ ...m });

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Check, FileCheck2, Paperclip } from "lucide-react";
 import { FlowBar } from "@/components/FlowBar";
 import { ScoreBar, SeverityTag, StatusTag } from "@/components/XrayBits";
+import { XrayDocumentReading } from "@/components/XrayDocumentReading";
 import { useStore } from "@/lib/store";
 import { useXray } from "@/lib/useXray";
 import { eur, pct } from "@/lib/format";
@@ -229,6 +230,8 @@ function ConfirmWorkflow() {
             ) : null}
           </div>
         </div>
+
+        <XrayDocumentReading finding={f} missing={missing} onAttachEvidence={(kind) => { attachXrayEvidence(f.id, kind); flash(`${kind} linked to ${f.entityCode} from the document read`); }} />
 
         <div className="panel" style={{ marginBottom: 16 }}>
           <div className="panel-head">

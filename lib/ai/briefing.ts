@@ -37,10 +37,12 @@ export function briefing(i: BriefingInput): { sections: Section[]; markdown: str
   const mvBase = movementVsBaseline(i.inputs, calcs);
   const mvPrior = movementVsPrior(i.inputs, calcs);
   const openTasks = i.tasks.filter((x) => x.status === "open" || x.status === "assigned");
+  // Decisions carry the accountable owner: elections and scenario adoption sit with the tax manager
+  // (reviewer permission), blocking validations with the owner the Reviewer assigned.
   const decisions = [
-    ...Object.keys(i.inputs.electionsOn).filter((k) => i.inputs.electionsOn[k]).map((k) => `Election on working package: ${k}`),
-    ...i.scenarios.filter((s) => s.status === "proposed" || s.status === "draft").map((s) => `Scenario awaiting decision: ${s.title} (${eur(s.baseTopUp)} → ${eur(s.topUp)})`),
-    ...i.reviewer.filter((r) => r.kind === "validation" && r.severity === "block").slice(0, 3).map((r) => `Blocking validation: ${r.title}`),
+    ...Object.keys(i.inputs.electionsOn).filter((k) => i.inputs.electionsOn[k]).map((k) => `Election on working package: ${k} — owner: Tax manager (confirm before snapshot approval)`),
+    ...i.scenarios.filter((s) => s.status === "proposed" || s.status === "draft").map((s) => `Scenario awaiting decision: ${s.title} (${eur(s.baseTopUp)} → ${eur(s.topUp)}) — proposed by ${s.createdBy}; decision: Tax manager`),
+    ...i.reviewer.filter((r) => r.kind === "validation" && r.severity === "block").slice(0, 3).map((r) => `Blocking validation: ${r.title} — owner: ${r.owner}`),
   ];
   const detail = i.audience === "board" ? 3 : i.audience === "cfo" ? 5 : 8;
 
@@ -64,6 +66,14 @@ export function briefing(i: BriefingInput): { sections: Section[]; markdown: str
   if (!ctx.outstanding.reviewerRan) unc.push("Calculation Reviewer has not run on this snapshot.");
   if (!ctx.outstanding.girValidated) unc.push("GIR preflight not run.");
   sections.push({ kind: "gaps", title: "Uncertainty", items: unc.length ? unc : ["No open uncertainty flags on this version."] });
+  // Confirmed versus estimated: the reader must be able to tell which figures rest on confirmed facts.
+  const confirmed = top.filter((c) => c.completeness >= 90 && !hs.reasons.some((r) => r.jurisdiction === c.name));
+  const estimated = top.filter((c) => !confirmed.includes(c));
+  sections.push({ kind: "facts", title: "Confirmed results versus estimates", items: [
+    confirmed.length ? `Supported by confirmed data: ${confirmed.map((c) => `${c.name} ${eur(c.jurisdictionalTopUp)}`).join(", ")}.` : "No jurisdiction top-up is fully supported by confirmed data yet.",
+    estimated.length ? `Estimates or open facts: ${estimated.map((c) => `${c.name} ${eur(c.jurisdictionalTopUp)} (${c.completeness < 90 ? `${c.completeness}% data` : "X-Ray open"})`).join(", ")}.` : "No jurisdiction top-up depends on estimates.",
+    `Every amount above is copied from ${ctx.calcVersion}; the assistant does not estimate figures.`,
+  ] });
   sections.push({ kind: "next", items: [
     openTasks.length ? `${openTasks.length} open task${openTasks.length === 1 ? "" : "s"} across ${new Set(openTasks.map((x) => x.owner)).size} owners; ${openTasks.filter((x) => x.severity === "block").length} blocking.` : "No open tasks.",
     ctx.outstanding.snapshotApproved ? "Snapshot approved — proceed to GIR export and filing calendar." : "Approve the snapshot once X-Ray hard-stops clear.",
@@ -78,6 +88,9 @@ export function briefing(i: BriefingInput): { sections: Section[]; markdown: str
     for (const it of s.items ?? []) md.push(`- ${it}`);
     md.push("");
   }
+  md.push("## Where each figure comes from");
+  for (const c of top.slice(0, detail)) md.push(`- ${c.name}: GloBE ETR ${pct(c.etr, 2)}, top-up ${eur(c.jurisdictionalTopUp)} — ${ctx.calcVersion} trace → ${c.name} → Top-up (trace: /etr?iso=${c.iso}; audit view: /audit)`);
+  md.push(`- Group totals — ${ctx.calcVersion} group trace (/overview, /top-up)`, mvPrior ? `- Movement — year ledger, ${mvPrior.prior.fy} lock versus ${ctx.fy} (/years)` : "- Movement — no prior lock on the year ledger", "- Uncertainty — Pillar Two X-Ray open items (/xray) and Calculation Reviewer (/reviewer)", "");
   md.push("---", `Every figure is copied from calculation version ${ctx.calcVersion}. Items marked provisional or X-Ray open may change. This document is a draft for internal review.`);
   return { sections, markdown: md.join("\n"), provisional };
 }

@@ -1,3 +1,5 @@
+import type { RegChange, RegSourceState } from "./regwatchSources";
+import type { RehearsalAttempt } from "./rehearsalClient";
 import type { ProductMode } from "../model";
 
 /**
@@ -173,6 +175,15 @@ export type Reply = {
   lang: Lang;
   chips?: string[];
   latencyMs?: number;
+  /** "llm": composed by the configured language model from tool evidence; "rules": deterministic module, no model. */
+  engine?: "llm" | "rules";
+  model?: string;
+  steps?: number;
+  toolsUsed?: string[];
+  confidence?: "high" | "medium" | "low";
+  tokens?: { input: number; output: number };
+  /** Set when the model was unavailable; the reply carries the question so it can be retried. */
+  failed?: { code: string; detail: string; question: string; feature: FeatureId; attachmentIds?: string[] };
 };
 
 export type ThreadMessage =
@@ -402,6 +413,11 @@ export type AiState = {
   guide: { steps: { href: string; target: string; text: string }[]; index: number } | null;
   /** Quick Scan results kept for comparison and onboarding. Shape owned by lib/scan. */
   scans: unknown[];
+  /** Regulatory Impact Watch: client cache of the server monitor (changes detected on official sources, per-source state). */
+  regChanges: RegChange[];
+  regSources: RegSourceState[];
+  /** Audit Rehearsal: the team's answers and their evaluations, per rehearsal question. Shape owned by lib/ai/rehearsalClient. */
+  rehearsalAttempts: Record<string, RehearsalAttempt[]>;
 };
 
 export function emptyAiState(): AiState {
@@ -419,6 +435,9 @@ export function emptyAiState(): AiState {
     attachments: [],
     guide: null,
     scans: [],
+    regChanges: [],
+    regSources: [],
+    rehearsalAttempts: {},
   };
 }
 

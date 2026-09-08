@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Paperclip, Trash2, X } from "lucide-react";
+import { ArrowUp, Paperclip, RefreshCw, Square, Trash2, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAi } from "@/components/AiProvider";
 import { ReplyView } from "@/components/ai/ReplyView";
@@ -61,9 +61,23 @@ export function Copilot() {
         {msgs.map((m, i) => m.role === "user" ? (
           <div key={i} className="bubble user">{m.text}{m.attachments?.length ? <div style={{ fontSize: 10, opacity: 0.8, marginTop: 4 }}>{m.attachments.length} attachment{m.attachments.length === 1 ? "" : "s"} in context</div> : null}</div>
         ) : (
-          <div key={i} className="bubble ai" style={{ whiteSpace: "normal" }}><ReplyView reply={m.reply} compact /></div>
+          <div key={i} className="bubble ai" style={{ whiteSpace: "normal" }}>
+            <ReplyView reply={m.reply} compact />
+            {m.reply.failed && i === msgs.length - 1 && !ai.busy && (
+              <div className="stack-actions" style={{ marginTop: 8 }}>
+                <button className="btn btn-primary" style={{ fontSize: 12, padding: "5px 10px" }} onClick={() => { void ai.refreshModel(); void ai.ask(m.reply.failed!.question, { feature: m.reply.failed!.feature, attachmentIds: m.reply.failed!.attachmentIds }); }}><RefreshCw size={12} />{ai.lang === "th" ? "ลองใหม่" : "Retry"}</button>
+                <button className="btn btn-secondary" style={{ fontSize: 12, padding: "5px 10px" }} onClick={() => ai.askRules(m.reply.failed!.question, { feature: m.reply.failed!.feature, attachmentIds: m.reply.failed!.attachmentIds })}>{ai.lang === "th" ? "ดูคำตอบจากกฎเกณฑ์" : "Rule-based answer"}</button>
+              </div>
+            )}
+          </div>
         ))}
-        {ai.busy && <div className="bubble ai text-muted">Working…</div>}
+        {ai.busy && (
+          <div className="bubble ai text-muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="copilot-pulse" />
+            <span style={{ flex: 1 }}>{progressLabel(ai.progress, ai.lang)}</span>
+            <button className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 6px" }} onClick={ai.cancel} title="Cancel"><Square size={11} />{ai.lang === "th" ? "ยกเลิก" : "Cancel"}</button>
+          </div>
+        )}
         <div ref={end} />
       </div>
       {attachments.length > 0 && (
@@ -98,10 +112,25 @@ export function Copilot() {
           <button className="btn btn-primary" type="submit" aria-label="Send" disabled={ai.busy}><ArrowUp size={16} /></button>
         </div>
         <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--color-text) 45%, transparent)", marginTop: 8, display: "flex", justifyContent: "space-between", gap: 8 }}>
-          <span>Engine posts every number. Actions run through the gateway as {ROLE_LABEL[ai.ctx.role]}.</span>
+          <span title={ai.model.detail}>
+            <span className={`model-dot ${!ai.model.checked ? "" : ai.model.configured && ai.model.reachable ? "ok" : ai.model.configured ? "warn" : "off"}`} />
+            {!ai.model.checked ? "Checking model…" : ai.model.configured ? `${ai.model.model}${ai.model.reachable ? "" : " · unreachable"}` : "No model connected"} · actions as {ROLE_LABEL[ai.ctx.role]}
+          </span>
           {msgs.length > 0 && <button type="button" className="btn btn-ghost" style={{ fontSize: 10, padding: 0 }} onClick={ai.clearThread}>Clear thread</button>}
         </div>
       </form>
     </aside>
   );
+}
+
+function progressLabel(p: { stage: string; detail?: string } | null, lang: "th" | "en") {
+  const th = lang === "th";
+  if (!p) return th ? "กำลังทำงาน…" : "Working…";
+  switch (p.stage) {
+    case "retrieving": return th ? "กำลังค้นฐานความรู้และผลคำนวณ…" : "Retrieving knowledge and calculation results…";
+    case "thinking": return th ? `กำลังวิเคราะห์${p.detail ? ` (${p.detail})` : ""}…` : `Thinking${p.detail ? ` (${p.detail})` : ""}…`;
+    case "tool": return th ? `กำลังเรียกข้อมูล: ${p.detail}…` : `Running ${p.detail}…`;
+    case "validating": return th ? "กำลังตรวจสอบตัวเลขกับหลักฐาน…" : "Checking figures against evidence…";
+    default: return th ? "กำลังทำงาน…" : "Working…";
+  }
 }
