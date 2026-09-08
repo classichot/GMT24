@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ModeToggle } from "@/components/ModeToggle";
 import { useStore } from "@/lib/store";
-import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
+import { DATA, ADVISOR_USER } from "@/lib/model";
 
 export default function SettingsPage() {
   const { mode, setMode, flash, activeFy, yearLocked, groupId, historyImmutable, setHistoryImmutable, historyChainOk, historyEvents } = useStore();
   const router = useRouter();
-  const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   return (
     <div className="grid-2">
       <div className="panel">

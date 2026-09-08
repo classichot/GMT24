@@ -1,7 +1,7 @@
 "use client";
 
 import { Amount } from "@/components/Amount";
-import { JURISDICTION_PACKS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { eur, pct } from "@/lib/format";
@@ -79,7 +79,7 @@ export default function AllocationPage() {
           <table className="table">
             <thead><tr><th>Jur.</th><th>IIR</th><th>QDMTT</th><th>QDMTT SH</th><th>UTPR</th><th>From</th><th>Qualified</th></tr></thead>
             <tbody>
-              {JURISDICTION_PACKS.map((p) => (
+              {DATA.packs.map((p) => (
                 <tr key={p.iso}>
                   <td>{p.name}</td>
                   <td>{p.iir ? "Yes" : "No"}</td>

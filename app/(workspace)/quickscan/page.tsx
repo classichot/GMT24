@@ -30,6 +30,7 @@ export default function QuickScanPage() {
           <div className="text-muted" style={{ marginTop: 4 }}>Enter a group and get a preliminary exposure map from its public disclosures: scope, structure, jurisdictions, incentives, the company&apos;s own Pillar Two statements — each finding with its basis, source page and what would change it. Nothing here is a top-up calculation.</div>
         </div>
         <div className="stack-actions" style={{ fontSize: 12 }}>
+          <Link href="/playbook/copilot" className="btn btn-secondary">Playbook</Link>
           <Link href="/scan" className="btn btn-ghost">Public scan page</Link>
           <Link href="/xray" className="btn btn-ghost">Pillar Two X-Ray</Link>
         </div>

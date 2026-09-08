@@ -1,4 +1,4 @@
-import { ISSUES } from "../model";
+import { DATA } from "../model";
 import { findingStatus, type XrayFinding, type XrayState } from "../xray";
 import type { ManualTask, Task, TaskOverride, TaskStatus } from "./types";
 
@@ -22,7 +22,7 @@ const SEED_AT = "2026-08-13T09:00:00.000Z";
 
 export function deriveTasks(i: TaskInput): Task[] {
   const out: Task[] = [];
-  for (const iss of ISSUES) {
+  for (const iss of DATA.issues) {
     out.push({
       id: `task:issue:${iss.id}`,
       source: "issue",

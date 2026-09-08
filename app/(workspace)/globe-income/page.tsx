@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { entityCalc, traceAdj } from "@/lib/engine";
 import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -62,7 +62,7 @@ const REFERENCES = [
   { cite: "Art. 3.2.2", work: "Stock-based compensation election", loc: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
   { cite: "Arts. 3.2.3 / 3.2.4 / 3.2.9", work: "Pension, arm's-length and insurance policyholder-tax account postings", loc: "Books → FANIL posting engine", href: "/mapping" },
   { cite: "Art. 3.4", work: "International Shipping Income exclusion — ISI + QAISI (50% cap); Art. 3.4.5 management test; related tax and SBIE strip", loc: "OECD-SHIP-34 v2026.1", href: "/rulebook" },
-  { cite: "Art. 3.5", work: "Permanent Establishment FANIL allocation — equal and opposite Main Entity / PE postings", loc: "TH001 PE allocation workbook FY2026.xlsx", href: "/mapping" },
+  { cite: "Art. 3.5", work: "Permanent Establishment FANIL allocation — equal and opposite Main Entity / PE postings", loc: "PE allocation workbook (Main Entity / PE)", href: "/mapping" },
   { cite: "Art. 4", work: "Covered Taxes — not a GloBE-income adjustment (recast 15% sits here)", loc: "Model Rules Ch. 4", href: "/covered-taxes" },
   { cite: "Art. 5.1.1", work: "Jurisdictional ETR = Covered Taxes ÷ GloBE Income", loc: "OECD-GloBE-15 v2026.1", href: "/etr" },
 ];
@@ -71,7 +71,7 @@ export default function GlobeIncomePage() {
   const { ask, approvedMaps, electionsOn, activeFy } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
-  const [id, setId] = useState("TH-CE");
+  const [id, setId] = useState(() => DATA.entities.find((e) => e.iso === DATA.group.upeIso && e.type !== "UPE")?.id ?? DATA.entities[0].id);
   const row = entityCalc(id, { approvedMaps, electionsOn, fy: activeFy });
   const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
@@ -89,7 +89,7 @@ export default function GlobeIncomePage() {
           <Link href="/mapping" className="btn btn-secondary">Account mapping</Link>
           <Link href="/fx" className="btn btn-secondary">FX / GAAP</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
-          <button className="btn btn-primary" onClick={() => ask(ship.present ? "Explain Art. 3.4 shipping exclusion" : "Explain TH001 excluded dividends")}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(ship.present ? "Explain Art. 3.4 shipping exclusion" : "Explain the excluded dividends adjustment")}>Ask GMT24</button>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export default function GlobeIncomePage() {
       </div>
 
       <select className="input" style={{ maxWidth: 420, marginBottom: 16 }} value={id} onChange={(e) => setId(e.target.value)}>
-        {ENTITIES.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        {DATA.entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
 
       <div className="panel">

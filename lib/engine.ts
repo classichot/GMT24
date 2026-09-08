@@ -1,10 +1,8 @@
 import {
-  ENTITIES,
-  FINANCIALS,
-  ISSUES,
-  JURISDICTION_PACKS,
+  DATA,
   RULES,
   type Entity,
+  type JurisdictionPack,
   type Exposure,
   type Financials,
   type Adjustment,
@@ -12,6 +10,7 @@ import {
   type ShResult,
 } from "./model";
 import { findGroup } from "./onboard";
+import { DEFAULT_SEED_ID, activeSeedId, isSeededGroup, setActiveSeed } from "./seeds";
 import { money } from "./format";
 import { deferredTaxAdjustment, viewsForEntity, type DtView } from "./deferredTax";
 import {
@@ -106,7 +105,7 @@ export type JurCalc = {
   exposure: Exposure;
   collection: Collection;
   completeness: number;
-  pack: (typeof JURISDICTION_PACKS)[number] | undefined;
+  pack: JurisdictionPack | undefined;
   audit: AuditNode;
   trace: {
     globe: AuditNode;
@@ -176,7 +175,7 @@ function fanilUsd(e: Entity, f: Financials, ctx?: CalcCtx): number {
 }
 
 function entityGlobe(f: Financials, entityId: string, ctx?: CalcCtx) {
-  const e = ENTITIES.find((x) => x.id === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
   const fanil = e ? fanilUsd(e, f, ctx) : f.fanil;
   const adj = sum(entityAdjustments(entityId, ctx?.approvedMaps).map((a) => a.amount));
   return money(fanil + adj - shippingPost(entityId).excludedIncome);
@@ -206,8 +205,8 @@ export function traceAdj(a: Adjustment): AuditNode {
 }
 
 export function traceFanil(entityId: string, ctx?: CalcCtx): AuditNode | null {
-  const e = ENTITIES.find((x) => x.id === entityId);
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const file = `${e.code} Trial Balance FY2026.xlsx`;
   const usd = fanilUsd(e, f, ctx);
@@ -272,8 +271,8 @@ export function traceShippingTax(entityId: string): AuditNode | null {
 }
 
 export function traceGlobeEntity(entityId: string, ctx?: CalcCtx): AuditNode | null {
-  const e = ENTITIES.find((x) => x.id === entityId);
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   const fanil = traceFanil(entityId, ctx);
   if (!e || !f || !fanil) return null;
   const adjs = entityAdjustments(entityId, ctx?.approvedMaps);
@@ -338,8 +337,8 @@ export function traceDtPosition(p: DtView): AuditNode {
 }
 
 export function traceDeferredEntity(entityId: string): AuditNode | null {
-  const e = ENTITIES.find((x) => x.id === entityId);
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const deferred = deferredTaxAdjustment(entityId) ?? f.deferredTax;
   const rows = viewsForEntity(entityId);
@@ -361,7 +360,7 @@ export function traceDeferredEntity(entityId: string): AuditNode | null {
 }
 
 export function traceDeferredIso(iso: string): AuditNode | null {
-  const entities = ENTITIES.filter((e) => e.iso === iso);
+  const entities = DATA.entities.filter((e) => e.iso === iso);
   const children = entities.map((e) => traceDeferredEntity(e.id)).filter(Boolean) as AuditNode[];
   if (!children.length) return null;
   const name = entities[0]?.jurisdiction ?? iso;
@@ -378,8 +377,8 @@ export function traceDeferredIso(iso: string): AuditNode | null {
 }
 
 export function traceCoveredEntity(entityId: string): AuditNode | null {
-  const e = ENTITIES.find((x) => x.id === entityId);
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const deferred = traceDeferredEntity(entityId);
   const shipTax = traceShippingTax(entityId);
@@ -433,7 +432,7 @@ function shPass(flag: boolean): ShResult {
 
 export function allocateCollection(opts: {
   topUp: number;
-  pack: (typeof JURISDICTION_PACKS)[number] | undefined;
+  pack: JurisdictionPack | undefined;
   entities: Entity[];
   iso: string;
   name: string;
@@ -454,7 +453,7 @@ export function allocateCollection(opts: {
   const upe = upeEntity();
   const irPope = pope ? inclusionRatio(pope.id, opts.entities) : 0;
   const irUpe = inclusionRatio(upe.id, opts.entities);
-  const popeEnt = pope ? ENTITIES.find((e) => e.id === pope.id) : undefined;
+  const popeEnt = pope ? DATA.entities.find((e) => e.id === pope.id) : undefined;
   const popePack = popeEnt ? effectivePack(popeEnt.iso, opts.overlay) : undefined;
 
   if (opts.pack?.qdmtt) {
@@ -523,11 +522,11 @@ export function allocateCollection(opts: {
   };
 }
 
-export function groupMeta(groupId = "aetherion") {
+export function groupMeta(groupId = activeSeedId()) {
   return findGroup(groupId);
 }
 
-export function scopeTest(groupId = "aetherion") {
+export function scopeTest(groupId = activeSeedId()) {
   const g = groupMeta(groupId);
   const rule = RULES.find((r) => r.id === "OECD-SCOPE-750")!;
   const hits = g.revenueHistory.filter((r) => r.amount >= Number(rule.parameters.thresholdEur)).length;
@@ -564,16 +563,18 @@ export function scopeTest(groupId = "aetherion") {
   };
 }
 
-export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] {
-  if (groupId !== "aetherion") return calculateGroup("aetherion", ctx).map((j, i) => ({
+export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc[] {
+  // Placeholder clients have no dataset of their own: they are scaled from the default seed.
+  if (!isSeededGroup(groupId)) return calculateGroup(DEFAULT_SEED_ID, ctx).map((j, i) => ({
     ...j,
     jurisdictionalTopUp: groupId === "helios" ? 0 : groupId === "meridian" && i < 2 ? Math.round(j.jurisdictionalTopUp * 0.14) : 0,
     exposure: groupId === "helios" ? "Safe harbour" : j.exposure,
   }));
+  setActiveSeed(groupId);
 
   const classes = classifyAll();
   const byBlend = new Map<string, Entity[]>();
-  for (const e of ENTITIES) {
+  for (const e of DATA.entities) {
     const cls = classes.find((c) => c.id === e.id);
     if (!cls || cls.blendKind === "excluded") continue;
     const list = byBlend.get(cls.blendKey) ?? [];
@@ -588,14 +589,14 @@ export function calculateGroup(groupId = "aetherion", ctx?: CalcCtx): JurCalc[] 
     const name = cls0.blendLabel;
     const blendKind = cls0.blendKind;
     const aid = blendKey.replace(/:/g, "-");
-    const fins = entities.map((e) => FINANCIALS.find((f) => f.entityId === e.id)).filter(Boolean) as Financials[];
+    const fins = entities.map((e) => DATA.financials.find((f) => f.entityId === e.id)).filter(Boolean) as Financials[];
     const revenue = money(sum(fins.map((f) => f.revenue)));
     const fanil = money(sum(entities.map((e) => {
-      const f = FINANCIALS.find((x) => x.entityId === e.id);
+      const f = DATA.financials.find((x) => x.entityId === e.id);
       return f ? fanilUsd(e, f, ctx) : 0;
     })));
     const globeIncome = money(sum(entities.map((e) => {
-      const f = FINANCIALS.find((x) => x.entityId === e.id);
+      const f = DATA.financials.find((x) => x.entityId === e.id);
       return f ? entityGlobe(f, e.id, ctx) : 0;
     })));
     const coveredTaxRaw = money(sum(fins.map(entityCovered)));
@@ -937,9 +938,9 @@ export function totals(calcs: JurCalc[]) {
   const low = calcs.filter((c) => c.etr > 0 && c.etr < MIN_RATE).length;
   const sh = calcs.filter((c) => c.exposure === "Safe harbour").length;
   const tu = calcs.filter((c) => c.jurisdictionalTopUp > 0).length;
-  const blocks = ISSUES.filter((i) => i.severity === "block").length;
+  const blocks = DATA.issues.filter((i) => i.severity === "block").length;
   const readiness = Math.round(
-    (1 - ISSUES.filter((i) => i.severity === "block").length * 0.06 - ISSUES.filter((i) => i.severity === "warn").length * 0.025) * 100,
+    (1 - DATA.issues.filter((i) => i.severity === "block").length * 0.06 - DATA.issues.filter((i) => i.severity === "warn").length * 0.025) * 100,
   );
   const audit: AuditNode = {
     id: "group-topup",
@@ -964,7 +965,7 @@ export function totals(calcs: JurCalc[]) {
     tu,
     blocks,
     readiness: Math.max(60, readiness),
-    issues: ISSUES.length,
+    issues: DATA.issues.length,
     minRate: MIN_RATE,
     audit,
   };
@@ -1039,11 +1040,11 @@ export function uniqueIsoCalcs(calcs: JurCalc[]): JurCalc[] {
   return out;
 }
 
-export function calcForIso(iso: string, groupId = "aetherion") {
+export function calcForIso(iso: string, groupId = activeSeedId()) {
   return pickCalc(calculateGroup(groupId), iso);
 }
 
-export function calcForEntity(entityId: string, groupId = "aetherion") {
+export function calcForEntity(entityId: string, groupId = activeSeedId()) {
   return calculateGroup(groupId).find((c) => c.entities.some((e) => e.id === entityId));
 }
 
@@ -1052,8 +1053,8 @@ export function etrHref(c: JurCalc) {
 }
 
 export function entityCalc(entityId: string, ctx?: CalcCtx) {
-  const e = ENTITIES.find((x) => x.id === entityId);
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const e = DATA.entities.find((x) => x.id === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!e || !f) return null;
   const globe = entityGlobe(f, entityId, ctx);
   const covered = entityCovered(f);

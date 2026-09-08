@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { INCENTIVES, ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 
 export default function IncentivesPage() {
@@ -13,8 +13,8 @@ export default function IncentivesPage() {
       <div className="callout" style={{ marginBottom: 16 }}>
         Upload a BOI certificate. GMT24 extracts type, dates, holiday / reduced rate, conditions and credits, then decides which tax and accounting inputs feed Pillar Two. The 2026 package adds the Substance-based Tax Incentive Safe Harbour — incentive records are therefore versioned.
       </div>
-      {INCENTIVES.map((i) => {
-        const e = ENTITIES.find((x) => x.id === i.entityId);
+      {DATA.incentives.map((i) => {
+        const e = DATA.entities.find((x) => x.id === i.entityId);
         return (
           <div key={i.id} className="panel" style={{ marginBottom: 12 }}>
             <div className="panel-head">

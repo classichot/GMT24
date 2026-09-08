@@ -29,7 +29,7 @@ export function quickscanReply(q: string, scan: ScanResult | null, ctx: WorkCont
   if (!scan) {
     return reply(ctx, "Quick Scan", [
       { kind: "text", text: "No scan has been run yet. Give me a company name (Thai or English, ticker, former name or a subsidiary) and I will identify the ultimate parent, read its official disclosures and build a preliminary exposure map — or upload an annual report on the Quick Scan page." },
-      { kind: "list", title: "Demonstration corpus", items: ["Siam Verdant Foods PCL (food; Vietnam, Cambodia, Singapore incentives)", "Chao Phraya Industrial Holdings PCL (electronics; recognised top-up)", "Lanna Digital Group PCL (scope insufficient; IP in Ireland; unresolved BVI link)", "Aetherion Holdings PCL (the workspace demo group)"] },
+      { kind: "list", title: "Demonstration corpus", items: ["Siam Verdant Foods PCL (food; Vietnam, Cambodia, Singapore incentives)", "Chao Phraya Industrial Holdings PCL (electronics; recognised top-up)", "Lanna Digital Group PCL (scope insufficient; IP in Ireland; unresolved BVI link)", "Aetherion Holdings PCL and ThaiCoal PCL (the two workspace demo groups)"] },
     ], [], [goScan]);
   }
   const l = q.toLowerCase();

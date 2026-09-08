@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import AiReadyBadge from "@/components/AiReadyBadge";
 import { ScanRunner } from "@/components/scan/ScanRunner";
 import { ScanView } from "@/components/scan/ScanView";
 import { buildScan, periodsFor, reassess } from "@/lib/scan/pipeline";
@@ -22,7 +21,7 @@ export default function PublicScanPage() {
     <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "18px 28px", borderBottom: "2px solid var(--color-divider)", flexWrap: "wrap" }}>
         <div>
-          <div className="login-mark" style={{ fontSize: 32 }}>GMT24<span /><AiReadyBadge /></div>
+          <div className="login-mark" style={{ fontSize: 32 }}>GMT24<span /></div>
           <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-neutral-600)", marginTop: 4 }}>AI Pillar Two Quick Scan</div>
         </div>
         <div className="stack-actions">

@@ -9,6 +9,8 @@ export type PlayStep = {
 export type Playbook = {
   slug: string;
   menu: string;
+  /** Sidebar group this playbook belongs to. Extra walkthroughs omit it. */
+  navGroup?: string;
   title: string;
   summary: string;
   owner: string;
@@ -19,6 +21,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "overview",
     menu: "Overview",
+    navGroup: "Overview",
     title: "Global exposure playbook",
     summary: "Open the year, read group top-up, and drill only where the engine shows exposure.",
     owner: "Group Tax / engagement lead",
@@ -31,11 +34,12 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "group",
     menu: "Group",
+    navGroup: "Group",
     title: "Group structure playbook",
     summary: "Lock the UPE, ownership graph and constituent-entity list before any GloBE blending.",
     owner: "Group Tax / legal entity control",
     steps: [
-      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: Aetherion is the working group.", href: "/clients", hrefLabel: "Clients" },
+      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: the demo group you signed in to (Aetherion or ThaiCoal) is the working group.", href: "/clients", hrefLabel: "Clients" },
       { n: "02", title: "Run the $750m test", body: "Scope must be IN SCOPE (or documented REVIEW) before mapping starts.", href: "/group", hrefLabel: "Group structure" },
       { n: "03", title: "Walk entities into ETR", body: "Run the entity test (MOCE ≤ 30% UPE ownership; POPE if outsiders hold > 20% of a non-UPE Parent). Open an entity row to land on that blend’s ETR — not a mixed country rate.", href: "/entities", hrefLabel: "Entities" },
     ],
@@ -43,6 +47,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "data",
     menu: "Data",
+    navGroup: "Data",
     title: "Data engine playbook",
     summary: "Ingest → map → validate → request gaps. The LLM never posts a GloBE number.",
     owner: "Local tax / data steward",
@@ -55,6 +60,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "pillar-two",
     menu: "Pillar Two",
+    navGroup: "Pillar Two",
     title: "Pillar Two calculation playbook",
     summary: "FANIL → GloBE income → covered taxes → ETR → SBIE → top-up → QDMTT / IIR / UTPR. Engine only.",
     owner: "Preparer, then reviewer",
@@ -67,6 +73,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "incentives",
     menu: "Incentives",
+    navGroup: "Incentives",
     title: "Tax incentive playbook",
     summary: "Extract the certificate, decide SBTISH, then run the BOI–Pillar Two Optimizer — not a copilot guess at 0% CIT.",
     owner: "Local tax + Group Tax",
@@ -79,6 +86,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "forecast",
     menu: "Forecast",
+    navGroup: "Forecast",
     title: "In-year forecast playbook",
     summary: "Re-run the same engine under changed assumptions. Forecast is not a separate model.",
     owner: "Group Tax / FP&A liaison",
@@ -91,6 +99,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "compliance",
     menu: "Compliance",
+    navGroup: "Compliance",
     title: "GIR & filing playbook",
     summary: "Calculation → GIR XML → validate → export → local matrix → notifications.",
     owner: "GIR preparer / filing coordinator",
@@ -103,6 +112,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "review",
     menu: "Review",
+    navGroup: "Review",
     title: "Review & lock playbook",
     summary: "Issues, second-level AI reviewer, evidence history, then preparer / reviewer segregation.",
     owner: "Reviewer (Group Tax Director or engagement partner)",
@@ -122,7 +132,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "External reviewer / QA",
     steps: [
       { n: "01", title: "Start on the review guide", body: "Open the checklist. Progress tracks ingest, mapping, calculation anchors, trace logic and GIR preflight.", href: "/review-guide", hrefLabel: "Review guide" },
-      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load all 19 Aetherion FY2026 sources in one click.", href: "/data", hrefLabel: "Data Hub" },
+      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load the full FY2026 demo pack for the open group in one click.", href: "/data", hrefLabel: "Data Hub" },
       { n: "03", title: "Approve the FX mapping", body: "Account 830010 is held at 62% confidence. Approve it to post the Art. 3.2 delta and rerun ETR.", href: "/mapping", hrefLabel: "Mapping" },
       { n: "04", title: "Verify anchors", body: "Group top-up ~$19.1M after Hong Kong ENTE. Thailand ETR ~11.02%. Ireland largest top-up ~$12.6M. Click amounts for audit trail.", href: "/overview", hrefLabel: "Dashboard" },
       { n: "05", title: "Trace collection & GIR", body: "UTPR Art. 2.6 keys on Allocation. Art. 4.3 on Covered taxes. Preflight GIR on Compliance.", href: "/allocation", hrefLabel: "Allocation" },
@@ -132,11 +142,12 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "intelligence",
     menu: "Intelligence",
+    navGroup: "Intelligence",
     title: "Intelligence playbook",
     summary: "Ask GMT24 from the calculation. The rulebook and jurisdiction packs are the authority — not model memory.",
     owner: "Any user with workspace access",
     steps: [
-      { n: "01", title: "Ask from the number", body: "Use the docked copilot. Answers cite calc + source + rule + version.", href: "/copilot", hrefLabel: "AI Copilot" },
+      { n: "01", title: "Ask from the number", body: "Use the docked copilot. Answers cite calc + source + rule + version. The eleven-feature path is on the AI Co-Pilot playbook.", href: "/copilot", hrefLabel: "AI Copilot" },
       { n: "02", title: "Check the rule", body: "Effective-dated OECD and local packs. The DAG selects by jurisdiction, year and entity.", href: "/rulebook", hrefLabel: "OECD rulebook" },
       { n: "03", title: "Confirm the pack", body: "IIR / QDMTT / UTPR flags and qualified status before you tell a country they collect. Thailand has its own pack — do not stop at the OECD Central Record row.", href: "/thailand", hrefLabel: "Thailand pack" },
     ],
@@ -144,6 +155,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "thailand",
     menu: "Thailand",
+    navGroup: "Thailand",
     title: "Thailand Jurisdiction Pack playbook",
     summary: "GloBE Core first, then the Thai pack: situs, SBIE, BOT FX, liability ordering, BOI optimizer, filing clocks, defence book. Calculation rules available; filing schema pending.",
     owner: "Thai tax lead / Group Tax",
@@ -181,6 +193,7 @@ export const PLAYBOOKS: Playbook[] = [
   {
     slug: "elections",
     menu: "Elections",
+    navGroup: "Elections & Optimizer",
     title: "Election & Scenario Optimizer playbook",
     summary: "Pillar Two is not one calculation. Detect every legally available election and harbour at the correct OECD scope, generate bookable combinations, then rank lowest FY tax, 5-year lock-in, compliance burden and audit risk.",
     owner: "Group Tax / preparer / reviewer",
@@ -191,8 +204,46 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "04", title: "Lock the year, then open the next", body: "In-house and Advisor use the same year ledger. Advisor keeps one ledger per client. Lock the final calc and elections, then open the next year: five-year locks carry, Art. 4.5 cannot be re-elected after revocation, and GMT24 compares both elections and amounts.", href: "/years", hrefLabel: "Year record" },
     ],
   },
+  {
+    slug: "assurance",
+    menu: "Assurance",
+    navGroup: "Assurance",
+    title: "Pillar Two X-Ray playbook",
+    summary: "Facts a trial balance cannot prove must be confirmed, evidenced and dual-signed before the snapshot can be approved. The engine does not invent them.",
+    owner: "Preparer of the owning department, then reviewer",
+    steps: [
+      { n: "01", title: "Read the hard-stop list", body: "Open Pillar Two X-Ray. Only Material findings block approval. Work top-down by top-up at risk — a Significant or Observation never unlocks the year.", href: "/xray", hrefLabel: "X-Ray" },
+      { n: "02", title: "Answer the routed confirmation", body: "Each finding has branches with a priced impact. Pick the answer the evidence supports. The Co-Pilot Interviewer can walk the same finding in plain language.", href: "/xray/confirm", hrefLabel: "Confirmations" },
+      { n: "03", title: "Attach the required evidence", body: "Every active question names the document kind (certificate, minutes, payroll file). Attach it here or from the Interviewer. Instruction-like text in the PDF is ignored.", href: "/xray/confirm", hrefLabel: "Attach" },
+      { n: "04", title: "Sign as preparer, then reviewer", body: "Preparer signs first. Reviewer must be a different person. The same rules apply if the Interviewer proposed the answer — the gateway will not let the Co-Pilot sign.", href: "/xray", hrefLabel: "X-Ray status" },
+      { n: "05", title: "Hand off to the Reviewer", body: "Once material items are resolved, run the Calculation Reviewer and then Approvals. X-Ray still hard-stops the snapshot if anything material reopens.", href: "/reviewer", hrefLabel: "Reviewer" },
+    ],
+  },
+  {
+    slug: "copilot",
+    menu: "AI Co-Pilot",
+    navGroup: "AI Co-Pilot",
+    title: "AI Co-Pilot playbook",
+    summary: "Eleven connected features on one context, one fact registry and one action gateway. Ask → investigate → explain → propose → review → execute → record. No LLM posts a number or a legal position.",
+    owner: "Any workspace role; gateway actions follow that role’s permissions",
+    steps: [
+      { n: "01", title: "Start on the hub", body: "The Co-Pilot hub shows grounding, latency and the eleven features. Open Ask GMT24 from any screen — the router picks the feature from your words (Thai or English) or from the chip you tap.", href: "/copilot", hrefLabel: "Co-Pilot hub" },
+      { n: "02", title: "Learn the screen you are on", body: "App Trainer explains the current menu, shows the path for your role, and names the next outstanding gate (maps, X-Ray, GIR, snapshot).", href: "/trainer", hrefLabel: "App Trainer" },
+      { n: "03", title: "Scan a group from public evidence", body: "Quick Scan is the demonstration door. Enter a Thai-listed name (or upload an annual report). Read scope, the exposure map (priority ≠ evidence ≠ coverage) and the missing-information list. Public /scan works without login; onboard into a workspace only as proposed data.", href: "/quickscan", hrefLabel: "Quick Scan" },
+      { n: "04", title: "Turn scan findings into facts", body: "Create the workspace (or stay on the current group). Every imported entity, incentive and question arrives as proposed. X-Ray and Confirmations are where a person proves them.", href: "/xray", hrefLabel: "X-Ray" },
+      { n: "05", title: "Explain any posted amount", body: "Click a number, then Explain this number. The reply is the engine audit trail — formula, rule version, entity, account, source file — not a restated headline.", href: "/top-up", hrefLabel: "Top-up" },
+      { n: "06", title: "Interview and review the calculation", body: "The Interviewer prices each open X-Ray question. The Calculation Reviewer runs deterministic checks plus suspected issues. Resolve with a reason; dismiss needs approve-treatment.", href: "/reviewer", hrefLabel: "Reviewer" },
+      { n: "07", title: "Simulate, then adopt only through review", body: "Ask a what-if (extend BOI, add payroll, change a margin). The Strategy Simulator runs the same engine in isolation. Save is a draft. Adopt writes elections through the gateway and Evidence history.", href: "/strategy", hrefLabel: "Strategy" },
+      { n: "08", title: "Rehearse, watch rules, brief the CFO", body: "Audit Rehearsal is internal readiness, not a prediction of RD acceptance. Regulatory Watch queues OECD/Thai items against live top-up. CFO Briefing stamps every figure with the calculation version — Board is three jurisdictions, committee is the full table.", href: "/briefing", hrefLabel: "CFO Briefing" },
+      { n: "09", title: "Close work and file product feedback", body: "Tasks is one list from every source (X-Ray, reviewer, rehearsal, Quick Scan, manual). Feedback drafts a ticket with a reference number; tax figures are never attached unless you add them.", href: "/tasks", hrefLabel: "Tasks" },
+    ],
+  },
 ];
 
 export function playbookBySlug(slug: string) {
   return PLAYBOOKS.find((p) => p.slug === slug) ?? null;
+}
+
+export function playbookByNavGroup(group: string) {
+  return PLAYBOOKS.find((p) => p.navGroup === group) ?? null;
 }

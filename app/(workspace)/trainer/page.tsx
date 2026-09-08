@@ -22,6 +22,7 @@ export default function TrainerPage() {
           <strong>Learn GMT24 while doing the work.</strong>
           <div className="text-muted" style={{ marginTop: 4 }}>Three modes on every screen: explain it, show me the path, help me complete it. Guidance follows your role, your screen and what is still outstanding.</div>
         </div>
+        <Link href="/playbook/copilot" className="btn btn-secondary">Playbook</Link>
         <label style={{ fontSize: 12, display: "flex", gap: 6, alignItems: "center" }}>Role
           <select className="input" style={{ minHeight: 0, padding: "4px 8px", width: "auto" }} value={ai.ctx.role} onChange={(e) => ai.setRole(e.target.value as UserRole)}>{(Object.keys(ROLE_LABEL) as UserRole[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select>
         </label>

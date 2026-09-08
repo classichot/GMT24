@@ -1,5 +1,6 @@
-import { ENTITIES, FINANCIALS, JURISDICTION_PACKS, RULES } from "./model";
+import { DATA, RULES } from "./model";
 import { money } from "./format";
+import { activeSeedId, seedFacts } from "./seeds";
 
 export const DT_FY = 2026;
 export const DT_HORIZON = [2026, 2027, 2028, 2029, 2030, 2031] as const;
@@ -21,6 +22,12 @@ export const CIT_RATE: Record<string, number> = {
   HU: 0.09,
   US: 0.21,
   IE: 0.125,
+  AU: 0.3,
+  CN: 0.25,
+  LA: 0.2,
+  MN: 0.25,
+  HK: 0.165,
+  LU: 0.2494,
 };
 
 export type RecaptureExceptionCode =
@@ -546,12 +553,370 @@ function buildOther(): DtPosition[] {
   ];
 }
 
+const TC_TEMPLATES: { type: string; side: DtSide; exception: RecaptureExceptionCode | null; originBias: number; entities: string[] }[] = [
+  { type: "Mine plant & port infrastructure — accelerated tax depreciation", side: "DTL", exception: "4.4.5(a)", originBias: 2023, entities: ["TC-UPE", "TC-TH-MIN"] },
+  { type: "Power plant & grid assets — tax vs accounting depreciation", side: "DTL", exception: "4.4.5(a)", originBias: 2022, entities: ["TC-TH-PWR", "TC-TH-NRG"] },
+  { type: "Barges & tugs — cost recovery", side: "DTL", exception: "4.4.5(a)", originBias: 2024, entities: ["TC-TH-MIN"] },
+  { type: "Exploration & stripping costs — tax timing", side: "DTL", exception: "4.4.5(b)", originBias: 2025, entities: ["TC-UPE"] },
+  { type: "Mine rehabilitation obligation", side: "DTL", exception: "4.4.5(d)", originBias: 2024, entities: ["TC-UPE", "TC-TH-MIN"] },
+  { type: "Retirement benefit accrual (TFRS)", side: "DTA", exception: null, originBias: 2025, entities: ["TC-UPE", "TC-TH-PWR"] },
+  { type: "Major overhaul provision", side: "DTA", exception: null, originBias: 2026, entities: ["TC-TH-PWR", "TC-TH-NRG"] },
+  { type: "Coal stockpile NRV write-down", side: "DTA", exception: null, originBias: 2026, entities: ["TC-UPE"] },
+  { type: "Accrued royalties not yet deductible", side: "DTA", exception: null, originBias: 2026, entities: ["TC-UPE", "TC-TH-MIN"] },
+  { type: "Unrealised fair-value gain on coal-price swaps", side: "DTL", exception: "4.4.5(e)", originBias: 2026, entities: ["TC-UPE"] },
+  { type: "FX on USD project debt", side: "DTL", exception: "4.4.5(f)", originBias: 2026, entities: ["TC-TH-NRG"] },
+  { type: "Revenue recognition timing — PPA take-or-pay", side: "DTL", exception: null, originBias: 2026, entities: ["TC-TH-PWR"] },
+];
+
+function buildThaiCoal(): DtPosition[] {
+  const out: DtPosition[] = [
+    pos({
+      id: "DTL-TC-PORT",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Port, barge & mine infrastructure — accelerated depreciation",
+      side: "DTL",
+      opening: 2_100_000,
+      addition: 600_000,
+      reversal: 300_000,
+      originYear: 2023,
+      expectedReversalYear: 2033,
+      exception: "4.4.5(a)",
+      evidence: "Fixed_asset_register_TH.xlsx · TC tax provision FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-REHAB",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Mine rehabilitation obligation",
+      side: "DTL",
+      opening: 900_000,
+      addition: 200_000,
+      reversal: 100_000,
+      originYear: 2024,
+      expectedReversalYear: 2035,
+      exception: "4.4.5(d)",
+      evidence: "TC tax provision FY2026.xlsx · rehabilitation engineer's estimate",
+    }),
+    pos({
+      id: "DTL-TC-2022",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Other temporary difference — origin FY2022",
+      side: "DTL",
+      opening: 480_000,
+      addition: 0,
+      reversal: 60_000,
+      originYear: 2022,
+      expectedReversalYear: null,
+      exception: null,
+      evidence: "Deferred_tax_rollforward.xlsx · Prior_GIR_FY2025.xml",
+    }),
+    pos({
+      id: "DTL-TC-SWAP",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Unrealised fair-value gain on coal-price swaps",
+      side: "DTL",
+      opening: 0,
+      addition: 620_000,
+      reversal: 0,
+      originYear: 2026,
+      expectedReversalYear: 2027,
+      exception: "4.4.5(e)",
+      evidence: "TC tax provision FY2026.xlsx · hedge documentation",
+    }),
+    pos({
+      id: "DTA-TC-EMP",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Retirement benefit accrual (TFRS)",
+      side: "DTA",
+      opening: 640_000,
+      addition: 120_000,
+      reversal: 80_000,
+      originYear: 2024,
+      expectedReversalYear: 2029,
+      exception: null,
+      evidence: "Payroll_TH_FY2026.csv · actuarial report",
+    }),
+    pos({
+      id: "DTA-TC-LOSS-UNREC",
+      entityId: "TC-UPE",
+      iso: "TH",
+      type: "Tax loss carry-forward FY2024–25 — unrecognised (deemed GloBE DTA)",
+      side: "DTA",
+      opening: 0,
+      addition: 0,
+      reversal: 0,
+      originYear: 2024,
+      expectedReversalYear: 2029,
+      exception: null,
+      deemed: true,
+      deemedGlobe: 1_800_000,
+      globeRelevant: false,
+      excludedReason: "No accounting DTA was recognised on the FY2024–25 losses that shelter FY2026 taxable profit (IQ-10). Art. 4.4.1 / 4.4.4 — a deemed GloBE DTA at 15% can be posted once the loss memorandum is in evidence, or a GloBE Loss Election (Art. 4.5) tested instead.",
+      evidence: "Data request — P. Wongchai · CIT loss memorandum FY2024–25",
+    }),
+    pos({
+      id: "DTL-TC-PWR-PPE",
+      entityId: "TC-TH-PWR",
+      iso: "TH",
+      type: "Power plant PPE — accelerated depreciation",
+      side: "DTL",
+      opening: 1_900_000,
+      addition: 500_000,
+      reversal: 200_000,
+      originYear: 2023,
+      expectedReversalYear: 2034,
+      exception: "4.4.5(a)",
+      evidence: "TC010 Trial Balance FY2026.xlsx · fixed-asset register",
+    }),
+    pos({
+      id: "DTA-TC-PWR-OVH",
+      entityId: "TC-TH-PWR",
+      iso: "TH",
+      type: "Major overhaul provision",
+      side: "DTA",
+      opening: 300_000,
+      addition: 60_000,
+      reversal: 40_000,
+      originYear: 2025,
+      expectedReversalYear: 2028,
+      exception: null,
+      evidence: "TC010 Trial Balance FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-NRG-SOLAR",
+      entityId: "TC-TH-NRG",
+      iso: "TH",
+      type: "Solar farm & BESS — accelerated tax depreciation (BOI project)",
+      side: "DTL",
+      opening: 5_800_000,
+      addition: 900_000,
+      reversal: 300_000,
+      originYear: 2021,
+      expectedReversalYear: 2036,
+      exception: "4.4.5(a)",
+      evidence: "BOI_Certificate_TC031_solar.pdf · Fixed_asset_register_TH.xlsx",
+    }),
+    pos({
+      id: "DTA-TC-NRG-LOSS",
+      entityId: "TC-TH-NRG",
+      iso: "TH",
+      type: "Tax loss carry-forward — non-promoted activities",
+      side: "DTA",
+      opening: 400_000,
+      addition: 0,
+      reversal: 150_000,
+      originYear: 2023,
+      expectedReversalYear: 2027,
+      exception: null,
+      evidence: "TC031 tax provision FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-MIN-BARGE",
+      entityId: "TC-TH-MIN",
+      iso: "TH",
+      type: "Barges & tugs — cost recovery",
+      side: "DTL",
+      opening: 600_000,
+      addition: 150_000,
+      reversal: 80_000,
+      originYear: 2024,
+      expectedReversalYear: 2032,
+      exception: "4.4.5(a)",
+      evidence: "TC020 TB FY2026.xlsx · fixed-asset register",
+    }),
+    pos({
+      id: "DTA-TC-AU-LOSS",
+      entityId: "TC-AU-COAL",
+      iso: "AU",
+      type: "Tax loss carry-forward — recast from 30% to 15%",
+      side: "DTA",
+      opening: 21_000_000,
+      addition: 3_400_000,
+      reversal: 0,
+      originYear: 2022,
+      expectedReversalYear: 2031,
+      exception: null,
+      evidence: "TC060 TB FY2026.xlsx · AU loss schedule",
+    }),
+    pos({
+      id: "DTL-TC-AU-MINE",
+      entityId: "TC-AU-COAL",
+      iso: "AU",
+      type: "Mine development & plant — accelerated depreciation",
+      side: "DTL",
+      opening: 9_000_000,
+      addition: 800_000,
+      reversal: 1_200_000,
+      originYear: 2020,
+      expectedReversalYear: 2032,
+      exception: "4.4.5(a)",
+      evidence: "TC060 TB FY2026.xlsx · fixed-asset register",
+    }),
+    pos({
+      id: "DTA-TC-AU-REHAB",
+      entityId: "TC-AU-COAL",
+      iso: "AU",
+      type: "Rehabilitation provision — not yet deductible",
+      side: "DTA",
+      opening: 4_200_000,
+      addition: 700_000,
+      reversal: 200_000,
+      originYear: 2021,
+      expectedReversalYear: 2034,
+      exception: null,
+      evidence: "TC060 TB FY2026.xlsx · rehabilitation bond schedule",
+    }),
+    pos({
+      id: "DTL-TC-US-IDC",
+      entityId: "TC-US-GAS",
+      iso: "US",
+      type: "Intangible drilling costs — expensed for tax, capitalised in books",
+      side: "DTL",
+      opening: 41_000_000,
+      addition: 16_800_000,
+      reversal: 2_400_000,
+      originYear: 2023,
+      expectedReversalYear: 2031,
+      exception: null,
+      evidence: "TC070 tax provision FY2026.xlsx — Art. 4.4.5(a) tagging outstanding (IQ-09)",
+    }),
+    pos({
+      id: "DTL-TC-US-CCGT",
+      entityId: "TC-US-PWR",
+      iso: "US",
+      type: "Combined-cycle plant — bonus depreciation",
+      side: "DTL",
+      opening: 14_000_000,
+      addition: 3_300_000,
+      reversal: 900_000,
+      originYear: 2022,
+      expectedReversalYear: 2035,
+      exception: "4.4.5(a)",
+      evidence: "TC071 tax provision FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-ID-MINE",
+      entityId: "TC-ID-COAL",
+      iso: "ID",
+      type: "Mine properties & deferred stripping — tax timing",
+      side: "DTL",
+      opening: 15_200_000,
+      addition: 2_600_000,
+      reversal: 500_000,
+      originYear: 2022,
+      expectedReversalYear: 2033,
+      exception: "4.4.5(a)",
+      evidence: "TC050 consolidated TB FY2026.xlsx · fixed-asset register",
+    }),
+    pos({
+      id: "DTA-TC-ID-REHAB",
+      entityId: "TC-ID-COAL",
+      iso: "ID",
+      type: "Reclamation & post-mining provision",
+      side: "DTA",
+      opening: 3_200_000,
+      addition: 400_000,
+      reversal: 300_000,
+      originYear: 2023,
+      expectedReversalYear: 2032,
+      exception: null,
+      evidence: "TC050 consolidated TB FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-ID-MINE2",
+      entityId: "TC-ID-MINE",
+      iso: "ID",
+      type: "Mining equipment — accelerated depreciation",
+      side: "DTL",
+      opening: 2_900_000,
+      addition: 400_000,
+      reversal: 100_000,
+      originYear: 2023,
+      expectedReversalYear: 2032,
+      exception: "4.4.5(a)",
+      evidence: "TC051 tax provision FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-CN-PPE",
+      entityId: "TC-CN-PWR",
+      iso: "CN",
+      type: "Power plant PPE — accelerated depreciation",
+      side: "DTL",
+      opening: 2_100_000,
+      addition: 400_000,
+      reversal: 100_000,
+      originYear: 2022,
+      expectedReversalYear: 2033,
+      exception: "4.4.5(a)",
+      evidence: "TC090 TB FY2026.xlsx",
+    }),
+    pos({
+      id: "DTA-TC-CN-PROV",
+      entityId: "TC-CN-PWR",
+      iso: "CN",
+      type: "Environmental & warranty provisions",
+      side: "DTA",
+      opening: 800_000,
+      addition: 100_000,
+      reversal: 200_000,
+      originYear: 2024,
+      expectedReversalYear: 2028,
+      exception: null,
+      evidence: "TC090 TB FY2026.xlsx",
+    }),
+    pos({
+      id: "DTL-TC-JP-PPE",
+      entityId: "TC-JP-PWR",
+      iso: "JP",
+      type: "Solar plant PPE — accelerated depreciation",
+      side: "DTL",
+      opening: 1_900_000,
+      addition: 300_000,
+      reversal: 100_000,
+      originYear: 2023,
+      expectedReversalYear: 2034,
+      exception: "4.4.5(a)",
+      evidence: "TC080 tax provision FY2026.xlsx",
+    }),
+  ];
+
+  const rand = rng(20260814);
+  for (let i = 0; i < 44; i++) {
+    const t = TC_TEMPLATES[i % TC_TEMPLATES.length];
+    const entityId = t.entities[i % t.entities.length];
+    const add = money(6_000 + rand() * 30_000);
+    const rev = money(rand() * add * 0.35);
+    const open = t.side === "DTL" && t.exception ? money(rand() * 9_000) : 0;
+    out.push(
+      pos({
+        id: `DT-TC-${String(30100 + i)}`,
+        entityId,
+        iso: "TH",
+        type: t.type,
+        side: t.side,
+        opening: open,
+        addition: add,
+        reversal: rev,
+        originYear: t.originBias,
+        expectedReversalYear: t.exception ? 2032 + (i % 4) : 2027 + (i % 5),
+        exception: t.exception,
+        evidence: t.exception === "4.4.5(a)" ? "Fixed_asset_register_TH.xlsx" : "TC tax provision FY2026.xlsx",
+      }),
+    );
+  }
+  return out;
+}
+
 function plugToTarget(rows: DtPosition[], entityId: string, target: number): DtPosition[] {
   const entityRows = rows.filter((r) => r.entityId === entityId);
   const current = entityRows.reduce((a, r) => a + enrich(r).pnl, 0);
   const gap = money(target - current);
   if (gap === 0) return rows;
-  const iso = ENTITIES.find((e) => e.id === entityId)?.iso ?? "TH";
+  const iso = DATA.entities.find((e) => e.id === entityId)?.iso ?? "TH";
   const rate = CIT_RATE[iso] ?? MIN_RATE;
   const accounting = money(Math.abs(gap) / (globeRate(rate) / rate || 1));
   const asDtl = gap > 0;
@@ -574,18 +939,26 @@ function plugToTarget(rows: DtPosition[], entityId: string, target: number): DtP
   return rows;
 }
 
-let CACHE: DtPosition[] | null = null;
+const BUILDERS: Record<string, () => DtPosition[]> = {
+  aetherion: () => [...buildThailand(), ...buildOther()],
+  thaicoal: buildThaiCoal,
+};
 
+const CACHE = new Map<string, DtPosition[]>();
+
+/** Register for the open group. Built once per seed; the FANIL deferred-tax figure is plugged per entity that has a ledger. */
 export function deferredTaxRegister(): DtPosition[] {
-  if (CACHE) return CACHE;
-  let rows = [...buildThailand(), ...buildOther()];
+  const seed = activeSeedId();
+  const cached = CACHE.get(seed);
+  if (cached) return cached;
+  let rows = (BUILDERS[seed] ?? (() => []))();
   const withLedger = new Set(rows.map((r) => r.entityId));
-  for (const f of FINANCIALS) {
+  for (const f of DATA.financials) {
     if (withLedger.has(f.entityId)) {
       rows = plugToTarget(rows, f.entityId, f.deferredTax);
     }
   }
-  CACHE = rows;
+  CACHE.set(seed, rows);
   return rows;
 }
 
@@ -633,7 +1006,7 @@ export type DtJurisdiction = {
 
 export function jurisdictionDt(iso: string): DtJurisdiction {
   const positions = viewsForIso(iso);
-  const pack = JURISDICTION_PACKS.find((p) => p.iso === iso);
+  const pack = DATA.packs.find((p) => p.iso === iso);
   const cit = CIT_RATE[iso] ?? MIN_RATE;
   const approaching = money(
     positions.filter((p) => statusAt(p) === "approaching").reduce((a, p) => a + remainingAt(p, DT_FY), 0),
@@ -745,16 +1118,28 @@ export type OriginSnapshot = {
   source: string;
 };
 
-export const ORIGIN_SNAPSHOTS: OriginSnapshot[] = [
-  {
-    iso: "TH",
-    fy: 2022,
-    globeIncome: 24_706_000,
-    coveredTax: 3_805_000,
-    sbie: 5_200_000,
-    source: "Deferred_tax_rollforward.xlsx · reconstructed origin-year GloBE file",
-  },
-];
+export const ORIGIN_SNAPSHOTS = seedFacts<OriginSnapshot>({
+  aetherion: [
+    {
+      iso: "TH",
+      fy: 2022,
+      globeIncome: 24_706_000,
+      coveredTax: 3_805_000,
+      sbie: 5_200_000,
+      source: "Deferred_tax_rollforward.xlsx · reconstructed origin-year GloBE file",
+    },
+  ],
+  thaicoal: [
+    {
+      iso: "TH",
+      fy: 2022,
+      globeIncome: 141_000_000,
+      coveredTax: 19_600_000,
+      sbie: 24_000_000,
+      source: "Deferred_tax_rollforward.xlsx · reconstructed FY2022 Thai GloBE file (pre-QDMTT)",
+    },
+  ],
+});
 
 export type RecaptureClock = {
   originYear: number;

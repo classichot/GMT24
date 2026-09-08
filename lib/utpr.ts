@@ -1,5 +1,5 @@
 import { money } from "./format";
-import { ENTITIES, FINANCIALS, JURISDICTION_PACKS } from "./model";
+import { DATA } from "./model";
 
 export type UtprFactor = {
   iso: string;
@@ -20,14 +20,14 @@ const excluded = new Set(["Investment", "Excluded", "JV", "JV Sub"]);
  * MNE's UTPR key. Callers pass the effective pack list so a reviewer-accepted
  * UTPR amendment changes which jurisdictions share the residual.
  */
-export function utprAllocation(totalUtpr = 0, packs = JURISDICTION_PACKS): UtprFactor[] {
+export function utprAllocation(totalUtpr = 0, packs = DATA.packs): UtprFactor[] {
   const eligible = packs.filter((p) => p.utpr && p.iso !== "XX");
   const rows = eligible.map((pack) => {
-    const entities = ENTITIES.filter(
+    const entities = DATA.entities.filter(
       (e) => e.iso === pack.iso && !excluded.has(e.type) && !e.equityMethod,
     );
     const financials = entities
-      .map((e) => FINANCIALS.find((f) => f.entityId === e.id))
+      .map((e) => DATA.financials.find((f) => f.entityId === e.id))
       .filter((f): f is NonNullable<typeof f> => Boolean(f));
     return {
       iso: pack.iso,

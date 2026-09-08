@@ -33,6 +33,10 @@ export const FX_RATES: FxRow[] = [
   { iso: "HU", currency: "HUF", localPerUsd: 395, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/HUF" },
   { iso: "US", currency: "USD", localPerUsd: 1, asOf: "2025-12-31", source: "Presentation currency", pair: "USD/USD" },
   { iso: "HK", currency: "HKD", localPerUsd: 7.78, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/HKD" },
+  { iso: "AU", currency: "AUD", localPerUsd: 1.52, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/AUD" },
+  { iso: "CN", currency: "CNY", localPerUsd: 7.18, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/CNY" },
+  { iso: "LA", currency: "LAK", localPerUsd: 21_800, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/LAK" },
+  { iso: "MN", currency: "MNT", localPerUsd: 3_450, asOf: "2025-12-31", source: "UPE CFS average rate · FY2026", pair: "USD/MNT" },
 ];
 
 export function fxRate(iso: string): FxRow {

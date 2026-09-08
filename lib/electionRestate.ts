@@ -2,32 +2,70 @@ import { money } from "./format";
 import { MIN_RATE } from "./deferredTax";
 import { transitionLines } from "./transition";
 import { deferredTaxAdjustment } from "./deferredTax";
-import { FINANCIALS, ENTITIES } from "./model";
+import { DATA } from "./model";
+import { seedFact } from "./seeds";
 
-/** Seeded Art. 6.3.4 transfer for election restatement. */
-export const TRANSFER_634 = {
-  id: "TX-634-TH",
-  iso: "TH",
-  entityId: "TH-CE",
-  label: "Rayong tooling fair-value step-up on intra-group contribution",
-  booksGain: 2_400_000,
-  taxBasisAlign: 1_800_000,
-  evidence: "Intra_group_transfer_register.xlsx · Art. 6.3.4 memo",
-};
+type Transfer634 = { id: string; iso: string; entityId: string; label: string; booksGain: number; taxBasisAlign: number; evidence: string };
+type Immaterial461 = { iso: string; amount: number; note: string };
+type Edts73 = { iso: string; deemedTax: number; note: string };
+
+const NO_TRANSFER: Transfer634 = { id: "", iso: "", entityId: "", label: "No Art. 6.3.4 transfer seeded for this group", booksGain: 0, taxBasisAlign: 0, evidence: "" };
+const NO_IMMATERIAL: Immaterial461 = { iso: "", amount: 0, note: "No immaterial prior-year Covered Tax decrease seeded for this group." };
+const NO_EDTS: Edts73 = { iso: "", deemedTax: 0, note: "No Eligible Distribution Tax System jurisdiction in this group." };
+
+/** Seeded Art. 6.3.4 transfer for election restatement, per demo group. */
+export const TRANSFER_634 = seedFact<Transfer634>(
+  {
+    aetherion: {
+      id: "TX-634-TH",
+      iso: "TH",
+      entityId: "TH-CE",
+      label: "Rayong tooling fair-value step-up on intra-group contribution",
+      booksGain: 2_400_000,
+      taxBasisAlign: 1_800_000,
+      evidence: "Intra_group_transfer_register.xlsx · Art. 6.3.4 memo",
+    },
+    thaicoal: {
+      id: "TX-634-TC",
+      iso: "TH",
+      entityId: "TC-TH-NRG",
+      label: "Solar-farm land and grid connection fair-value step-up on UPE contribution",
+      booksGain: 3_500_000,
+      taxBasisAlign: 2_600_000,
+      evidence: "Intra_group_transfer_register_TC.xlsx · land appraisal 2026-01",
+    },
+  },
+  NO_TRANSFER,
+);
 
 /** Art. 4.6.1 immaterial prior-year Covered Tax decrease. */
-export const IMMATERIAL_461 = {
-  iso: "TH",
-  amount: 180_000,
-  note: "Prior-year Covered Tax decrease under EUR 1m — Art. 4.6.1 election posts in current year instead of reopening origin ETR.",
-};
+export const IMMATERIAL_461 = seedFact<Immaterial461>(
+  {
+    aetherion: {
+      iso: "TH",
+      amount: 180_000,
+      note: "Prior-year Covered Tax decrease under EUR 1m — Art. 4.6.1 election posts in current year instead of reopening origin ETR.",
+    },
+    thaicoal: {
+      iso: "TH",
+      amount: 240_000,
+      note: "FY2025 Thai CIT refund on the UPE's amended return, under EUR 1m — Art. 4.6.1 election posts the decrease in FY2026 instead of reopening the FY2025 ETR.",
+    },
+  },
+  NO_IMMATERIAL,
+);
 
-/** Art. 7.3 EDTS deemed distribution tax (demo fact for LU). */
-export const EDTS_73 = {
-  iso: "LU",
-  deemedTax: 420_000,
-  note: "Eligible Distribution Tax System — deemed distribution tax for the year.",
-};
+/** Art. 7.3 EDTS deemed distribution tax (demo fact for Aetherion Luxembourg; ThaiCoal has no EDTS jurisdiction). */
+export const EDTS_73 = seedFact<Edts73>(
+  {
+    aetherion: {
+      iso: "LU",
+      deemedTax: 420_000,
+      note: "Eligible Distribution Tax System — deemed distribution tax for the year.",
+    },
+  },
+  NO_EDTS,
+);
 
 export type ElectionEffect = {
   globeAdj: number;
@@ -37,7 +75,7 @@ export type ElectionEffect = {
 };
 
 export function effect45(iso: string, globe: number, covered: number): ElectionEffect {
-  const ents = ENTITIES.filter((e) => e.iso === iso).map((e) => e.id);
+  const ents = DATA.entities.filter((e) => e.iso === iso).map((e) => e.id);
   const dt = money(ents.reduce((a, id) => a + (deferredTaxAdjustment(id) ?? 0), 0));
   // Replace Art. 4.4: strip DT movement; if GloBE loss, post deemed loss DTA at Minimum Rate.
   let coveredAdj = money(-dt);
@@ -51,7 +89,7 @@ export function effect45(iso: string, globe: number, covered: number): ElectionE
 }
 
 export function effect447(iso: string): ElectionEffect {
-  const ents = ENTITIES.filter((e) => e.iso === iso).map((e) => e.id);
+  const ents = DATA.entities.filter((e) => e.iso === iso).map((e) => e.id);
   const dt = money(ents.reduce((a, id) => a + Math.max(0, deferredTaxAdjustment(id) ?? 0), 0));
   return {
     globeAdj: 0,
@@ -104,9 +142,9 @@ export function effect913(iso: string): ElectionEffect {
 
 /** Owner share of Investment Entity GloBE / Covered when Art. 7.5 transparency elected. */
 export function effect75(iso: string): ElectionEffect | null {
-  const ie = ENTITIES.find((e) => e.type === "Investment" && e.iso === iso);
+  const ie = DATA.entities.find((e) => e.type === "Investment" && e.iso === iso);
   if (!ie) return null;
-  const f = FINANCIALS.find((x) => x.entityId === ie.id);
+  const f = DATA.financials.find((x) => x.entityId === ie.id);
   if (!f) return null;
   // Transparency moves IE out of separate blend into owner — effect applied on IE blend (zero) and owner (add).
   return {
@@ -117,14 +155,14 @@ export function effect75(iso: string): ElectionEffect | null {
 }
 
 export function effect75Owner(ownerIso: string): ElectionEffect | null {
-  const ies = ENTITIES.filter((e) => e.type === "Investment");
+  const ies = DATA.entities.filter((e) => e.type === "Investment");
   let globe = 0;
   let covered = 0;
   const notes: string[] = [];
   for (const ie of ies) {
-    const owner = ENTITIES.find((e) => e.id === ie.parentId);
+    const owner = DATA.entities.find((e) => e.id === ie.parentId);
     if (!owner || owner.iso !== ownerIso) continue;
-    const f = FINANCIALS.find((x) => x.entityId === ie.id);
+    const f = DATA.financials.find((x) => x.entityId === ie.id);
     if (!f) continue;
     const share = ie.ownership / 100;
     globe += money(f.fanil * share);
@@ -140,9 +178,9 @@ export function effect75Owner(ownerIso: string): ElectionEffect | null {
 }
 
 export function effect76(iso: string): ElectionEffect | null {
-  const ie = ENTITIES.find((e) => e.type === "Investment" && e.iso === iso);
+  const ie = DATA.entities.find((e) => e.type === "Investment" && e.iso === iso);
   if (!ie) return null;
-  const f = FINANCIALS.find((x) => x.entityId === ie.id);
+  const f = DATA.financials.find((x) => x.entityId === ie.id);
   if (!f) return null;
   // Taxable distribution method: exclude undistributed IE income from IE ETR (demo: strip 70% retained).
   const retained = money(f.fanil * 0.7);

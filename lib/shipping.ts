@@ -1,4 +1,5 @@
 import { money } from "./format";
+import { seedFacts } from "./seeds";
 
 /** Art. 3.4.3 — Qualified Ancillary International Shipping Income cannot exceed 50% of International Shipping Income. */
 export const QAISI_CAP = 0.5;
@@ -40,7 +41,7 @@ export type ShippingPost = {
   detail: string;
 };
 
-export const SHIPPING_FACTS: ShippingFact[] = [
+const AETHERION_FACTS: ShippingFact[] = [
   {
     entityId: "SG-SHIP",
     isi: 5_000_000,
@@ -66,6 +67,23 @@ export const SHIPPING_FACTS: ShippingFact[] = [
     note: "Feeder bookings sit in HK001 FANIL. Strategic and commercial management of the ships is in Singapore, not Hong Kong — Art. 3.4.5 fails; no exclusion.",
   },
 ];
+
+const THAICOAL_FACTS: ShippingFact[] = [
+  {
+    entityId: "TC-SG-HC",
+    isi: 4_000_000,
+    ancillary: 900_000,
+    relatedTax: 400_000,
+    payroll: 1_200_000,
+    assets: 0,
+    managementInJurisdiction: true,
+    articleSource: "Art. 3.4.2(c)",
+    sourceDoc: "TC040 Trial Balance FY2026.xlsx",
+    note: "Time-chartered Supramax carriage of Indonesian and Australian coal to Asian buyers in international traffic. Chartering desk and fleet management sit in Singapore — Art. 3.4.5 met.",
+  },
+];
+
+export const SHIPPING_FACTS = seedFacts<ShippingFact>({ aetherion: AETHERION_FACTS, thaicoal: THAICOAL_FACTS });
 
 const empty = (entityId: string): ShippingPost => ({
   entityId,

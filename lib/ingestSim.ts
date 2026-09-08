@@ -1,4 +1,5 @@
-import { FILES } from "./model";
+import { DATA } from "./model";
+import { isSeededGroup } from "./seeds";
 
 export type IngestStatus = "empty" | "running" | "ready";
 
@@ -24,48 +25,35 @@ export function writeIngestStatus(groupId: string, status: IngestStatus) {
   }
 }
 
-/** Aetherion is pre-loaded for normal sign-in; invite reviewers start empty. */
-export function defaultIngestStatus(groupId: string, inviteReview: boolean): IngestStatus {
-  if (groupId === "aetherion" && !inviteReview) return "ready";
+/** Seeded groups are pre-loaded for normal sign-in; invite reviewers start empty. */
+/** Seeded demo groups open with the close pack posted, for staff and review-link guests alike; onboarded groups start empty. */
+export function defaultIngestStatus(groupId: string, _inviteReview: boolean): IngestStatus {
+  if (isSeededGroup(groupId)) return "ready";
   return "empty";
 }
 
-export const INGEST_QUEUE = FILES.map((f) => ({
-  id: f.id,
-  name: f.name,
-  kind: f.kind,
-  entity: f.entity ?? "Group",
-}));
+export function ingestQueue() {
+  return DATA.files.map((f) => ({
+    id: f.id,
+    name: f.name,
+    kind: f.kind,
+    entity: f.entity ?? "Group",
+  }));
+}
 
-export const SAMPLE_DOWNLOADS = [
-  {
-    name: "TH001 Trial Balance FY2026.csv",
-    href: "/demo/TH001_Trial_Balance_FY2026.csv",
-    kind: "Trial balance",
-    note: "12 accounts · TH-CE · maps to Art. 3.2 adjustments",
-  },
-  {
-    name: "Aetherion Legal Entity List FY2026.csv",
-    href: "/demo/Aetherion_Legal_Entity_List_FY2026.csv",
-    kind: "Legal entity list",
-    note: "Sample CE rows · ownership and GAAP",
-  },
-  {
-    name: "Payroll TH FY2026.csv",
-    href: "/demo/Payroll_TH_FY2026.csv",
-    kind: "Payroll",
-    note: "Eligible payroll for SBIE carve-out",
-  },
-] as const;
+export function sampleDownloads() {
+  return DATA.demo.samples;
+}
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function runIngestSimulation(
   onTick: (current: number, total: number, fileName: string) => void,
 ) {
-  const total = INGEST_QUEUE.length;
+  const queue = ingestQueue();
+  const total = queue.length;
   for (let i = 0; i < total; i++) {
-    const row = INGEST_QUEUE[i];
+    const row = queue[i];
     onTick(i + 1, total, row.name);
     await delay(90 + (i % 3) * 40);
   }

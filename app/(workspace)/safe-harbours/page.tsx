@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCalc } from "@/lib/useCalc";
 import { pct } from "@/lib/format";
 import { runAllSafeHarbours, sbtishTrace, SBTISH_EXPENDITURE } from "@/lib/harbours2026";
+import { DATA } from "@/lib/model";
 
 const TESTS = [
   ["deMinimis", "De minimis"],
@@ -20,7 +21,9 @@ export default function SafeHarbourPage() {
   const { calcs } = useCalc();
   const [ran, setRan] = useState(false);
   const summary = useMemo(() => runAllSafeHarbours(calcs), [calcs]);
-  const thTrace = sbtishTrace("TH-CE");
+  const traceEntity = SBTISH_EXPENDITURE[0]?.entityId ?? "";
+  const traceCode = DATA.entities.find((e) => e.id === traceEntity)?.code ?? traceEntity;
+  const thTrace = sbtishTrace(traceEntity);
 
   return (
     <div>
@@ -70,7 +73,7 @@ export default function SafeHarbourPage() {
       ) : null}
 
       <div className="panel" style={{ marginBottom: 20 }}>
-        <div className="panel-head"><h4>SBTISH expenditure trace · TH001</h4><span className="tag tag-outline">{Math.round(thTrace.ratio * 100)}% qualified</span></div>
+        <div className="panel-head"><h4>SBTISH expenditure trace · {traceCode}</h4><span className="tag tag-outline">{Math.round(thTrace.ratio * 100)}% qualified</span></div>
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Line</th><th>Amount</th><th>Qualified</th><th>Evidence</th></tr></thead>

@@ -1,6 +1,6 @@
 import type { JurCalc } from "../engine";
 import { eur, pct } from "../format";
-import { ACCOUNTS, ADJUSTMENTS, INCENTIVES } from "../model";
+import { DATA } from "../model";
 import { findingStatus, missingEvidence, type XrayFinding, type XrayState } from "../xray";
 import { propose } from "./actions";
 import { byRule } from "./knowledge";
@@ -54,7 +54,7 @@ export function rehearse(i: RehearsalInput): RehearsalQ[] {
       out.push({ id: `sbie-${c.iso}`, area: "SBIE", iso: c.iso, question: `Support the ${eur(c.sbie)} substance-based income exclusion claimed in ${c.name}.`, answer: `Payroll carve-out ${eur(c.payrollCarve)} plus tangible asset carve-out ${eur(c.assetCarve)} at the ${i.ctx.fy} transition rates (Art. 9.2). Eligible payroll covers Eligible Employees performing activities in ${c.name}; eligible tangible assets are located there.`, evidence: ["Trace: SBIE → payroll → assets", "Payroll register", "Fixed-asset register / lease schedule"], gaps, strength: gaps.length ? "partial" : "strong" });
     }
     // Incentives
-    const inc = INCENTIVES.filter((x) => c.entities.some((e) => e.id === x.entityId));
+    const inc = DATA.incentives.filter((x) => c.entities.some((e) => e.id === x.entityId));
     for (const x of inc) {
       const gaps = open.filter((f) => f.engine === "boi" && f.entityId === x.entityId).map((f) => `${f.title} — ${f.missing}`);
       if (c.iso === "TH" && i.scenario.boiExtend) gaps.push("Simulator assumes BOI extension — no certificate amendment on file.");
@@ -64,10 +64,10 @@ export function rehearse(i: RehearsalInput): RehearsalQ[] {
     if (c.jurisdictionalTopUp > 0) out.push({ id: `coll-${c.iso}`, area: "Collection", iso: c.iso, question: `Who collects the ${eur(c.jurisdictionalTopUp)} ${c.name} top-up and on what basis?`, answer: `${c.collection.payer}: QDMTT ${eur(c.collection.qdmtt)} · IIR ${eur(c.collection.iir)} · UTPR ${eur(c.collection.utpr)}. Path: ${c.collection.path.join(" → ")}. Pack: ${c.pack ? `IIR ${c.pack.iir} / QDMTT ${c.pack.qdmtt} / UTPR ${c.pack.utpr}` : "no signed pack"}.`, evidence: ["Jurisdiction pack (OECD Central Record)", "Ownership chart"], gaps: c.pack ? [] : [`No jurisdiction pack for ${c.name}.`], strength: c.pack ? "strong" : "weak" });
   }
   // Mapping
-  const pending = ACCOUNTS.filter((a) => !a.approved && !i.approvedMaps[a.account]);
-  out.push({ id: "map", area: "Mapping", question: "How do you evidence that every trial-balance account is mapped to the right GloBE category?", answer: `${ACCOUNTS.length} accounts on the mapping table; ${ACCOUNTS.length - pending.length} approved. Each approval is a signed event on Evidence history with the confidence score at approval time.`, evidence: ["Account mapping table", "Evidence history (approval events)"], gaps: pending.map((a) => `${a.account} ${a.name} unapproved (${a.confidence}%).`), strength: pending.length ? "partial" : "strong" });
+  const pending = DATA.accounts.filter((a) => !a.approved && !i.approvedMaps[a.account]);
+  out.push({ id: "map", area: "Mapping", question: "How do you evidence that every trial-balance account is mapped to the right GloBE category?", answer: `${DATA.accounts.length} accounts on the mapping table; ${DATA.accounts.length - pending.length} approved. Each approval is a signed event on Evidence history with the confidence score at approval time.`, evidence: ["Account mapping table", "Evidence history (approval events)"], gaps: pending.map((a) => `${a.account} ${a.name} unapproved (${a.confidence}%).`), strength: pending.length ? "partial" : "strong" });
   // Adjustments
-  for (const a of ADJUSTMENTS) {
+  for (const a of DATA.adjustments) {
     const kb = byRule(a.ruleId)[0];
     out.push({ id: `adj-${a.id}`, area: "Adjustments", question: `Explain adjustment ${a.id} (${a.category}, ${eur(a.amount)}).`, answer: `${a.reason} Rule ${a.ruleId}${a.article ? ` (${a.article})` : ""}. Original ${eur(a.original)} → adjustment ${eur(a.amount)}. Source ${a.sourceDoc}; preparer ${a.preparer}; reviewer ${a.reviewer ?? "none"}.${kb ? ` Authority: ${kb.provision}.` : ""}`, evidence: [a.sourceDoc, kb?.provision ?? a.ruleId], gaps: a.reviewer ? [] : ["No reviewer signature."], strength: a.reviewer ? "strong" : "partial" });
   }
@@ -77,13 +77,13 @@ export function rehearse(i: RehearsalInput): RehearsalQ[] {
   // Contradictions
   const contra: string[] = [];
   const th = calcs.find((c) => c.iso === "TH" && c.blendKind === "main");
-  const boi = INCENTIVES.find((x) => x.type.toLowerCase().includes("boi") || x.name.toLowerCase().includes("boi"));
+  const boi = DATA.incentives.find((x) => x.type.toLowerCase().includes("boi") || x.name.toLowerCase().includes("boi"));
   if (th && boi && i.scenario.boiExtend && boi.end < `${i.ctx.fy.replace("FY", "")}-12-31`) contra.push(`Incentive register ends ${boi.name} on ${boi.end}, but the working package assumes extension through ${i.ctx.fy}.`);
   for (const f of findings) {
     const r = xray[f.id];
     if (r?.reviewer && missingEvidence(f, r).length) contra.push(`${f.title} (${f.entityCode}) is reviewer-signed but evidence ${missingEvidence(f, r).join(", ")} is missing.`);
   }
-  for (const a of ADJUSTMENTS) if (a.status === "Validated" && !a.reviewer) contra.push(`${a.id} marked ${a.status} with no reviewer.`);
+  for (const a of DATA.adjustments) if (a.status === "Validated" && !a.reviewer) contra.push(`${a.id} marked ${a.status} with no reviewer.`);
   if (contra.length) out.push({ id: "contra", area: "Contradictions", question: "Are there internal inconsistencies between the working package, the registers and the evidence?", answer: `${contra.length} contradiction${contra.length === 1 ? "" : "s"} detected.`, evidence: [], gaps: contra, strength: "weak" });
   return out;
 }

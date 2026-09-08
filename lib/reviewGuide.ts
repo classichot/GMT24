@@ -1,7 +1,7 @@
 import type { JurCalc } from "./engine";
 import { totals } from "./engine";
 import { eur, pct } from "./format";
-import { ACCOUNTS, FILES } from "./model";
+import { DATA } from "./model";
 
 export type ReviewPhase = {
   id: string;
@@ -15,7 +15,7 @@ export const REVIEW_PHASES: ReviewPhase[] = [
     id: "ingest",
     n: "01",
     title: "Ingest the close pack",
-    body: "Drop sample CSVs or load the full Aetherion FY2026 demo pack. Classification runs before mapping; the engine does not calculate until maps are approved.",
+    body: "Drop sample CSVs or load the full FY2026 demo pack for the open group. Classification runs before mapping; the engine does not calculate until maps are approved.",
   },
   {
     id: "map",
@@ -78,7 +78,7 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
   const ie = ctx.calcs.find((c) => c.iso === "IE");
   const vn = ctx.calcs.find((c) => c.iso === "VN");
   const hk = ctx.calcs.find((c) => c.iso === "HK");
-  const autoApproved = ACCOUNTS.filter((a) => a.approved).length;
+  const autoApproved = DATA.accounts.filter((a) => a.approved).length;
 
   return [
     {
@@ -89,8 +89,8 @@ export function reviewChecks(ctx: ReviewCtx): ReviewCheck[] {
       href: "/data",
       hrefLabel: "Data Hub",
       ok: ctx.ingestReady,
-      actual: ctx.ingestReady ? `${FILES.length} files · Mapped / Validated` : "Empty pack",
-      expected: `${FILES.length} files posted`,
+      actual: ctx.ingestReady ? `${DATA.files.length} files · Mapped / Validated` : "Empty pack",
+      expected: `${DATA.files.length} files posted`,
     },
     {
       id: "map-pending",

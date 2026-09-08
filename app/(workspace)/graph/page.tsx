@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
 import { classFor } from "@/lib/entityClass";
 import { useCalc } from "@/lib/useCalc";
@@ -14,12 +14,12 @@ export default function GraphPage() {
   const byId = Object.fromEntries(calcs.flatMap((c) => c.entities.map((e) => [e.id, c])));
   const router = useRouter();
   const [sel, setSel] = useState("TH-CE");
-  const selected = ENTITIES.find((e) => e.id === sel)!;
+  const selected = DATA.entities.find((e) => e.id === sel)!;
   const jc = byId[sel];
 
   const edges = useMemo(
-    () => ENTITIES.filter((e) => e.parentId).map((e) => {
-      const p = ENTITIES.find((x) => x.id === e.parentId)!;
+    () => DATA.entities.filter((e) => e.parentId).map((e) => {
+      const p = DATA.entities.find((x) => x.id === e.parentId)!;
       return { e, p };
     }),
     [],
@@ -47,7 +47,7 @@ export default function GraphPage() {
               </g>
             );
           })}
-          {ENTITIES.map((e) => {
+          {DATA.entities.map((e) => {
             const c = byId[e.id];
             const hot = (c?.jurisdictionalTopUp ?? 0) > 0;
             return (

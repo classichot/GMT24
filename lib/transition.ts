@@ -1,9 +1,10 @@
 import { money } from "./format";
-import { MIN_RATE } from "./deferredTax";
+import { CIT_RATE, MIN_RATE } from "./deferredTax";
+import { seedFacts } from "./seeds";
 
 /** Art. 9.1 — transition cut-off for pre-GloBE anti-avoidance. */
 export const TRANSITION_CUTOFF = "2021-11-30";
-/** First Transition Year for Aetherion Thailand / group in this pack. */
+/** First Transition Year for both demo groups in this pack. */
 export const TRANSITION_YEAR = "FY2025";
 
 export type TransitionKind = "9.1.1" | "9.1.2" | "9.1.3";
@@ -41,7 +42,7 @@ export type TransitionLine = TransitionFact & {
  * 9.1.2 — exclude DTAs from post-30 Nov 2021 transactions on Chapter 3 excluded items.
  * 9.1.3 — non-inventory intra-group transfers after 30 Nov 2021: GloBE carrying = transferor CV; no artificial step-up / DTA.
  */
-export const TRANSITION_FACTS: TransitionFact[] = [
+const AETHERION_FACTS: TransitionFact[] = [
   {
     id: "TR-TH-LOSS",
     kind: "9.1.1",
@@ -146,14 +147,109 @@ export const TRANSITION_FACTS: TransitionFact[] = [
   },
 ];
 
+const THAICOAL_FACTS: TransitionFact[] = [
+  {
+    id: "TR-TC-AU-LOSS",
+    kind: "9.1.1",
+    entityId: "TC-AU-COAL",
+    iso: "AU",
+    label: "Pre-GloBE tax-loss DTA at 30% (origin FY2022–24)",
+    assetClass: "Tax loss carry-forward",
+    transferDate: null,
+    booksCarrying: 0,
+    transferorCarrying: 0,
+    accountingDta: 21_000_000,
+    excludedItem: false,
+    inventory: false,
+    taxPaidOnTransfer: 0,
+    evidence: "Deferred_tax_rollforward.xlsx · AU loss schedule",
+    note: "Recognised in the accounts before the Transition Year. Taken into GloBE at the Minimum Rate — the 30% Australian DTA is recast to 15%.",
+  },
+  {
+    id: "TR-TC-TH-SOLAR",
+    kind: "9.1.1",
+    entityId: "TC-TH-NRG",
+    iso: "TH",
+    label: "Opening solar-farm PPE temporary difference (DTL)",
+    assetClass: "Solar farms & BESS",
+    transferDate: null,
+    booksCarrying: 262_000_000,
+    transferorCarrying: 262_000_000,
+    accountingDta: 5_800_000,
+    excludedItem: false,
+    inventory: false,
+    taxPaidOnTransfer: 0,
+    evidence: "Fixed_asset_register_TH.xlsx · BOI project accounts",
+    note: "Ordinary temporary difference existing at the Transition Year — Art. 9.1.1 opening attribute on the BOI CE.",
+  },
+  {
+    id: "TR-TC-SG-DIV",
+    kind: "9.1.2",
+    entityId: "TC-SG-REN",
+    iso: "SG",
+    label: "DTA on excluded dividend timing (post-cutoff)",
+    assetClass: "Excluded dividend / equity",
+    transferDate: "2023-05-10",
+    booksCarrying: 0,
+    transferorCarrying: 0,
+    accountingDta: 120_000,
+    excludedItem: true,
+    inventory: false,
+    taxPaidOnTransfer: 0,
+    evidence: "TC041 tax provision FY2023.xlsx · dividend schedule",
+    note: "DTA arose from a Chapter 3 excluded item after 30 Nov 2021 — Art. 9.1.2 strips it from the Transition Year opening.",
+  },
+  {
+    id: "TR-TC-ID-BARGE",
+    kind: "9.1.3",
+    entityId: "TC-ID-MINE",
+    iso: "ID",
+    label: "Barge fleet transferred from PT ThaiCoal Indo Tbk",
+    assetClass: "Barges & tugs",
+    transferDate: "2022-09-01",
+    booksCarrying: 14_000_000,
+    transferorCarrying: 9_500_000,
+    accountingDta: 990_000,
+    excludedItem: false,
+    inventory: false,
+    taxPaidOnTransfer: 990_000,
+    evidence: "Intra_group_transfer_register_TC.xlsx · SKP 2022",
+    note: "Non-inventory intra-group transfer after 30 Nov 2021 — GloBE carrying stays at the transferor's CV. Indonesian CIT was paid on the gain, so a DTA capped at tax paid × 15% / 22% may be recognised.",
+  },
+  {
+    id: "TR-TC-TH-STOCK",
+    kind: "9.1.3",
+    entityId: "TC-TH-MIN",
+    iso: "TH",
+    label: "Coal stockpile transfer from the UPE (carve-out)",
+    assetClass: "Inventory",
+    transferDate: "2024-03-01",
+    booksCarrying: 3_900_000,
+    transferorCarrying: 3_600_000,
+    accountingDta: 0,
+    excludedItem: false,
+    inventory: true,
+    taxPaidOnTransfer: 0,
+    evidence: "Inventory_transfer_TC.xlsx",
+    note: "Inventory is outside Art. 9.1.3 — books carrying value stands for GloBE.",
+  },
+];
+
+export const TRANSITION_FACTS = seedFacts<TransitionFact>({ aetherion: AETHERION_FACTS, thaicoal: THAICOAL_FACTS });
+
 function afterCutoff(date: string | null) {
   return Boolean(date && date > TRANSITION_CUTOFF);
 }
 
+/** Art. 9.1.1 recast: an accounting DTA booked above the Minimum Rate is taken at 15% / domestic rate. */
+function recastShare(iso: string) {
+  const cit = CIT_RATE[iso] ?? 0.2;
+  return Math.min(1, MIN_RATE / cit);
+}
+
 export function transitionLine(fact: TransitionFact): TransitionLine {
   if (fact.kind === "9.1.1") {
-    const cit = 0.2;
-    const openingDtaAllowed = money(fact.accountingDta * (MIN_RATE / cit));
+    const openingDtaAllowed = money(fact.accountingDta * recastShare(fact.iso));
     return {
       ...fact,
       globeCarrying: fact.booksCarrying,
@@ -171,7 +267,7 @@ export function transitionLine(fact: TransitionFact): TransitionLine {
       ...fact,
       globeCarrying: fact.booksCarrying,
       stepUpDisallowed: 0,
-      openingDtaAllowed: hit ? 0 : money(fact.accountingDta * MIN_RATE / 0.2),
+      openingDtaAllowed: hit ? 0 : money(fact.accountingDta * recastShare(fact.iso)),
       openingDtaExcluded: hit ? fact.accountingDta : 0,
       treatment: hit
         ? "Art. 9.1.2 — DTA from post-cutoff excluded-item transaction stripped"
@@ -186,8 +282,8 @@ export function transitionLine(fact: TransitionFact): TransitionLine {
       ...fact,
       globeCarrying: fact.booksCarrying,
       stepUpDisallowed: 0,
-      openingDtaAllowed: money(fact.accountingDta * MIN_RATE / 0.2),
-      openingDtaExcluded: money(Math.max(0, fact.accountingDta - money(fact.accountingDta * MIN_RATE / 0.2))),
+      openingDtaAllowed: money(fact.accountingDta * recastShare(fact.iso)),
+      openingDtaExcluded: money(Math.max(0, fact.accountingDta - money(fact.accountingDta * recastShare(fact.iso)))),
       treatment: fact.inventory
         ? "Inventory — Art. 9.1.3 does not rewrite carrying value"
         : "Pre-cutoff or non-transfer — books carrying stands",

@@ -1,4 +1,5 @@
 import type { ProductMode } from "./model";
+import { DEFAULT_SEED_ID, SEEDS, isSeededGroup } from "./seeds";
 
 /** Time-limited demo invites. Default window is 3 days; expired tokens cannot open GMT24.
  *  Rotate INVITE_EPOCH (and redeploy) to cut off every outstanding link at once.
@@ -22,11 +23,24 @@ export type InvitePayload = {
   epoch: number;
   id: string;
   mode: ProductMode;
+  /** Demo group the link opens on. Older tokens have none and open the default seed. */
+  group?: string;
   label: string;
   iat: number;
   exp: number;
   days: number;
 };
+
+/** Demo groups a host can put behind a link: every seeded dataset. */
+export const DEMO_GROUPS = Object.values(SEEDS).map((s) => ({ id: s.group.id, name: s.group.name, upe: s.group.upe, upeIso: s.group.upeIso }));
+
+export function inviteGroupId(payload: Pick<InvitePayload, "group"> | null | undefined): string {
+  return payload?.group && isSeededGroup(payload.group) ? payload.group : DEFAULT_SEED_ID;
+}
+
+export function inviteGroupName(payload: Pick<InvitePayload, "group"> | null | undefined): string {
+  return SEEDS[inviteGroupId(payload)].group.name;
+}
 
 export type IssuedInvite = {
   id: string;
@@ -35,12 +49,14 @@ export type IssuedInvite = {
   iat: number;
   url: string;
   mode: ProductMode;
+  group?: string;
   days: number;
 };
 
 export type InviteSession = {
   id: string;
   mode: ProductMode;
+  group?: string;
   exp: number;
   epoch: number;
   label: string;
@@ -108,10 +124,12 @@ export function reviewUrl(token: string) {
 export function mintInvite({
   days = DEFAULT_DAYS,
   mode = "inhouse",
+  group = DEFAULT_SEED_ID,
   label = "",
 }: {
   days?: number;
   mode?: ProductMode;
+  group?: string;
   label?: string;
 } = {}) {
   const now = Date.now();
@@ -121,6 +139,7 @@ export function mintInvite({
     epoch: INVITE_EPOCH,
     id: uid(),
     mode: mode === "advisor" ? "advisor" : "inhouse",
+    group: inviteGroupId({ group }),
     label: String(label || "").slice(0, 80),
     iat: now,
     exp: now + windowDays * 24 * 60 * 60 * 1000,
@@ -175,6 +194,7 @@ export function saveInviteSession(payload: InvitePayload, token: string) {
     JSON.stringify({
       id: payload.id,
       mode: payload.mode === "advisor" ? "advisor" : "inhouse",
+      group: inviteGroupId(payload),
       exp: payload.exp,
       epoch: payload.epoch,
       label: payload.label || "",
@@ -275,6 +295,7 @@ function rememberIssued(row: InvitePayload & { token: string; url: string }) {
       iat: row.iat,
       url: row.url,
       mode: row.mode,
+      group: inviteGroupId(row),
       days: row.days,
     });
     localStorage.setItem(ISSUED_KEY, JSON.stringify(list.slice(0, 20)));

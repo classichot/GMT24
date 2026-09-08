@@ -1,7 +1,8 @@
 import { money } from "./format";
-import { ENTITIES, FINANCIALS, INCENTIVES, type Entity, type ShResult } from "./model";
+import { DATA, type Entity, type ShResult } from "./model";
 import { populationReconciliation } from "./population";
 import { MIN_RATE } from "./deferredTax";
+import { seedFacts } from "./seeds";
 
 type HarbourCalc = {
   iso: string;
@@ -41,12 +42,21 @@ export type HarbourRunSummary = {
   harboursFail: number;
 };
 
-/** Seeded qualifying expenditure for SBTISH (Thailand BOI). */
-export const SBTISH_EXPENDITURE = [
-  { id: "SBT-TH-PPE", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Rayong plant CapEx (qualifying)", amount: 18_400_000, qualified: true, evidence: "BOI_Certificate_TH001.pdf · CapEx ledger" },
-  { id: "SBT-TH-RD", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Process R&D wages", amount: 2_100_000, qualified: true, evidence: "Payroll_TH_FY2026.csv · R&D cost centre" },
-  { id: "SBT-TH-MKT", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Marketing (non-qualifying)", amount: 900_000, qualified: false, evidence: "GL marketing" },
-];
+export type SbtishLine = { id: string; entityId: string; incentiveId: string; label: string; amount: number; qualified: boolean; evidence: string };
+
+/** Seeded qualifying expenditure for SBTISH (Thailand BOI), per demo group. */
+export const SBTISH_EXPENDITURE = seedFacts<SbtishLine>({
+  aetherion: [
+    { id: "SBT-TH-PPE", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Rayong plant CapEx (qualifying)", amount: 18_400_000, qualified: true, evidence: "BOI_Certificate_TH001.pdf · CapEx ledger" },
+    { id: "SBT-TH-RD", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Process R&D wages", amount: 2_100_000, qualified: true, evidence: "Payroll_TH_FY2026.csv · R&D cost centre" },
+    { id: "SBT-TH-MKT", entityId: "TH-CE", incentiveId: "TH-BOI", label: "Marketing (non-qualifying)", amount: 900_000, qualified: false, evidence: "GL marketing" },
+  ],
+  thaicoal: [
+    { id: "SBT-TC-SOLAR", entityId: "TC-TH-NRG", incentiveId: "TC-BOI-SOLAR", label: "Solar farm & BESS CapEx (qualifying)", amount: 41_000_000, qualified: true, evidence: "BOI_Certificate_TC031_solar.pdf · CapEx ledger" },
+    { id: "SBT-TC-RD", entityId: "TC-TH-NRG", incentiveId: "TC-BOI-SOLAR", label: "Grid-integration R&D wages", amount: 1_200_000, qualified: true, evidence: "Payroll_TH_FY2026.csv · R&D cost centre" },
+    { id: "SBT-TC-MKT", entityId: "TC-TH-NRG", incentiveId: "TC-BOI-SOLAR", label: "PPA marketing (non-qualifying)", amount: 400_000, qualified: false, evidence: "GL marketing" },
+  ],
+});
 
 export function sbtishTrace(entityId: string) {
   const lines = SBTISH_EXPENDITURE.filter((l) => l.entityId === entityId);
@@ -59,11 +69,11 @@ export function sbtishTrace(entityId: string) {
 /** Simplified Income proxy for SETR SH — CbCR PBT ± limited adjustments. */
 export function setrSimplified(calc: Pick<HarbourCalc, "entities">) {
   const cbcrProfit = money(calc.entities.reduce((a, e) => {
-    const f = FINANCIALS.find((x) => x.entityId === e.id);
+    const f = DATA.financials.find((x) => x.entityId === e.id);
     return a + (f?.cbcrProfit ?? 0);
   }, 0));
   const cbcrTax = money(calc.entities.reduce((a, e) => {
-    const f = FINANCIALS.find((x) => x.entityId === e.id);
+    const f = DATA.financials.find((x) => x.entityId === e.id);
     return a + (f?.cbcrTax ?? 0);
   }, 0));
   const simplifiedIncome = cbcrProfit;
@@ -152,7 +162,7 @@ export function runAllSafeHarbours(calcs: HarbourCalc[]): HarbourRunSummary {
 
   rows.push({
     iso: "GROUP",
-    name: "Aetherion Group",
+    name: DATA.group.name,
     blendKey: "group:nmce",
     harbour: "NMCE simplified",
     article: "NMCE SH",
@@ -186,8 +196,8 @@ export function runAllSafeHarbours(calcs: HarbourCalc[]): HarbourRunSummary {
 }
 
 export function incentiveEntities() {
-  return INCENTIVES.map((i) => {
-    const e = ENTITIES.find((x) => x.id === i.entityId);
+  return DATA.incentives.map((i) => {
+    const e = DATA.entities.find((x) => x.id === i.entityId);
     return { incentive: i, entity: e, trace: sbtishTrace(i.entityId) };
   });
 }

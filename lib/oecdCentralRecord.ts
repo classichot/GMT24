@@ -1,4 +1,4 @@
-import { JURISDICTION_PACKS } from "./model";
+import { DATA } from "./model";
 
 export const OECD_CENTRAL_RECORD_URL =
   "https://www.oecd.org/en/topics/sub-issues/global-minimum-tax/central-record-of-legislation-with-transitional-qualified-status.html";
@@ -134,7 +134,7 @@ export function extractFlags(text: string): Record<string, OecdFlags> {
 }
 
 export function diffPacks(oecd: Record<string, OecdFlags>, asOf: string | null): OecdPackRow[] {
-  return JURISDICTION_PACKS.map((p) => {
+  return DATA.packs.map((p) => {
     const live = oecd[p.iso] ?? { iir: false, qdmtt: false, qdmttSH: false, sbs: false, cited: false };
     const packQdmtt = p.qdmtt;
     const changed =

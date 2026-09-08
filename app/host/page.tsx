@@ -4,10 +4,10 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import AiReadyBadge from "@/components/AiReadyBadge";
 import type { ProductMode } from "@/lib/model";
 import {
   DEFAULT_DAYS,
+  DEMO_GROUPS,
   MAX_DAYS,
   MIN_DAYS,
   clampInviteDays,
@@ -26,6 +26,7 @@ export default function HostPage() {
   const [label, setLabel] = useState("");
   const [days, setDays] = useState(DEFAULT_DAYS);
   const [mode, setMode] = useState<ProductMode>("inhouse");
+  const [group, setGroup] = useState(DEMO_GROUPS[0]?.id ?? "aetherion");
   const [pin, setPin] = useState("7L-host");
   const [err, setErr] = useState("");
   const [lastUrl, setLastUrl] = useState("");
@@ -33,6 +34,8 @@ export default function HostPage() {
   const [issued, setIssued] = useState<ReturnType<typeof readIssued>>([]);
   const [busy, setBusy] = useState(false);
   const windowDays = clampInviteDays(days);
+  const door = mode === "advisor" ? "advisor" : `inhouse:${group}`;
+  const groupName = DEMO_GROUPS.find((g) => g.id === group)?.name ?? "the demo group";
 
   useEffect(() => {
     setLastUrl(readLastMintUrl());
@@ -49,7 +52,7 @@ export default function HostPage() {
     setBusy(true);
     setErr("");
     try {
-      const minted = mintInvite({ days: windowDays, label, mode });
+      const minted = mintInvite({ days: windowDays, label, mode, group });
       setLastUrl(minted.url);
       setIssued(readIssued());
       flash(`Link live until ${formatExpiry(minted.payload.exp)}`);
@@ -91,7 +94,7 @@ export default function HostPage() {
       <section className="login-pane login-hero">
         <header className="login-pane-head">
           <div>
-            <div className="login-mark">GMT24<span /><AiReadyBadge /></div>
+            <div className="login-mark">GMT24<span /></div>
             <span className="login-kicker">Host desk</span>
           </div>
         </header>
@@ -129,7 +132,7 @@ export default function HostPage() {
             <p className="eyebrow" style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Send one link per prospect</p>
             <h2>Generate a demo URL</h2>
             <p className="text-muted login-card-note">
-              The expiry is signed into the URL, so a recipient on another device can open the Aetherion Group demo until that clock runs out. Default is {DEFAULT_DAYS} days.
+              The expiry and the demo group are signed into the URL, so a recipient on another device opens {mode === "advisor" ? "the advisor portfolio" : `the ${groupName} demo`} until that clock runs out. Default is {DEFAULT_DAYS} days.
             </p>
             <div className="field">
               <label htmlFor="hostLabel">Prospect / label (optional)</label>
@@ -153,10 +156,30 @@ export default function HostPage() {
             </div>
             <div className="field">
               <label htmlFor="hostMode">Demo door</label>
-              <select className="input" id="hostMode" value={mode} onChange={(e) => setMode(e.target.value as ProductMode)}>
-                <option value="inhouse">In-house (Aetherion)</option>
-                <option value="advisor">Advisor firm</option>
+              <select
+                className="input"
+                id="hostMode"
+                value={door}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "advisor") {
+                    setMode("advisor");
+                    return;
+                  }
+                  setMode("inhouse");
+                  setGroup(v.replace(/^inhouse:/, ""));
+                }}
+              >
+                {DEMO_GROUPS.map((g) => (
+                  <option key={g.id} value={`inhouse:${g.id}`}>In-house · {g.name} ({g.upeIso} UPE)</option>
+                ))}
+                <option value="advisor">Advisor firm (all demo clients)</option>
               </select>
+              <div className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                {mode === "advisor"
+                  ? "Opens the 7L advisor portfolio. Every demo client is visible."
+                  : `Opens one in-house workspace: ${groupName}. The recipient sees only that group.`}
+              </div>
             </div>
             <p style={{ color: "var(--color-signal)", minHeight: "1.2em", margin: 0, fontSize: 13 }}>{err}</p>
             <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
@@ -225,6 +248,7 @@ export default function HostPage() {
                   <thead>
                     <tr>
                       <th>Label</th>
+                      <th>Door</th>
                       <th>Life</th>
                       <th>Expires</th>
                       <th />
@@ -236,7 +260,8 @@ export default function HostPage() {
                       return (
                         <tr key={row.id}>
                           <td style={{ fontSize: 13 }}>{row.label || row.id}</td>
-                          <td style={{ fontSize: 12 }}>{row.days || DEFAULT_DAYS}d · {row.mode}</td>
+                          <td style={{ fontSize: 12 }}>{row.mode === "advisor" ? "Advisor" : DEMO_GROUPS.find((g) => g.id === row.group)?.name ?? DEMO_GROUPS[0]?.name}</td>
+                          <td style={{ fontSize: 12 }}>{row.days || DEFAULT_DAYS}d</td>
                           <td style={{ fontSize: 12 }}>{formatExpiry(row.exp)}</td>
                           <td><span className={live ? "tag tag-accent" : "tag tag-outline"}>{live ? "Live" : "Expired"}</span></td>
                         </tr>

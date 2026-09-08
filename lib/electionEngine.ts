@@ -23,6 +23,7 @@ import {
   effect913,
 } from "./electionRestate";
 import { sbtishResult, setrSimplified } from "./harbours2026";
+import { DATA } from "./model";
 
 export type EligStatus = "available" | "unavailable" | "review" | "locked" | "n/a";
 
@@ -164,7 +165,7 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
       out.push({
         election: e,
         iso: "GROUP",
-        name: "Aetherion Group",
+        name: DATA.group.name,
         status,
         reason:
           e.id === "SETR_QRTC"
@@ -178,25 +179,30 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
     }
 
     if (e.scope === "UPE_JURISDICTION") {
-      const jp = calcs.find((c) => c.iso === "JP");
+      const upeIso = DATA.group.upeIso;
+      const upe = calcs.find((c) => c.iso === upeIso);
       const us = calcs.find((c) => c.iso === "US");
       if (e.id === "SH_UTPR" || e.id === "SH_UPE") {
-        out.push({
-          election: e,
-          iso: "US",
-          name: us?.name ?? "United States",
-          status: us?.sh.utprSH === "Pass" || us?.sh.sbs === "Pass" ? "available" : "review",
-          reason: us?.sh.navigator ?? "UPE-jurisdiction harbour path.",
-          boundEntities: ["US-CE"],
-        });
-        out.push({
-          election: e,
-          iso: "JP",
-          name: jp?.name ?? "Japan",
-          status: "review",
-          reason: "Japan is the UPE jurisdiction. UTPR SH / UPE SH must be confirmed against the Central Record for the year.",
-          boundEntities: ["JP-UPE"],
-        });
+        if (us) {
+          out.push({
+            election: e,
+            iso: "US",
+            name: us.name,
+            status: us.sh.utprSH === "Pass" || us.sh.sbs === "Pass" ? "available" : "review",
+            reason: us.sh.navigator ?? "UPE-jurisdiction harbour path.",
+            boundEntities: DATA.entities.filter((x) => x.iso === "US").map((x) => x.id),
+          });
+        }
+        if (upeIso !== "US") {
+          out.push({
+            election: e,
+            iso: upeIso,
+            name: upe?.name ?? DATA.packs.find((p) => p.iso === upeIso)?.name ?? upeIso,
+            status: "review",
+            reason: `${upe?.name ?? upeIso} is the UPE jurisdiction. UTPR SH / UPE SH must be confirmed against the Central Record for the year.`,
+            boundEntities: DATA.entities.filter((x) => x.iso === upeIso && x.type === "UPE").map((x) => x.id),
+          });
+        }
       }
       continue;
     }
@@ -208,7 +214,7 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
         name: "Thailand",
         status: "unavailable",
         reason: "Thai QRTC is not enacted. Do not book. Accounting tax-reduction treatment stays; do not gross-up Simplified Income.",
-        boundEntities: ["TH001", "TH-PE1"],
+        boundEntities: DATA.entities.filter((x) => x.iso === "TH").map((x) => x.code),
       });
       continue;
     }
@@ -336,7 +342,7 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
       out.push({
         election: e,
         iso: "GROUP",
-        name: "Aetherion Group",
+        name: DATA.group.name,
         status: "review",
         reason:
           e.family === "setr"

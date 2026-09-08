@@ -11,6 +11,7 @@ import {
   FileText,
   GitBranch,
   Globe,
+  HelpCircle,
   History,
   Landmark,
   LayoutGrid,
@@ -29,19 +30,18 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
+import { DATA, ADVISOR_USER } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
-import AiReadyBadge from "@/components/AiReadyBadge";
-import { AiProvider } from "@/components/AiProvider";
+import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
-import { PLAYBOOKS } from "@/lib/playbooks";
+import { PLAYBOOKS, playbookByNavGroup } from "@/lib/playbooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -51,21 +51,18 @@ const NAV = [
     { href: "/overview", label: "Global dashboard", icon: LayoutGrid },
     { href: "/etr-map", label: "ETR map", icon: Map },
     { href: "/exposure", label: "Top-up exposure", icon: Shield },
-    { href: "/playbook/overview", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Group", items: [
     { href: "/clients", label: "Clients", icon: Building2, advisor: true },
     { href: "/group", label: "Group structure", icon: GitBranch },
     { href: "/entities", label: "Entities", icon: Building2 },
     { href: "/graph", label: "Ownership graph", icon: Globe },
-    { href: "/playbook/group", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Data", items: [
     { href: "/data", label: "Data Hub", icon: Upload },
     { href: "/mapping", label: "Account mapping", icon: Sparkles },
     { href: "/quality", label: "Data quality", icon: Database },
     { href: "/requests", label: "Data requests", icon: FileText },
-    { href: "/playbook/data", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Assurance", items: [
     { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine },
@@ -82,13 +79,11 @@ const NAV = [
     { href: "/sbie", label: "SBIE", icon: Scale },
     { href: "/top-up", label: "Top-up tax", icon: Shield },
     { href: "/allocation", label: "QDMTT / IIR / UTPR", icon: GitBranch },
-    { href: "/playbook/pillar-two", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Elections & Optimizer", items: [
     { href: "/elections", label: "Election engine", icon: SlidersHorizontal },
     { href: "/optimize", label: "Optimize GloBE", icon: Sparkles },
     { href: "/years", label: "Year record", icon: Timer },
-    { href: "/playbook/elections", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Thailand", items: [
     { href: "/thailand", label: "Jurisdiction pack", icon: Landmark },
@@ -97,24 +92,20 @@ const NAV = [
     { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
     { href: "/thailand/gap", label: "OECD vs RD gap", icon: GitBranch },
     { href: "/thailand/audit", label: "Audit defence", icon: FileText },
-    { href: "/playbook/thailand", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Incentives", items: [
     { href: "/incentives", label: "Tax incentives", icon: Sparkles },
     { href: "/thailand/boi", label: "BOI Optimizer", icon: Sparkles },
-    { href: "/playbook/incentives", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Forecast", items: [
     { href: "/simulator", label: "Simulator", icon: Sparkles },
     { href: "/forecast", label: "Forecast", icon: LayoutGrid },
-    { href: "/playbook/forecast", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Compliance", items: [
     { href: "/gir", label: "GIR", icon: FileText },
     { href: "/filings", label: "Filing matrix", icon: Check },
     { href: "/notifications", label: "Notifications", icon: FileText },
     { href: "/archive", label: "Filing archive", icon: Database },
-    { href: "/playbook/compliance", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "Review", items: [
     { href: "/review-guide", label: "Review guide", icon: ClipboardList },
@@ -124,7 +115,6 @@ const NAV = [
     { href: "/evidence-history", label: "Evidence history", icon: History },
     { href: "/approvals", label: "Approvals", icon: Check },
     { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
-    { href: "/playbook/review", label: "Playbook", icon: ClipboardList },
   ]},
   { group: "AI Co-Pilot", items: [
     { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare },
@@ -142,7 +132,6 @@ const NAV = [
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
-    { href: "/playbook/intelligence", label: "Playbook", icon: ClipboardList },
   ]},
 ];
 
@@ -238,7 +227,8 @@ function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
-  const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const ai = useAi();
+  const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
   const { stop } = useXray();
   const packAlert = changeAlert(packChanges);
@@ -263,7 +253,6 @@ function Shell({ children }: { children: ReactNode }) {
           <div>
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 10 }}>
               GMT24<span style={{ width: 14, height: 14, background: "var(--color-accent)", display: "block" }} />
-              <AiReadyBadge style={{ alignSelf: "center", marginLeft: 2 }} />
             </div>
             <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 4 }}>Global Minimum Tax OS</div>
           </div>
@@ -288,18 +277,25 @@ function Shell({ children }: { children: ReactNode }) {
               return true;
             });
             if (!items.length) return null;
+            const book = playbookByNavGroup(g.group);
             return (
               <div key={g.group}>
                 <div className="nav-group">{g.group}</div>
                 {items.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link key={item.href} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                    <Link key={`${g.group}:${item.href}`} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
                       <Icon size={15} />
                       {item.label}
                     </Link>
                   );
                 })}
+                {book && (
+                  <Link href={`/playbook/${book.slug}`} onClick={() => setNavOpen(false)} className={`nav-btn${path === `/playbook/${book.slug}` ? " active" : ""}`}>
+                    <ClipboardList size={15} />
+                    Playbook
+                  </Link>
+                )}
               </div>
             );
           })}
@@ -339,13 +335,14 @@ function Shell({ children }: { children: ReactNode }) {
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
           )}
+          <button className="btn btn-ghost header-hide-sm" title="Explain what this menu is built for" onClick={() => { setCopilotOpen(true); ai.explainMenu(); }}><HelpCircle size={16} />Explain menu</button>
           <button className="btn btn-secondary header-hide-sm" onClick={() => setCopilotOpen(!copilotOpen)}><MessageSquare size={16} />Ask GMT24</button>
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>
         {invite && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", fontSize: 12, fontWeight: 700, flexWrap: "wrap" }}>
             <Timer size={13} />
-            Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
+            Demo review link · {group.name} · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
             <Link href="/review-guide" className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>Review guide</Link>
           </div>
         )}

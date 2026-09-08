@@ -11,7 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { THEMES, normalizeTheme, type ThemeKey } from "./format";
-import { ADVISOR_USER, GROUPS, INHOUSE_USER, type Group, type ProductMode } from "./model";
+import { DATA, ADVISOR_USER, GROUPS, type Group, type ProductMode } from "./model";
+import { DEFAULT_SEED_ID, setActiveSeed } from "./seeds";
 import type { AuditNode } from "./engine";
 import {
   ENGAGEMENT_KEY,
@@ -79,7 +80,7 @@ import {
 type Store = {
   ready: boolean;
   authed: boolean;
-  login: (mode: ProductMode, opts?: { invite?: boolean }) => void;
+  login: (mode: ProductMode, opts?: { invite?: boolean; groupId?: string }) => void;
   logout: () => void;
   theme: ThemeKey;
   setTheme: (k: ThemeKey) => void;
@@ -206,7 +207,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [authed, setAuthed] = useState(false);
   const [theme, setThemeState] = useState<ThemeKey>("dark");
   const [mode, setModeState] = useState<ProductMode>("inhouse");
-  const [groupId, setGroupIdState] = useState("aetherion");
+  const [groupId, setGroupIdRaw] = useState(DEFAULT_SEED_ID);
+  /** Every group change also points the shared dataset (`DATA`) at that group's seed. */
+  const setGroupIdState = useCallback((id: string) => {
+    setActiveSeed(id);
+    setGroupIdRaw(id);
+  }, []);
   const [extraGroups, setExtraGroups] = useState<Group[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
@@ -233,7 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [xray, setXray] = useState<XrayState>({});
   const [packAmendments, setPackAmendments] = useState<PackAmendment[]>([]);
   const [packChanges, setPackChanges] = useState<PackChangeRecord[]>([]);
-  const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: "aetherion", immutable: true, events: [] });
+  const ledgerRef = useRef<HistoryLedger>({ version: "2026.2", groupId: DEFAULT_SEED_ID, immutable: true, events: [] });
   const modeRef = useRef(mode);
   const fyRef = useRef(activeFy);
   modeRef.current = mode;
@@ -246,7 +252,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setHistoryImmutableState(led.immutable);
   }, []);
 
-  const actorNow = useCallback(() => (modeRef.current === "advisor" ? ADVISOR_USER : INHOUSE_USER), []);
+  const actorNow = useCallback(() => (modeRef.current === "advisor" ? ADVISOR_USER : DATA.inhouseUser), []);
 
   const appendHistory = useCallback((draft: HistoryDraft) => {
     const actor = actorNow();
@@ -269,7 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setExtraGroups(extras);
     registerExtras(extras);
     const g = localStorage.getItem("gmt24_group");
-    const startGroup = g || "aetherion";
+    const startGroup = g || DEFAULT_SEED_ID;
     if (g) setGroupIdState(g);
     const loaded = loadGroupLedger(startGroup);
     setActiveFyState(loaded.fy);
@@ -296,29 +302,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIngestProgress(null);
   }, []);
 
-  const login = useCallback((m: ProductMode, opts?: { invite?: boolean }) => {
+  const login = useCallback((m: ProductMode, opts?: { invite?: boolean; groupId?: string }) => {
     if (!opts?.invite) clearInviteSession();
     setModeState(m);
     setAuthed(true);
     localStorage.setItem("gmt24_auth", "1");
     localStorage.setItem("gmt24_mode", m);
-    const actor = m === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+    const actor = m === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
     if (m === "inhouse" || opts?.invite) {
-      setGroupIdState("aetherion");
-      localStorage.setItem("gmt24_group", "aetherion");
-      const loaded = loadGroupLedger("aetherion");
+      const gid = opts?.groupId ?? DEFAULT_SEED_ID;
+      setGroupIdState(gid);
+      localStorage.setItem("gmt24_group", gid);
+      const loaded = loadGroupLedger(gid);
       setActiveFyState(loaded.fy);
       setYearRecords(loaded.records);
       setElectionsOn(loaded.elections);
       setSbieClaimState(loaded.sbie);
-      setApprovedMaps(loadApprovedMaps("aetherion"));
-      applyLedger(loadLedger("aetherion"));
+      setApprovedMaps(loadApprovedMaps(gid));
+      applyLedger(loadLedger(gid));
       if (opts?.invite) {
-        writeIngestStatus("aetherion", "empty");
-        setIngestStatus("empty");
+        // A review link lands on a loaded close pack so every screen shows numbers at once;
+        // the Review guide's Reset ingest replays the pipeline on demand.
+        writeIngestStatus(gid, "ready");
+        setIngestStatus("ready");
         setIngestProgress(null);
       } else {
-        applyIngestForGroup("aetherion", false);
+        applyIngestForGroup(gid, false);
       }
     }
     const next = appendEvent(ledgerRef.current, {
@@ -332,7 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ref: "session",
     });
     applyLedger(next);
-  }, [applyLedger, applyIngestForGroup]);
+  }, [applyLedger, applyIngestForGroup, setGroupIdState]);
 
   const logout = useCallback(() => {
     const actor = actorNow();
@@ -360,7 +369,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setMode = useCallback((m: ProductMode) => {
     setModeState(m);
     localStorage.setItem("gmt24_mode", m);
-    const actor = m === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+    const actor = m === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
     const next = appendEvent(ledgerRef.current, {
       kind: "action",
       title: `Operating mode → ${sessionLabel(m)}`,
@@ -393,7 +402,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setApprovedMaps(loadApprovedMaps(id));
     applyLedger(loadLedger(id));
     applyIngestForGroup(id, false);
-  }, [applyLedger, applyIngestForGroup]);
+  }, [applyLedger, applyIngestForGroup, setGroupIdState]);
 
   const addEngagement = useCallback((draft: EngagementDraft) => {
     if (mode !== "advisor") {
@@ -443,7 +452,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     applyLedger(opened);
     flash(`${row.name} added. Next: drop the close pack on Data Hub.`);
     return row.id;
-  }, [mode, extraGroups, flash, applyLedger]);
+  }, [mode, extraGroups, flash, applyLedger, setGroupIdState]);
 
   const ask = useCallback((q: string) => {
     setPendingAsk(q);
@@ -678,7 +687,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     appendHistory({
       kind: "doc",
       title: "Close pack ingested",
-      detail: "Aetherion FY2026 demo pack classified and posted to the canonical model. Next: approve mappings on Account mapping.",
+      detail: `${DATA.group.name} ${DATA.group.fy} demo pack classified and posted to the canonical model. Next: approve mappings on Account mapping.`,
       href: "/data",
       ref: "ingest-pack",
     });

@@ -3,15 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ACCOUNTS,
-  ACTIVITY,
-  ADJUSTMENTS,
-  ADVISOR_USER,
-  FILINGS,
-  INHOUSE_USER,
-  ISSUES,
-} from "@/lib/model";
+import { DATA, ADVISOR_USER } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
@@ -27,13 +19,13 @@ export default function ApprovalsPage() {
   const { calcs, t } = useCalc();
   const { stop, overall } = useXray();
   const router = useRouter();
-  const reviewer = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const reviewer = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const current = workflow.snapshotApproved ? 6 : workflow.girValidated ? 5 : 4;
   const [rowOk, setRowOk] = useState<Record<string, boolean>>({});
 
-  const mapsPending = ACCOUNTS.filter((a) => !a.approved && !approvedMaps[a.account]);
-  const adjOpen = ADJUSTMENTS.filter((a) => !a.reviewer);
-  const blocks = ISSUES.filter((i) => i.severity === "block");
+  const mapsPending = DATA.accounts.filter((a) => !a.approved && !approvedMaps[a.account]);
+  const adjOpen = DATA.adjustments.filter((a) => !a.reviewer);
+  const blocks = DATA.issues.filter((i) => i.severity === "block");
   const th = calcs.find((c) => c.iso === "TH") ?? calcs.find((c) => c.jurisdictionalTopUp > 0);
 
   const gates = [
@@ -54,7 +46,7 @@ export default function ApprovalsPage() {
   const gatesOpen = gates.filter((g) => !g.ok).length;
 
   const queue = useMemo(() => {
-    const prepFor = (name: string) => FILINGS.find((f) => f.jurisdiction === name)?.preparer ?? "Group Tax";
+    const prepFor = (name: string) => DATA.filings.find((f) => f.jurisdiction === name)?.preparer ?? "Group Tax";
     const revName = reviewer.name;
     const rows: {
       id: string;
@@ -69,7 +61,7 @@ export default function ApprovalsPage() {
     }[] = calcs
       .filter((c) => c.jurisdictionalTopUp > 0 || c.iso === "VN")
       .map((c) => {
-        const blocked = ISSUES.some((i) => i.severity === "block" && i.jurisdiction === c.name);
+        const blocked = DATA.issues.some((i) => i.severity === "block" && i.jurisdiction === c.name);
         return {
           id: `jur-${c.blendKey}`,
           item: `${c.name} jurisdictional calculation`,
@@ -241,7 +233,7 @@ export default function ApprovalsPage() {
             <h4>Sign-off trail</h4>
             <span className="text-muted">{reviewer.role}</span>
           </div>
-          {ACTIVITY.map((a) => (
+          {DATA.activity.map((a) => (
             <div key={a.text} style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-divider)" }}>
               <div style={{ fontSize: 13 }}>{a.text}</div>
               <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>{a.who} · {a.when}</div>

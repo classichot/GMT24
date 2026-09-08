@@ -13,14 +13,15 @@ export default function ThaiLiabilityPage() {
   const { ask } = useStore();
   const { calcs } = useCalc();
   const th = calcs.find((c) => c.iso === "TH");
-  const [payer, setPayer] = useState<"statutory" | "thce">("thce");
+  const [payer, setPayer] = useState<"statutory" | "designated">("designated");
   if (!th) return null;
-  const L = thaiLiability(th);
+  const L = thaiLiability(th, calcs);
   const utpr = thaiUtprAllocation();
-  const statutoryTotal = L.statutory.reduce((a, r) => a + r.statutory, 0);
-  const elected = payer === "thce"
-    ? L.statutory.map((r) => ({ ...r, due: r.id === "TH-CE" ? L.payable : 0 }))
+  const elected = payer === "designated"
+    ? L.statutory.map((r) => ({ ...r, due: r.id === L.designatedId ? L.payable : 0 }))
     : L.statutory.map((r) => ({ ...r, due: r.statutory }));
+  const designated = L.statutory.find((r) => r.id === L.designatedId);
+  const settledByOthers = L.statutory.filter((r) => r.id !== L.designatedId).reduce((a, r) => a + r.statutory, 0);
 
   return (
     <div>
@@ -64,6 +65,10 @@ export default function ThaiLiabilityPage() {
               <span>Thai QDMTT collects<div className="text-muted" style={{ fontSize: 12 }}>TH-QDMTT-2025 · Central Record transitional qualified</div></span>
               <Amount n={L.thaiQdmtt} audit={th.audit} />
             </div>
+            <div className="wf-row">
+              <span>+ Thai IIR on foreign blends<div className="text-muted" style={{ fontSize: 12 }}>{L.thaiIirRows.length ? L.thaiIirRows.map((r) => `${r.name} · ${r.popeIir ? "POPE" : "UPE"} IIR ${eur(r.total)}`).join(" · ") : "None — the UPE is not Thai and no Thai POPE collects on this snapshot"}</div></span>
+              <Amount n={L.thaiIir} audit={L.audit.children?.[4]} />
+            </div>
             <div className="wf-row total">
               <span>Amount ultimately payable in Thailand</span>
               <Amount n={L.payable} audit={L.audit} />
@@ -90,7 +95,7 @@ export default function ThaiLiabilityPage() {
             </p>
             <div className="stack-actions" style={{ marginBottom: 12 }}>
               <button type="button" className={`btn ${payer === "statutory" ? "btn-primary" : "btn-secondary"}`} onClick={() => setPayer("statutory")}>Statutory (GloBE profit)</button>
-              <button type="button" className={`btn ${payer === "thce" ? "btn-primary" : "btn-secondary"}`} onClick={() => setPayer("thce")}>TH001 sole payer</button>
+              <button type="button" className={`btn ${payer === "designated" ? "btn-primary" : "btn-secondary"}`} onClick={() => setPayer("designated")}>{L.designatedLabel}</button>
             </div>
             {elected.map((r) => (
               <div className="wf-row" key={r.id}>
@@ -100,7 +105,7 @@ export default function ThaiLiabilityPage() {
             ))}
             <div className="wf-row total"><span>Thai payable</span><Amount n={L.payable} audit={L.audit} /></div>
             <p className="text-muted" style={{ margin: "12px 0 0", fontSize: 12 }}>
-              Intercompany settlement {payer === "thce" ? `${eur(statutoryTotal - (elected.find((e) => e.id === "TH-CE")?.due ?? 0) + (elected.find((e) => e.id === "TH-PE")?.statutory ?? 0))} PE → TH001` : "none — each pays its share"}.
+              Intercompany settlement {payer === "designated" ? `${eur(settledByOthers)} from the other Thai CEs → ${designated?.code ?? L.designatedId}` : "none — each pays its share"}.
               Notification of the election travels with the Section 57 return. Filing schema pending.
             </p>
           </div>
@@ -129,7 +134,7 @@ export default function ThaiLiabilityPage() {
           </table>
         </div>
         <p className="text-muted" style={{ padding: "12px 16px 16px", margin: 0, fontSize: 13 }}>
-          {utpr.method}. Counting: {utpr.counting}. Investment entities excluded. Thai FTE and assets are locked for FY2026 even though Thailand does not collect UTPR this year. Residual worldwide UTPR in this snapshot is $0 after QDMTT / IIR.
+          {utpr.method}. Counting: {utpr.counting}. Investment entities excluded. Thai FTE and assets are locked for FY2026 even though Thailand does not collect UTPR this year. Residual worldwide UTPR in this snapshot is {eur(calcs.reduce((a, c) => a + c.collection.utpr, 0))} after QDMTT / IIR.
         </p>
       </div>
     </div>

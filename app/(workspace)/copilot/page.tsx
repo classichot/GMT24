@@ -24,7 +24,10 @@ export default function CopilotHub() {
           <strong>One Co-Pilot, eleven connected features.</strong>
           <div className="text-muted" style={{ marginTop: 4 }}>Ask → investigate → explain → propose action → review → execute → record. Every feature reads the same context ({ai.ctx.groupName} · {ai.ctx.fy} · {ai.ctx.screen?.title ?? "General"}), the same fact registry and the same calculation trace; every action goes through the gateway as <strong>{ROLE_LABEL[ai.ctx.role]}</strong>.</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setCopilotOpen(true)}><MessageSquare size={14} />Open the panel</button>
+        <div className="stack-actions">
+          <Link href="/playbook/copilot" className="btn btn-secondary">Playbook</Link>
+          <button className="btn btn-primary" onClick={() => setCopilotOpen(true)}><MessageSquare size={14} />Open the panel</button>
+        </div>
       </div>
 
       <div className="kpi-grid cols-4">

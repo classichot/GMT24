@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { ACCOUNTS, FILES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
 import { REVIEW_PHASES, reviewChecks, reviewScore } from "@/lib/reviewGuide";
-import { SAMPLE_DOWNLOADS } from "@/lib/ingestSim";
+import { sampleDownloads } from "@/lib/ingestSim";
 import { eur } from "@/lib/format";
 
 export default function ReviewGuidePage() {
   const { ingestStatus, loadDemoPack, resetIngest, workflow, approvedMaps, flash, group } = useStore();
   const { calcs, t } = useCalc();
-  const pending = ACCOUNTS.filter((a) => !a.approved && !approvedMaps[a.account]).length;
+  const pending = DATA.accounts.filter((a) => !a.approved && !approvedMaps[a.account]).length;
   const checks = useMemo(
     () =>
       reviewChecks({
@@ -58,7 +58,7 @@ export default function ReviewGuidePage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Ingest</div>
-          <div className="kpi-val">{ingestStatus === "ready" ? FILES.length : ingestStatus === "running" ? "…" : "0"}</div>
+          <div className="kpi-val">{ingestStatus === "ready" ? DATA.files.length : ingestStatus === "running" ? "…" : "0"}</div>
           <div className="kpi-sub">{ingestStatus === "ready" ? "files posted" : ingestStatus === "running" ? "classifying" : "empty pack"}</div>
         </div>
         <div className="kpi">
@@ -91,13 +91,13 @@ export default function ReviewGuidePage() {
         </div>
         <div className="panel-body">
           <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
-            Download a CSV, then drop it on Data Hub. For the full teaching snapshot, use <strong>Load demo close pack</strong> ({FILES.length} files).
+            Download a CSV, then drop it on Data Hub. For the full teaching snapshot, use <strong>Load demo close pack</strong> ({DATA.files.length} files).
           </p>
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>File</th><th>Kind</th><th>Note</th><th></th></tr></thead>
               <tbody>
-                {SAMPLE_DOWNLOADS.map((f) => (
+                {sampleDownloads().map((f) => (
                   <tr key={f.href}>
                     <td>{f.name}</td>
                     <td>{f.kind}</td>

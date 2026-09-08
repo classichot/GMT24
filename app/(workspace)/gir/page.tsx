@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { GIR_SECTIONS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 import { eur } from "@/lib/format";
 import { FlowBar } from "@/components/FlowBar";
@@ -49,7 +49,7 @@ export default function GirPage() {
       <div className="grid-2">
         <div className="panel">
           <div className="panel-head"><h4>Live GIR sections</h4><span className={pkg.validation.valid ? "status-done" : "status-block"}>{pkg.validation.valid ? "Ready" : `${pkg.validation.errors.length} errors`}</span></div>
-          {GIR_SECTIONS.map((s) => (
+          {DATA.girSections.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-divider)" }}>
               <div>
                 <strong>{s.id}. {s.title}</strong>
