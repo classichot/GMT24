@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { useAi } from "@/components/AiProvider";
 import { propose } from "@/lib/ai/actions";
 import { AUDIENCE_LABEL, type Audience } from "@/lib/ai/briefing";
-import type { Section } from "@/lib/ai/types";
+import { deckHtml } from "@/lib/ai/briefingDeck";
 
 const AUDIENCES: Audience[] = ["cfo", "tax-committee", "board"];
 const AUDIENCE_NOTE: Record<Audience, string> = {
@@ -16,18 +16,6 @@ const AUDIENCE_NOTE: Record<Audience, string> = {
   "tax-committee": "Full jurisdiction table, every open decision, all uncertainty flags.",
   board: "Three jurisdictions. Is the number final, who collects, what could move it.",
 };
-
-function slides(sections: Section[], title: string, sub: string) {
-  const out: string[] = [`# ${title}`, "", sub, ""];
-  for (const s of sections) {
-    out.push("---", "", `## ${s.title ?? (s.kind === "conclusion" ? "Headline" : s.kind)}`, "");
-    if (s.text) out.push(s.text, "");
-    if (s.rows && s.head) { out.push(`| ${s.head.join(" | ")} |`, `| ${s.head.map(() => "---").join(" | ")} |`); for (const r of s.rows) out.push(`| ${r.join(" | ")} |`); out.push(""); }
-    for (const it of s.items ?? []) out.push(`- ${it}`);
-    out.push("");
-  }
-  return out.join("\n");
-}
 
 export default function BriefingPage() {
   return <Suspense><BriefingInner /></Suspense>;
@@ -43,8 +31,12 @@ function BriefingInner() {
 
   const b = useMemo(() => ai.briefingFor(audience), [ai, audience]);
   const stamp = `${ai.ctx.groupName} · ${ai.ctx.fy} · ${ai.ctx.calcVersion}`;
-  const file = (ext: "md" | "slides.md") => `briefing-${audience}-${ai.ctx.fy}.${ext}`;
-  const download = (kind: "memo" | "slides") => ai.run(propose("download", { name: file(kind === "memo" ? "md" : "slides.md"), body: kind === "memo" ? b.markdown : slides(b.sections, `Pillar Two briefing — ${AUDIENCE_LABEL[audience]}`, stamp) }, ai.ctx, { label: `Download ${AUDIENCE_LABEL[audience]} ${kind} (draft)` }));
+  const download = (kind: "memo" | "slides") => {
+    if (kind === "memo") return ai.run(propose("download", { name: `briefing-${audience}-${ai.ctx.fy}.md`, body: b.markdown }, ai.ctx, { label: `Download ${AUDIENCE_LABEL[audience]} memo (draft)` }));
+    const html = deckHtml(b.sections, { title: `${AUDIENCE_LABEL[audience]} briefing`, audience: AUDIENCE_LABEL[audience], groupName: ai.ctx.groupName, fy: ai.ctx.fy, calcVersion: ai.ctx.calcVersion, preparedFor: ai.ctx.user.name, preparedAt: new Date().toISOString().slice(0, 10), provisional: b.provisional });
+    return ai.run(propose("download", { name: `briefing-${audience}-${ai.ctx.fy}-slides.html`, body: html, mime: "text/html" }, ai.ctx, { label: `Download ${AUDIENCE_LABEL[audience]} slides (draft)` }));
+  };
+  const jurisdictionHref = (name: string) => { const c = ai.calcs.find((k) => k.name === name); return c ? `/etr?iso=${c.iso}` : null; };
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
@@ -58,7 +50,7 @@ function BriefingInner() {
             {AUDIENCES.map((a) => <button key={a} className={`chip${audience === a ? " active" : ""}`} style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setAudience(a)}>{AUDIENCE_LABEL[a]}</button>)}
             <span style={{ width: 8 }} />
             <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => download("memo")}><FileText size={13} /> Memo</button>
-            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => download("slides")}><Presentation size={13} /> Slides</button>
+            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => download("slides")} title="Self-contained HTML deck: opens in a browser, press P to present, print to PDF"><Presentation size={13} /> Slides</button>
           </div>
         </div>
         <div className="text-muted" style={{ fontSize: 12, padding: "0 16px 12px" }}>{AUDIENCE_NOTE[audience]} Every figure is copied from the calculation version above. {b.provisional ? "Figures depend on open X-Ray items or estimated data — not for external use." : "Snapshot approved."}</div>
@@ -76,7 +68,7 @@ function BriefingInner() {
                   <div className="table-wrap" style={{ marginTop: 6 }}>
                     <table className="table" style={{ fontSize: 12 }}>
                       <thead><tr>{s.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                      <tbody>{s.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{c}</td>)}</tr>)}</tbody>
+                      <tbody>{s.rows.map((r, j) => <tr key={j}>{r.map((c, k) => { const href = k === 0 ? jurisdictionHref(c) : null; return <td key={k}>{href ? <Link href={href} title={`Open ${c} — trace for this figure`}>{c}</Link> : c}</td>; })}</tr>)}</tbody>
                     </table>
                   </div>
                 )}
