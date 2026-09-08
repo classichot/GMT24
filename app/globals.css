@@ -328,6 +328,12 @@ pre { font-size: 12px; line-height: 1.65; }
 }
 .nav-btn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-btn > svg { flex: none; }
+.group-switch {
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 10px;
+  border-bottom: 2px solid var(--color-divider); background: var(--color-surface);
+}
+.group-switch > span { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); }
+.group-switch > select { font-size: 12px; padding: 6px 8px; min-height: 0; width: 100%; }
 .sidebar-foot {
   flex: none;
   border-top: 2px solid var(--color-divider);

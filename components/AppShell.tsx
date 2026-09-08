@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { DATA, ADVISOR_USER } from "@/lib/model";
+import { SEEDS } from "@/lib/seeds";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Copilot } from "@/components/Copilot";
@@ -223,6 +224,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+const DEMO_GROUPS = Object.values(SEEDS).map((s) => s.group);
+
 const NAV_W_KEY = "gmt24_nav_w";
 export const NAV_W_DEFAULT = 248;
 export const NAV_W_MIN = 200;
@@ -307,7 +310,7 @@ function useNavWidth() {
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
   const ai = useAi();
   const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
@@ -345,6 +348,28 @@ function Shell({ children }: { children: ReactNode }) {
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 13 }}>{group.name}</div>
           <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>{group.fy} · <Amount n={t.topUp} audit={t.audit} compact /> top-up</div>
         </Link>
+        {mode === "inhouse" && !invite && DEMO_GROUPS.length > 1 && (
+          <label className="group-switch" title="Open another demo group">
+            <span>Demo group</span>
+            <select
+              className="input"
+              value={DEMO_GROUPS.some((g) => g.id === group.id) ? group.id : ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id || id === group.id) return;
+                setGroupId(id);
+                setNavOpen(false);
+                flash(`${SEEDS[id].group.name} open`);
+                router.push("/overview");
+              }}
+            >
+              {!DEMO_GROUPS.some((g) => g.id === group.id) && <option value="">{group.name}</option>}
+              {DEMO_GROUPS.map((g) => (
+                <option key={g.id} value={g.id}>{g.name} · {g.upeIso} UPE</option>
+              ))}
+            </select>
+          </label>
+        )}
         {mode === "advisor" && !invite && (
           <div className="sidebar-start">
             <div className="sidebar-start-kicker">Start here</div>
