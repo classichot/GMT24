@@ -25,6 +25,8 @@ import { briefing, briefingReply, type Audience } from "@/lib/ai/briefing";
 import { quickscanReply } from "@/lib/ai/quickscan";
 import type { CalcInputs } from "@/lib/ai/calc";
 import { extractAttachment } from "@/lib/ai/documents";
+import { orchestrate, OrchestrationError, type Progress } from "@/lib/ai/orchestrate";
+import type { ToolHost } from "@/lib/ai/tools";
 import { emptyAiState, type AiAuditRecord, type AiState, type Attachment, type Fact, type FeatureId, type Lang, type ProposedAction, type Reply, type Task, type Thread, type Ticket, type UserRole, type WorkContext } from "@/lib/ai/types";
 import type { XrayFinding } from "@/lib/xray";
 import { buildScan, reassess, type ScanOptions } from "@/lib/scan/pipeline";
@@ -50,7 +52,14 @@ type Ai = {
   rehearsal: RehearsalQ[];
   thread: Thread | null;
   busy: boolean;
+  /** What the assistant is doing right now (retrieving, thinking, tool name, validating). */
+  progress: Progress | null;
+  model: ModelStatus;
+  refreshModel: () => Promise<void>;
   ask: (q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }) => Promise<Reply | null>;
+  /** Deterministic answer without the language model — always labelled as rule-based. */
+  askRules: (q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }) => Reply | null;
+  cancel: () => void;
   run: (a: ProposedAction) => GatewayResult;
   explain: (node: AuditNode, calc?: JurCalc) => Reply;
   explainMenu: (href?: string) => Reply | null;
@@ -75,6 +84,9 @@ type Ai = {
   guideNext: () => void;
   guideEnd: () => void;
 };
+
+export type ModelStatus = { checked: boolean; configured: boolean; reachable: boolean; provider: string; model: string; detail: string; store: string };
+const NO_MODEL: ModelStatus = { checked: false, configured: false, reachable: false, provider: "none", model: "", detail: "", store: "memory" };
 
 const Ctx = createContext<Ai | null>(null);
 
@@ -104,6 +116,9 @@ export function AiProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AiState>(emptyAiState);
   const [lang, setLangState] = useState<Lang>("en");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [model, setModel] = useState<ModelStatus>(NO_MODEL);
+  const abortRef = useRef<AbortController | null>(null);
   const [search, setSearch] = useState<URLSearchParams | null>(null);
   const loaded = useRef(false);
   const pendingTickets = useRef<Map<string, Ticket>>(new Map());
@@ -114,6 +129,26 @@ export function AiProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (loaded.current) try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* quota — keep in memory */ } }, [state]);
   useEffect(() => { setSearch(typeof window === "undefined" ? null : new URLSearchParams(window.location.search)); }, [pathname]);
 
+  const refreshModel = useCallback(async () => {
+    try {
+      const r = await fetch("/api/ai/status", { cache: "no-store" });
+      const j = (await r.json()) as Omit<ModelStatus, "checked">;
+      setModel({ ...j, checked: true });
+    } catch {
+      setModel((m) => ({ ...m, checked: true, reachable: false, detail: "status endpoint unreachable" }));
+    }
+  }, []);
+  useEffect(() => { void refreshModel(); const t = setInterval(() => void refreshModel(), 120_000); return () => clearInterval(t); }, [refreshModel]);
+
+  // Durable mirror of the thread for the open context (no-op on the in-memory store, kept for configured stores).
+  useEffect(() => {
+    if (!loaded.current) return;
+    const t = state.threads.find((th) => th.contextKey === ctxKeyRef.current);
+    if (!t) return;
+    const h = setTimeout(() => { void fetch("/api/ai/records", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenant: t.groupId, kind: "thread", id: t.id, record: t }) }).catch(() => undefined); }, 1500);
+    return () => clearTimeout(h);
+  }, [state.threads]);
+
   const patch = useCallback((fn: (s: AiState) => Partial<AiState>) => setState((s) => ({ ...s, ...fn(s) })), []);
 
   const inputs: CalcInputs = useMemo(() => ({ groupId: store.groupId, fy: store.activeFy, electionsOn: store.electionsOn, approvedMaps: store.approvedMaps, yearRecords: store.yearRecords, packOverlay: store.packOverlay, scenario: store.scenario, sbieClaim: store.sbieClaim }), [store.groupId, store.activeFy, store.electionsOn, store.approvedMaps, store.yearRecords, store.packOverlay, store.scenario, store.sbieClaim]);
@@ -123,6 +158,9 @@ export function AiProvider({ children }: { children: ReactNode }) {
     workflow: store.workflow, approvedMaps: store.approvedMaps, yearLocked: store.yearLocked, ingestReady: store.ingestStatus === "ready", stop: x.stop,
     packAmendments: store.packAmendments, packChanges: store.packChanges, snapshot: `${store.activeFy} working`,
   }), [store.groupId, store.group, store.activeFy, store.mode, state.role, pathname, search, lang, store.workflow, store.approvedMaps, store.yearLocked, store.ingestStatus, x.stop, store.packAmendments, store.packChanges]);
+
+  const ctxKeyRef = useRef("");
+  ctxKeyRef.current = ctx.contextKey;
 
   const facts = useMemo(() => allFacts({ findings: x.findings, xray: x.state, fy: store.activeFy, manual: state.manualFacts, packAmendments: store.packAmendments }), [x.findings, x.state, store.activeFy, state.manualFacts, store.packAmendments]);
   const reviewFindings = useMemo(() => reviewCalculation({ calcs: x.calcs, inputs, findings: x.findings, xray: x.state, approvedMaps: store.approvedMaps, groupId: store.groupId }), [x.calcs, inputs, x.findings, x.state, store.approvedMaps, store.groupId]);
@@ -251,65 +289,115 @@ export function AiProvider({ children }: { children: ReactNode }) {
 
   const briefingFor = useCallback((audience: Audience) => briefing({ audience, calcs: x.calcs, inputs, findings: x.findings, xray: x.state, reviewer: reviewFindings, tasks, scenarios: state.scenarios, ctx }), [x.calcs, inputs, x.findings, x.state, reviewFindings, tasks, state.scenarios, ctx]);
 
-  const ask = useCallback(async (q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }): Promise<Reply | null> => {
+  /** Deterministic feature modules. Used as first-pass evidence for the model and as the labelled rule-based fallback. */
+  const rulesReply = useCallback((text: string, c: WorkContext, feature: FeatureId, mode: ReturnType<typeof detectIntent>["mode"], audience: ReturnType<typeof detectIntent>["audience"], opts?: { attachmentIds?: string[] }): Reply => {
+    switch (feature) {
+      case "trainer": return trainerReply(text, c, mode);
+      case "feedback": {
+        const dup = findDuplicate(text, stateRef.current.tickets);
+        const tk = draftTicket(text, c, stateRef.current.tickets, { screen: true, versions: true, steps: true }, c.user.name);
+        pendingTickets.current.set(tk.id, tk);
+        return feedbackReply(tk, c, dup);
+      }
+      case "explain": {
+        const loc = locateNode(text, x.calcs, groupAudit);
+        let reply = loc ? explainNode({ node: loc.node, calc: loc.calc, calcs: x.calcs, inputs, findings: x.findings, xray: x.state, ctx: c }) : specialistReply({ q: text, ctx: c, calcs: x.calcs, findings: x.findings, xray: x.state, facts });
+        if (!loc) reply = { ...reply, unsupported: [...reply.unsupported, "Could not identify the amount to explain — name the jurisdiction and the figure (e.g. \"Vietnam ETR\"), or click Explain on the audit trail."] };
+        return reply;
+      }
+      case "interviewer": {
+        const ordered = xrayPriority(x.findings, x.state, x.calcs).map((p) => p.f);
+        const named = ordered.find((f) => text.toLowerCase().includes(f.jurisdiction.toLowerCase()) || text.toLowerCase().includes(f.entityName.toLowerCase()) || text.toLowerCase().includes(f.title.toLowerCase().slice(0, 18)));
+        return named ? interviewReply({ finding: named, xray: x.state, calcs: x.calcs, facts, attachments: stateRef.current.attachments.filter((a) => a.contextKey === c.contextKey || (opts?.attachmentIds ?? []).includes(a.id)), ctx: c, q: text }) : interviewOverview(x.findings, x.state, x.calcs, c);
+      }
+      case "reviewer": { if (!store.workflow.reviewerRan) store.patchWorkflow({ reviewerRan: true }); return reviewerReply(reviewFindings, c, stateRef.current.taskOverrides, text); }
+      case "strategy": {
+        const parsed = parseScenario(text, x.calcs, { scenario: store.scenario, electionsOn: store.electionsOn, sbieClaim: store.sbieClaim });
+        const sc = runScenario(parsed.spec, inputs, x.calcs, c, text, parsed.assumptions);
+        patch((s) => ({ scenarios: [sc, ...s.scenarios].slice(0, 30) }));
+        return strategyReply(sc, c, parsed.unparsed, x.calcs);
+      }
+      case "rehearsal": return rehearsalReply(rehearsal, c, text);
+      case "regwatch": return regwatchReply(watch, c, text);
+      case "briefing": return briefingReply({ audience: audience === "board" ? "board" : audience === "committee" ? "tax-committee" : "cfo", calcs: x.calcs, inputs, findings: x.findings, xray: x.state, reviewer: reviewFindings, tasks, scenarios: stateRef.current.scenarios, ctx: c });
+      case "quickscan": {
+        const m = text.match(/(?:quick ?scan|scan|สแกน)\s+(?:of\s+|for\s+)?["“]?([^"”?]+?)["”]?\s*$/i);
+        const latest = (stateRef.current.scans as ScanResult[])[0] ?? null;
+        if (m && m[1].trim().length > 2 && !/^(the )?(group|company|it|this)$/i.test(m[1].trim())) { const r = runScan(m[1].trim()); return quickscanReply(text, r, c, true); }
+        return quickscanReply(text, latest, c, false);
+      }
+      default: return specialistReply({ q: text, ctx: c, calcs: x.calcs, findings: x.findings, xray: x.state, facts });
+    }
+  }, [x.calcs, x.findings, x.state, inputs, facts, reviewFindings, rehearsal, watch, tasks, store, groupAudit, patch, runScan]);
+
+  const toolHost = useCallback((c: WorkContext): ToolHost => ({
+    ctx: c, calcs: x.calcs, inputs, findings: x.findings, xray: x.state, facts, tasks, reviewFindings,
+    attachments: stateRef.current.attachments, tickets: stateRef.current.tickets, scenarios: stateRef.current.scenarios, groupAudit,
+    workflow: { girValidated: store.workflow.girValidated, girExported: store.workflow.girExported, snapshotApproved: store.workflow.snapshotApproved, reviewerRan: store.workflow.reviewerRan, requestsSent: Object.values(store.workflow.sentRequests).filter(Boolean).length, ingestReady: store.ingestStatus === "ready", yearLocked: store.yearLocked, approvedMaps: Object.keys(store.approvedMaps).length },
+    featurePack: (f, q) => { try { return rulesReply(q, c, f, null, undefined); } catch { return null; } },
+    saveScenario: (sc) => patch((s) => ({ scenarios: [sc, ...s.scenarios.filter((o) => o.id !== sc.id)].slice(0, 30) })),
+    holdTicket: (t) => pendingTickets.current.set(t.id, t),
+  }), [x.calcs, x.findings, x.state, inputs, facts, tasks, reviewFindings, groupAudit, store, rulesReply, patch]);
+
+  const askRules = useCallback((q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }): Reply | null => {
     const text = q.trim();
     if (!text) return null;
-    setBusy(true);
-    const t0 = performance.now();
     const l = detectLang(text);
     const c: WorkContext = { ...ctx, lang: l };
     const intent = detectIntent(text, c.screen?.key ?? null, opts?.feature ?? null);
     let reply: Reply;
-    try {
-      switch (intent.feature) {
-        case "trainer": reply = trainerReply(text, c, intent.mode); break;
-        case "feedback": {
-          const dup = findDuplicate(text, stateRef.current.tickets);
-          const tk = draftTicket(text, c, stateRef.current.tickets, { screen: true, versions: true, steps: true }, c.user.name);
-          pendingTickets.current.set(tk.id, tk);
-          reply = feedbackReply(tk, c, dup);
-          break;
-        }
-        case "explain": {
-          const loc = locateNode(text, x.calcs, groupAudit);
-          reply = loc ? explainNode({ node: loc.node, calc: loc.calc, calcs: x.calcs, inputs, findings: x.findings, xray: x.state, ctx: c }) : specialistReply({ q: text, ctx: c, calcs: x.calcs, findings: x.findings, xray: x.state, facts });
-          if (!loc) reply = { ...reply, unsupported: [...reply.unsupported, "Could not identify the amount to explain — name the jurisdiction and the figure (e.g. \"Vietnam ETR\"), or click Explain on the audit trail."] };
-          break;
-        }
-        case "interviewer": {
-          const ordered = xrayPriority(x.findings, x.state, x.calcs).map((p) => p.f);
-          const named = ordered.find((f) => text.toLowerCase().includes(f.jurisdiction.toLowerCase()) || text.toLowerCase().includes(f.entityName.toLowerCase()) || text.toLowerCase().includes(f.title.toLowerCase().slice(0, 18)));
-          reply = named ? interviewReply({ finding: named, xray: x.state, calcs: x.calcs, facts, attachments: stateRef.current.attachments.filter((a) => a.contextKey === c.contextKey || (opts?.attachmentIds ?? []).includes(a.id)), ctx: c, q: text }) : interviewOverview(x.findings, x.state, x.calcs, c);
-          break;
-        }
-        case "reviewer": reply = reviewerReply(reviewFindings, c, stateRef.current.taskOverrides, text); if (!store.workflow.reviewerRan) store.patchWorkflow({ reviewerRan: true }); break;
-        case "strategy": {
-          const parsed = parseScenario(text, x.calcs, { scenario: store.scenario, electionsOn: store.electionsOn, sbieClaim: store.sbieClaim });
-          const sc = runScenario(parsed.spec, inputs, x.calcs, c, text, parsed.assumptions);
-          patch((s) => ({ scenarios: [sc, ...s.scenarios].slice(0, 30) }));
-          reply = strategyReply(sc, c, parsed.unparsed, x.calcs);
-          break;
-        }
-        case "rehearsal": reply = rehearsalReply(rehearsal, c, text); break;
-        case "regwatch": reply = regwatchReply(watch, c, text); break;
-        case "briefing": reply = briefingReply({ audience: intent.audience === "board" ? "board" : intent.audience === "committee" ? "tax-committee" : "cfo", calcs: x.calcs, inputs, findings: x.findings, xray: x.state, reviewer: reviewFindings, tasks, scenarios: stateRef.current.scenarios, ctx: c }); break;
-        case "quickscan": {
-          const m = text.match(/(?:quick ?scan|scan|สแกน)\s+(?:of\s+|for\s+)?["“]?([^"”?]+?)["”]?\s*$/i);
-          const latest = (stateRef.current.scans as ScanResult[])[0] ?? null;
-          if (m && m[1].trim().length > 2 && !/^(the )?(group|company|it|this)$/i.test(m[1].trim())) { const r = runScan(m[1].trim()); reply = quickscanReply(text, r, c, true); }
-          else reply = quickscanReply(text, latest, c, false);
-          break;
-        }
-        default: reply = specialistReply({ q: text, ctx: c, calcs: x.calcs, findings: x.findings, xray: x.state, facts });
+    try { reply = rulesReply(text, c, intent.feature, intent.mode, intent.audience, opts); }
+    catch (e) { reply = { id: `r-${Date.now().toString(36)}`, at: new Date().toISOString(), feature: intent.feature, title: "Could not answer", sections: [{ kind: "warning", text: `The ${intent.feature} module failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed.` }], cites: [], actions: [], grounded: false, unsupported: ["Feature error"], version: c.calcVersion, lang: l }; }
+    reply = { ...reply, engine: "rules", chips: [intent.feature, ...(intent.mode ? [intent.mode] : [])], sections: [{ kind: "warning", text: l === "th" ? "คำตอบจากกฎเกณฑ์ที่กำหนดไว้ (ไม่ได้ใช้โมเดลภาษา) — ตัวเลขมาจากเครื่องคำนวณและฐานความรู้ที่อนุมัติ" : "Rule-based answer — produced by GMT24's deterministic modules without a language model. Figures come from the engine and the approved knowledge base." }, ...reply.sections] };
+    append(text, reply, opts?.attachmentIds);
+    return reply;
+  }, [ctx, rulesReply, append]);
+
+  const cancel = useCallback(() => { abortRef.current?.abort(); }, []);
+
+  const ask = useCallback(async (q: string, opts?: { feature?: FeatureId | null; attachmentIds?: string[] }): Promise<Reply | null> => {
+    const text = q.trim();
+    if (!text) return null;
+    const l = detectLang(text);
+    const c: WorkContext = { ...ctx, lang: l };
+    const intent = detectIntent(text, c.screen?.key ?? null, opts?.feature ?? null);
+    const t0 = performance.now();
+    setBusy(true);
+    setProgress({ stage: "retrieving" });
+    const ctl = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = ctl;
+    let seed: Reply | null = null;
+    try { seed = rulesReply(text, c, intent.feature, intent.mode, intent.audience, opts); } catch { seed = null; }
+    let reply: Reply;
+    if (!model.configured) {
+      reply = { id: `r-${Date.now().toString(36)}`, at: new Date().toISOString(), feature: intent.feature, title: l === "th" ? "ยังไม่ได้เชื่อมต่อโมเดลภาษา" : "Language model not connected", sections: [{ kind: "warning", text: l === "th" ? "พื้นที่ทำงานนี้ยังไม่ได้ตั้งค่าโมเดลภาษา จึงยังตอบคำถามแบบเปิดไม่ได้ คุณสามารถดูคำตอบจากกฎเกณฑ์ (ตัวเลขจากเครื่องคำนวณ) หรือแจ้งผู้ดูแลระบบให้ตั้งค่า" : "No language model is configured for this workspace, so open-ended questions cannot be answered yet. You can view the rule-based answer (figures straight from the engine and knowledge base) or ask your administrator to connect a model." }], cites: [], actions: [], grounded: false, unsupported: [], version: c.calcVersion, lang: l, engine: "llm", failed: { code: "not_configured", detail: model.detail, question: text, feature: intent.feature, attachmentIds: opts?.attachmentIds } };
+    } else {
+      try {
+        reply = await orchestrate({ question: text, feature: intent.feature, lang: l, ctx: c, thread: stateRef.current.threads.find((t) => t.contextKey === c.contextKey) ?? null, host: toolHost(c), seed, attachmentIds: opts?.attachmentIds, signal: ctl.signal, onProgress: setProgress });
+        // Actions the model did not surface but the deterministic module proposed stay available as secondary options.
+        if (seed && reply.actions.length === 0 && seed.actions.length) reply = { ...reply, actions: seed.actions.slice(0, 3) };
+      } catch (e) {
+        const aborted = ctl.signal.aborted;
+        const code = aborted ? "cancelled" : e instanceof OrchestrationError ? e.code : "error";
+        const detail = e instanceof Error ? e.message : String(e);
+        const human = aborted
+          ? (l === "th" ? "ยกเลิกแล้ว คำถามของคุณยังอยู่ — กดลองใหม่ได้" : "Cancelled. Your question is kept — retry when ready.")
+          : code === "timeout" ? (l === "th" ? "โมเดลใช้เวลานานเกินไป ลองใหม่หรือดูคำตอบจากกฎเกณฑ์" : "The model took too long. Retry, or view the rule-based answer.")
+          : code === "not_configured" ? (l === "th" ? "ยังไม่ได้ตั้งค่าโมเดลภาษา" : "No language model is configured for this workspace.")
+          : code === "bad_response" ? (l === "th" ? "โมเดลไม่ได้ตอบในรูปแบบที่ตรวจสอบได้ จึงไม่แสดงคำตอบนั้น" : "The model did not return an answer that could be validated, so it was not shown.")
+          : (l === "th" ? "บริการโมเดลภาษาไม่พร้อมใช้งานในขณะนี้" : "The language model service is unavailable right now.");
+        reply = { id: `r-${Date.now().toString(36)}`, at: new Date().toISOString(), feature: intent.feature, title: aborted ? (l === "th" ? "ยกเลิก" : "Cancelled") : (l === "th" ? "ตอบไม่ได้ในขณะนี้" : "Assistant unavailable"), sections: [{ kind: "warning", text: `${human} ${l === "th" ? "ไม่มีการเปลี่ยนแปลงข้อมูลใด ๆ" : "Nothing was changed."}` }], cites: [], actions: [], grounded: false, unsupported: [], version: c.calcVersion, lang: l, engine: "llm", failed: { code, detail, question: text, feature: intent.feature, attachmentIds: opts?.attachmentIds } };
+        void refreshModel();
       }
-    } catch (e) {
-      reply = { id: `r-${Date.now().toString(36)}`, at: new Date().toISOString(), feature: intent.feature, title: "Could not answer", sections: [{ kind: "warning", text: `The ${intent.feature} feature failed: ${e instanceof Error ? e.message : String(e)}. Nothing was changed. Use Feedback to report it with the context attached.` }], cites: [], actions: [propose("navigate", { href: "/feedback" }, c, { label: "Report" })], grounded: false, unsupported: ["Feature error"], version: c.calcVersion, lang: l };
     }
-    reply = { ...reply, latencyMs: Math.round(performance.now() - t0), chips: [intent.feature, ...(intent.mode ? [intent.mode] : [])] };
+    reply = { ...reply, latencyMs: reply.latencyMs ?? Math.round(performance.now() - t0), chips: reply.chips?.length ? reply.chips : [intent.feature, ...(intent.mode ? [intent.mode] : [])] };
     append(text, reply, opts?.attachmentIds);
     setBusy(false);
+    setProgress(null);
+    if (abortRef.current === ctl) abortRef.current = null;
     return reply;
-  }, [ctx, x.calcs, x.findings, x.state, inputs, facts, reviewFindings, rehearsal, watch, tasks, store, groupAudit, patch, append, runScan]);
+  }, [ctx, model.configured, model.detail, rulesReply, toolHost, append, refreshModel]);
 
   // Pending "ask" from other screens (existing store.ask bridge).
   useEffect(() => {
@@ -332,8 +420,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
 
   const value: Ai = useMemo(() => ({
     state, ctx, lang, setLang: setLangState, setRole: (r) => patch(() => ({ role: r })),
-    calcs: x.calcs, inputs, findings: x.findings, facts, tasks, reviewFindings, watch, rehearsal, thread, busy,
-    ask, run, explain, explainMenu, interview, briefingFor, attach,
+    calcs: x.calcs, inputs, findings: x.findings, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel,
+    ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach,
     removeAttachment: (id) => patch((s) => ({ attachments: s.attachments.filter((a) => a.id !== id) })),
     createTask: api.createTask, updateTask: api.updateTask,
     updateTicket: (id, p) => patch((s) => ({ tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...(p.status ? { status: p.status } : {}), updates: [...t.updates, { at: new Date().toISOString(), note: p.note ?? `Status → ${p.status}` }] } : t)) })),
@@ -344,7 +432,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     clearThread: () => patch((s) => ({ threads: s.threads.filter((t) => t.contextKey !== ctx.contextKey) })),
     guideNext: () => patch((s) => (s.guide ? { guide: s.guide.index + 1 >= s.guide.steps.length ? null : { ...s.guide, index: s.guide.index + 1 } } : {})),
     guideEnd: () => patch(() => ({ guide: null })),
-  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, ask, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, answerScan, correctScan, deleteScan, onboard]);
+  }), [state, ctx, lang, patch, x.calcs, x.findings, inputs, facts, tasks, reviewFindings, watch, rehearsal, thread, busy, progress, model, refreshModel, ask, askRules, cancel, run, explain, explainMenu, interview, briefingFor, attach, api, scans, runScan, answerScan, correctScan, deleteScan, onboard]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

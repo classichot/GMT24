@@ -15,7 +15,9 @@ export function ReplyView({ reply, compact }: { reply: Reply; compact?: boolean 
       <div className="reply-head">
         <span className="tag tag-accent" style={{ fontSize: 10 }}>{FEATURE_META[reply.feature].name.replace(/^AI /, "")}</span>
         {reply.chips?.slice(1).map((c) => <span key={c} className="tag tag-neutral" style={{ fontSize: 10 }}>{c}</span>)}
-        {!reply.grounded && <span className="tag tag-warn" style={{ fontSize: 10 }}>partly ungrounded</span>}
+        {reply.engine && <span className={`reply-engine ${reply.engine}`} title={reply.engine === "llm" ? `Composed by ${reply.model ?? "the language model"} from tool evidence${reply.toolsUsed?.length ? ` · tools: ${reply.toolsUsed.join(", ")}` : ""}` : "Deterministic module — no language model"}>{reply.engine === "llm" ? (reply.failed ? "model" : "AI · grounded") : "rules"}</span>}
+        {!reply.grounded && !reply.failed && <span className="tag tag-warn" style={{ fontSize: 10 }}>partly ungrounded</span>}
+        {reply.confidence && reply.confidence !== "high" && !reply.failed && <span className="tag tag-neutral" style={{ fontSize: 10 }}>confidence {reply.confidence}</span>}
       </div>
       {!compact && <h5 style={{ margin: "6px 0 4px" }}>{reply.title}</h5>}
       {reply.sections.map((s, i) => <SectionView key={i} s={s} lang={reply.lang} />)}
@@ -34,7 +36,7 @@ export function ReplyView({ reply, compact }: { reply: Reply; compact?: boolean 
         </div>
       )}
       {reply.actions.length > 0 && <Actions actions={reply.actions} />}
-      <div className="reply-foot">{reply.version}{reply.latencyMs != null ? ` · ${reply.latencyMs} ms` : ""}</div>
+      <div className="reply-foot">{reply.version}{reply.latencyMs != null ? ` · ${(reply.latencyMs / 1000).toFixed(1)} s` : ""}{reply.model ? ` · ${reply.model}` : ""}{reply.steps && reply.steps > 1 ? ` · ${reply.steps} steps` : ""}{reply.tokens ? ` · ${reply.tokens.input + reply.tokens.output} tokens` : ""}</div>
     </div>
   );
 }
