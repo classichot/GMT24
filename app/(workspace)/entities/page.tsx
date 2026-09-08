@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
 import { classifyAll, classFor, ENTITY_TEST_STEPS } from "@/lib/entityClass";
@@ -16,10 +17,11 @@ export default function EntitiesPage() {
   const { calcs } = useCalc();
   const classes = classifyAll();
   const router = useRouter();
-  const [sel, setSel] = useState(classes.find((c) => c.moce)?.id ?? classes.find((c) => c.pope)?.id ?? "TH-CE");
-  const row = classFor(sel);
-  const entity = DATA.entities.find((e) => e.id === sel)!;
-  const jc = calcs.find((c) => c.entities.some((n) => n.id === sel));
+  const fallbackId = classes.find((c) => c.moce)?.id ?? classes.find((c) => c.pope)?.id ?? DATA.entities[0]?.id ?? null;
+  const [picked, setPicked] = useState<string | null | undefined>(undefined);
+  // `undefined` = nothing clicked yet (show the most interesting entity); `null` = user collapsed the open row.
+  const sel = picked === undefined ? fallbackId : picked && DATA.entities.some((e) => e.id === picked) ? picked : null;
+  const toggle = (id: string) => setPicked((cur) => ((cur === undefined ? fallbackId : cur) === id ? null : id));
   const moceN = classes.filter((c) => c.moce).length;
   const popeN = classes.filter((c) => c.pope).length;
   const ieN = classes.filter((c) => c.investment).length;
@@ -92,20 +94,23 @@ export default function EntitiesPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Code</th><th>Entity</th><th>Type</th><th>GloBE class</th><th>Jur.</th><th>Direct %</th><th>UPE %</th><th>GAAP</th><th className="num">ETR</th><th>Blend</th><th>Review</th>
+                <th aria-label="Expand" /><th>Code</th><th>Entity</th><th>Type</th><th>GloBE class</th><th>Jur.</th><th>Direct %</th><th>UPE %</th><th>GAAP</th><th className="num">ETR</th><th>Blend</th><th>Review</th>
               </tr>
             </thead>
             <tbody>
               {DATA.entities.map((e) => {
                 const cls = classes.find((c) => c.id === e.id)!;
                 const c = calcs.find((x) => x.entities.some((n) => n.id === e.id));
+                const open = sel === e.id;
                 return (
+                  <Fragment key={e.id}>
                   <tr
-                    key={e.id}
-                    className="clickable"
-                    onClick={() => setSel(e.id)}
-                    style={sel === e.id ? { outline: "2px solid var(--color-accent)" } : undefined}
+                    className={`clickable${open ? " selected" : ""}`}
+                    onClick={() => toggle(e.id)}
+                    aria-expanded={open}
+                    title={open ? "Hide the entity test" : "Show the entity test for this entity"}
                   >
+                    <td style={{ width: 28, paddingRight: 0 }}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                     <td className="mono">{e.code}</td>
                     <td>{e.name}</td>
                     <td>{e.type}</td>
@@ -118,6 +123,14 @@ export default function EntitiesPage() {
                     <td>{cls.blendKind}</td>
                     <td><span className="status-prep">{e.review}</span></td>
                   </tr>
+                  {open && (
+                    <tr className="detail-row">
+                      <td colSpan={12}>
+                        <EntityDetail id={e.id} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -125,33 +138,47 @@ export default function EntitiesPage() {
         </div>
       </div>
 
-      <div className="panel">
-        <div className="panel-head">
-          <div>
-            <h4 style={{ margin: 0 }}>{entity.name}</h4>
-            <div className="text-muted" style={{ fontSize: 12 }}>{entity.code} · {row.tag} · look-through UPE {row.upeOwnership}% · outsiders {row.outsiderPct}%</div>
+    </div>
+  );
+}
+
+/** Entity test for one row, shown inline beneath the clicked entity. */
+function EntityDetail({ id }: { id: string }) {
+  const { ask } = useStore();
+  const { calcs } = useCalc();
+  const router = useRouter();
+  const row = classFor(id);
+  const entity = DATA.entities.find((e) => e.id === id);
+  const jc = calcs.find((c) => c.entities.some((n) => n.id === id));
+  if (!entity) return null;
+  return (
+    <div className="entity-detail">
+      <div className="panel-head" style={{ padding: "0 0 10px", borderBottom: "2px solid var(--color-divider)", marginBottom: 10 }}>
+        <div>
+          <h4 style={{ margin: 0 }}>{entity.name}</h4>
+          <div className="text-muted" style={{ fontSize: 12 }}>{entity.code} · {row.tag} · look-through UPE {row.upeOwnership}% · outsiders {row.outsiderPct}% · {entity.jurisdiction} · {entity.gaap}</div>
+        </div>
+        <div className="stack-actions">
+          {jc && <button className="btn btn-primary" onClick={(ev) => { ev.stopPropagation(); router.push(etrHref(jc)); }}>Open {jc.name} ETR</button>}
+          <button className="btn btn-secondary" onClick={(ev) => { ev.stopPropagation(); ask(`Explain the entity test for ${entity.name} (${entity.code})`); }}>Ask GMT24</button>
+        </div>
+      </div>
+      <div className="waterfall">
+        {row.tests.map((t) => (
+          <div key={t.id} className="wf-row">
+            <span>{t.label}</span>
+            <span style={{ textAlign: "right", maxWidth: 520 }}>
+              <span className={`tag ${t.pass ? "tag-warn" : "tag-ok"}`} style={{ marginRight: 8 }}>{t.pass ? "Yes" : "No"}</span>
+              {t.detail}
+            </span>
           </div>
-          {jc && (
-            <button className="btn btn-primary" onClick={() => router.push(etrHref(jc))}>Open {jc.name} ETR</button>
-          )}
-        </div>
-        <div className="panel-body waterfall">
-          {row.tests.map((t) => (
-            <div key={t.id} className="wf-row">
-              <span>{t.label}</span>
-              <span style={{ textAlign: "right", maxWidth: 520 }}>
-                <span className={`tag ${t.pass ? "tag-warn" : "tag-ok"}`} style={{ marginRight: 8 }}>{t.pass ? "Yes" : "No"}</span>
-                {t.detail}
-              </span>
-            </div>
-          ))}
-          {jc && (
-            <div className="wf-row total">
-              <span>Valuation blend</span>
-              <span>{jc.name} · ETR <Amount n={jc.etr} audit={jc.trace.etr} compact /> · top-up <Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></span>
-            </div>
-          )}
-        </div>
+        ))}
+        {jc && (
+          <div className="wf-row total">
+            <span>Valuation blend</span>
+            <span>{jc.name} · ETR <Amount n={jc.etr} audit={jc.trace.etr} compact /> · top-up <Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></span>
+          </div>
+        )}
       </div>
     </div>
   );
