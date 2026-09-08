@@ -99,16 +99,18 @@ export const SCREENS: ScreenMeta[] = [
 export function screenFor(path: string): ScreenMeta | null {
   const clean = path.split("?")[0].replace(/\/$/, "") || "/";
   if (clean.startsWith("/playbook/")) {
-    const book = playbookBySlug(clean.slice("/playbook/".length));
-    if (book) {
+    const slug = clean.slice("/playbook/".length);
+    const book = playbookBySlug(slug);
+    const screen = SCREENS.find((s) => s.key === slug);
+    if (book || screen) {
       return {
-        key: `playbook-${book.slug}`,
-        module: book.navGroup ?? "Playbook",
-        title: book.title,
+        key: `playbook-${slug}`,
+        module: book?.navGroup ?? screen?.module ?? "Playbook",
+        title: book?.title ?? `${screen!.title} playbook`,
         href: clean,
-        purpose: book.summary,
+        purpose: book?.summary ?? screen!.purpose,
         fields: [],
-        actions: book.steps.map((s) => s.title),
+        actions: book?.steps.map((s) => s.title) ?? screen!.actions,
       };
     }
   }
