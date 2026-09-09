@@ -3,6 +3,7 @@ import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
 import { shippingPost } from "./shipping";
 import { eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
+import { reviewDataset } from "./datasetGuideline";
 import { thaiLiability } from "./thailand";
 import { optimizeBoi } from "./boiOptimizer";
 import { optimizeGlobe } from "./electionEngine";
@@ -139,6 +140,23 @@ const THAICOAL_CANNED: { match: RegExp; seed?: string; answer: (q: string) => Co
 /** `seed` pins a scripted answer whose narrative quotes one demo group's facts; other groups fall through to the live snapshot answer. */
 const CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
   ...THAICOAL_CANNED,
+  {
+    match: /dataset guideline|missing (document|source|file)|close pack complete|document completion|what (files|documents) (are |do i |should i )?(missing|needed|add|upload|drop)|how complete is the dataset/i,
+    answer: () => {
+      const R = reviewDataset(DATA.files, [], DATA.issues);
+      const missing = R.items.filter((i) => i.status === "missing" || i.status === "queued");
+      const incomplete = R.items.filter((i) => i.status === "incomplete");
+      return {
+        role: "assistant",
+        text: `Dataset guideline for the posted ${DATA.group.name} ${DATA.group.fy} close pack.\n\nCompletion ${R.completion}% · ${R.headline}.\nRequired to calculate: ${R.required.posted} posted, ${R.required.incomplete} incomplete, ${R.required.missing} missing (of ${R.required.total}).\nRecommended overlays: ${R.recommended.posted} posted, ${R.recommended.missing} open (of ${R.recommended.total}).\n\n${R.suggestion}\n\n${incomplete.length ? `Incomplete on file:\n${incomplete.map((i) => `• ${i.slot.title} — ${i.note}`).join("\n")}\n\n` : ""}${missing.length ? `Still to add:\n${missing.map((i) => `• ${i.slot.title} (${i.slot.need}) — ${i.slot.why}`).join("\n")}\n\n` : ""}The LLM does not invent a missing payroll month or an opening DTA. Open Data Hub for the checklist, or Data requests to draft the owner note.`,
+        cites: [
+          { label: "Data Hub · dataset guideline", href: "/data" },
+          { label: "Data requests", href: "/requests" },
+          { label: "Data quality", href: "/quality" },
+        ],
+      };
+    },
+  },
   {
     match: /evidence history|immutable (log|chronicle)|who (changed|approved|commented)|chronicle|evidence locker/i,
     answer: () => ({
@@ -538,6 +556,7 @@ export const SUGGESTIONS = [
   "Can Thailand qualify for a safe harbour?",
   "What happens if the BOI tax holiday expires?",
   "Explain the TH001 dividend adjustment.",
+  "What documents are missing from the close pack?",
   "Which data is missing from Singapore?",
   "How does the entity test treat MOCE and POPE?",
   "Where is Additional Current Top-up Tax?",

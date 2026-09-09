@@ -53,8 +53,10 @@ import {
 import {
   defaultIngestStatus,
   readIngestStatus,
+  readQueuedDrops,
   runIngestSimulation,
   writeIngestStatus,
+  writeQueuedDrops,
   type IngestStatus,
 } from "./ingestSim";
 import { runXray } from "./xrayEngines";
@@ -138,6 +140,7 @@ type Store = {
   ingestProgress: { current: number; total: number; file: string } | null;
   loadDemoPack: () => Promise<void>;
   resetIngest: () => void;
+  queuedDrops: string[];
   noteFileDrop: (name: string) => void;
   packAmendments: PackAmendment[];
   packChanges: PackChangeRecord[];
@@ -236,6 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [historyImmutable, setHistoryImmutableState] = useState(true);
   const [ingestStatus, setIngestStatus] = useState<IngestStatus>("ready");
   const [ingestProgress, setIngestProgress] = useState<Store["ingestProgress"]>(null);
+  const [queuedDrops, setQueuedDrops] = useState<string[]>([]);
   const [xray, setXray] = useState<XrayState>({});
   const [packAmendments, setPackAmendments] = useState<PackAmendment[]>([]);
   const [packChanges, setPackChanges] = useState<PackChangeRecord[]>([]);
@@ -287,6 +291,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const invite = localStorage.getItem("gmt24_invite_auth") === "1";
     const storedIngest = readIngestStatus(startGroup);
     setIngestStatus(storedIngest ?? defaultIngestStatus(startGroup, invite));
+    setQueuedDrops(readQueuedDrops(startGroup));
     setReady(true);
   }, [applyLedger]);
 
@@ -294,12 +299,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setXray(loadXray(groupId));
     setPackAmendments(loadPackAmendments(groupId));
     setPackChanges(loadPackChanges(groupId));
+    setQueuedDrops(readQueuedDrops(groupId));
   }, [groupId]);
 
   const applyIngestForGroup = useCallback((gid: string, inviteReview = false) => {
     const stored = readIngestStatus(gid);
     setIngestStatus(stored ?? defaultIngestStatus(gid, inviteReview));
     setIngestProgress(null);
+    setQueuedDrops(readQueuedDrops(gid));
   }, []);
 
   const login = useCallback((m: ProductMode, opts?: { invite?: boolean; groupId?: string }) => {
@@ -927,14 +934,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [persistXray, appendHistory]);
 
   const noteFileDrop = useCallback((name: string) => {
+    setQueuedDrops((prev) => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name];
+      writeQueuedDrops(groupId, next);
+      return next;
+    });
     appendHistory({
       kind: "doc",
       title: `File received · ${name}`,
-      detail: "Prototype classifier queued the drop. Load the full demo pack to post all sources, or continue with sample CSVs.",
+      detail: "Prototype classifier queued the drop. The dataset guideline scores it against the required close-pack list.",
       href: "/data",
       ref: name.slice(0, 40),
     });
-  }, [appendHistory]);
+  }, [appendHistory, groupId]);
 
   const themeVars = THEMES[theme].vars as unknown as Record<string, string>;
 
@@ -994,6 +1007,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ingestProgress,
       loadDemoPack,
       resetIngest,
+      queuedDrops,
       noteFileDrop,
       packAmendments,
       packChanges,
@@ -1009,7 +1023,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signXray,
       resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, noteFileDrop, packAmendments, packChanges, packOverlay, scanPacks, adminReviewPackChange, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, queuedDrops, noteFileDrop, packAmendments, packChanges, packOverlay, scanPacks, adminReviewPackChange, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

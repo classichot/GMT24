@@ -1,5 +1,6 @@
 import { DATA } from "./model";
 import { isSeededGroup } from "./seeds";
+import { classifyDatasetName } from "./datasetGuideline";
 
 export type IngestStatus = "empty" | "running" | "ready";
 
@@ -60,15 +61,26 @@ export async function runIngestSimulation(
 }
 
 export function classifyDroppedName(name: string) {
-  const lower = name.toLowerCase();
-  if (lower.includes("entity") || lower.includes("legal")) return "Legal entity list";
-  if (lower.includes("trial") || lower.includes("tb")) return "Trial balance";
-  if (lower.includes("consol")) return "Consolidation";
-  if (lower.includes("provision") || lower.includes("tax")) return "Tax provision";
-  if (lower.includes("cbcr")) return "CbCR";
-  if (lower.includes("payroll")) return "Payroll";
-  if (lower.includes("deferred")) return "Deferred tax";
-  if (lower.includes("boi")) return "BOI certificate";
-  if (lower.includes("gir")) return "Previous GIR";
-  return "Source file";
+  return classifyDatasetName(name);
+}
+
+export function dropKey(groupId: string) {
+  return `gmt24_drops_${groupId}`;
+}
+
+export function readQueuedDrops(groupId: string): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(dropKey(groupId)) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeQueuedDrops(groupId: string, names: string[]) {
+  try {
+    localStorage.setItem(dropKey(groupId), JSON.stringify(names));
+  } catch {
+    /* private mode */
+  }
 }

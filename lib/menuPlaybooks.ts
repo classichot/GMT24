@@ -112,7 +112,7 @@ const COPY: Record<string, { law: string; aiSuggests: string; youDecide: string 
   },
   data: {
     law: "Nothing posts to GloBE Income until a person approves the mapping. The LLM never posts a number.",
-    aiSuggests: "Hold anything under 80% confidence and send Gap Hunter requests for missing sources.",
+    aiSuggests: "Open the dataset guideline, drop the missing required sources, hold anything under 80% confidence, and send Gap Hunter requests for incomplete files.",
     youDecide: "Approve, hold or send back. Approval writes the Art. 3.2 / 3.5 delta.",
   },
   "pillar-two": {

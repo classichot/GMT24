@@ -48,10 +48,11 @@ export const SCREENS: ScreenMeta[] = [
   { key: "onboard", module: "Group", title: "New engagement", href: "/onboard", purpose: "Advisor-mode wizard to create a client workspace from a name or a Quick Scan.", fields: [], actions: ["Create engagement"] },
   { key: "rulebook", module: "Intelligence", title: "OECD rulebook", href: "/rulebook", purpose: "Effective-dated OECD Model Rules, Commentary and Administrative Guidance used by the engine. Clicking a rule id on an audit trail lands here.", fields: [{ term: "Rule version", meaning: "The pack version that posted the amount — not the latest PDF on the OECD site." }], actions: [] },
   { key: "settings", module: "Workspace", title: "Settings", href: "/settings", purpose: "Operating mode, theme, evidence-history immutability and workspace preferences.", fields: [{ term: "Immutability", meaning: "When on, evidence-history rows cannot be deleted; turning it off is itself logged." }], actions: [] },
-  { key: "data", module: "Data", title: "Data Hub", href: "/data", purpose: "Ingest the close pack. Classification runs before mapping; the engine does not calculate until mappings are approved.", fields: [
+  { key: "data", module: "Data", title: "Data Hub", href: "/data", purpose: "Ingest the close pack against the dataset guideline. Classification runs before mapping; the engine does not calculate until mappings are approved.", fields: [
     { term: "Close pack", meaning: "Entity list, trial balances, consolidation, tax provision, CbCR, payroll, fixed assets, certificates, prior GIR." },
+    { term: "Dataset guideline", meaning: "The required and recommended documents for a GloBE calculation. Completion is scored from posted and queued files; incomplete means a file is on hand but a quality issue is still open." },
     { term: "Classified", meaning: "The classifier has typed the file (TB, CbCR, payroll…) and queued it for mapping." },
-  ], actions: ["Load demo pack", "Drop files", "Reset ingest"] },
+  ], actions: ["Load demo pack", "Drop files", "Ask what is missing", "Reset ingest"] },
   { key: "mapping", module: "Data", title: "Account mapping", href: "/mapping", purpose: "Account → financial category → GloBE rule → posting. Anything under 80% confidence is held for a reviewer.", fields: [
     { term: "Confidence", meaning: "Classifier certainty for the GloBE category. Below 80% requires human approval before lock." },
     { term: "Adjustment", meaning: "The Art. 3.2 delta the mapping will post to GloBE Income." },
