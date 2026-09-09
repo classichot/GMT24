@@ -18,7 +18,7 @@ const EXTRA_ALIASES: Record<string, string[]> = {
   group: ["group structure", "upe", "โครงสร้างกลุ่ม"],
   entities: ["constituent entities", "ce list"],
   graph: ["ownership graph", "tax graph"],
-  data: ["data hub", "ingest", "upload", "close pack"],
+  data: ["data hub", "ingest", "upload", "close pack", "dataset guideline", "missing documents", "document completion"],
   mapping: ["account mapping", "smart mapping", "จับคู่บัญชี"],
   quality: ["data quality", "readiness"],
   requests: ["data requests", "gap hunter"],

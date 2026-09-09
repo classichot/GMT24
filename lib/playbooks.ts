@@ -58,7 +58,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Ingest → map → validate → request gaps. The LLM never posts a GloBE number.",
     owner: "Local tax / data steward",
     steps: [
-      { n: "01", title: "Ingest source files", body: "Trial balance, provision, CbCR, payroll, FAR, BOI certificates. Dropzone opens mapping in this prototype.", href: "/data", hrefLabel: "Data Hub" },
+      { n: "01", title: "Ingest the close-pack list", body: "Data Hub’s dataset guideline lists the eight required sources (entity list, consolidation, TB, provision, deferred tax, CbCR, payroll, FAR) plus recommended overlays. Completion is scored from posted and queued files; Ask GMT24 names what is still missing.", href: "/data", hrefLabel: "Data Hub" },
       { n: "02", title: "Approve and post mapping", body: "Account → financial → GloBE rule → computed posting. Approval writes the Art. 3.2 / 3.5 delta, reruns the ETR and is sealed in Evidence history. Hold anything under 80% confidence.", href: "/mapping", hrefLabel: "Account mapping" },
       { n: "03", title: "Clear blockers", body: "Readiness must move before lock. Gap Hunter drafts the request; do not invent deferred tax or payroll.", href: "/quality", hrefLabel: "Data quality" },
     ],
