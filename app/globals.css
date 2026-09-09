@@ -804,6 +804,15 @@ html[data-theme="bw"] .bottom-nav {
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
+.map-pin {
+  position: absolute; width: 28px; height: 28px; padding: 0; margin: 0;
+  border: 0; background: transparent; cursor: pointer; z-index: 1;
+  transform: translate(-50%, -50%);
+}
+.map-pin .map-dot {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
 .map-dot {
   position: absolute; width: 11px; height: 11px; padding: 0;
   border-radius: 0; cursor: pointer; z-index: 1;
@@ -819,6 +828,32 @@ html[data-theme="bw"] .bottom-nav {
   background: #4d8ef5; border-color: #ffffff;
 }
 .map-dot.active { width: 13px; height: 13px; z-index: 2; }
+.map-callout {
+  position: absolute; z-index: 4; min-width: 168px; max-width: 220px;
+  transform: translate(-50%, calc(-100% - 16px));
+  background: var(--color-surface); color: var(--color-text);
+  border: 2px solid var(--color-accent); padding: 10px 12px 11px;
+  box-shadow: var(--shadow-md); pointer-events: auto; text-align: left;
+}
+.map-callout::after {
+  content: ""; position: absolute; left: 50%; bottom: -7px;
+  width: 10px; height: 10px; background: var(--color-surface);
+  border-right: 2px solid var(--color-accent); border-bottom: 2px solid var(--color-accent);
+  transform: translateX(-50%) rotate(45deg);
+}
+.map-callout.below { transform: translate(-50%, 18px); }
+.map-callout.below::after {
+  top: -7px; bottom: auto;
+  border: 0;
+  border-left: 2px solid var(--color-accent); border-top: 2px solid var(--color-accent);
+}
+.map-callout-kicker {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800;
+  color: var(--color-accent);
+}
+.map-callout-name { font-family: var(--font-heading); font-weight: 800; font-size: 15px; margin: 2px 0 8px; }
+.map-callout-etr { font-family: var(--font-heading); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; line-height: 1.1; }
+.map-callout-meta { font-size: 12px; color: var(--color-neutral-600); margin-top: 4px; }
 html[data-theme="bw"] .map-dot {
   background: #6e6e6e; border-color: #ffffff;
   box-shadow: 0 0 0 3px color-mix(in srgb, #111111 18%, transparent);
@@ -1120,6 +1155,21 @@ html[data-theme="bw"] .map-dot.topup {
   .play-split > div + div { border-left: 0; border-top: 1px solid var(--color-divider); }
   .play-steps li { grid-template-columns: 40px 1fr; }
   .play-go { grid-column: 2; justify-self: start; }
+}
+
+.etr-risk-badge {
+  display: inline-flex; align-items: center; flex: none;
+  font-size: 8px; font-weight: 800; letter-spacing: 0.08em; line-height: 1;
+  text-transform: uppercase; padding: 3px 5px;
+  background: var(--color-accent); color: var(--color-on-accent);
+  animation: etr-risk-blink 1.05s ease-in-out infinite;
+}
+@keyframes etr-risk-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.22; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .etr-risk-badge { animation: none; }
 }
 
 .copilot-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); animation: pulse 1s ease-in-out infinite; flex: none; }
