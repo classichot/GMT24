@@ -26,6 +26,17 @@ export function pct(n: number, digits = 1) {
   return `${(n * 100).toFixed(digits)}%`;
 }
 
+export const NO_ETR = "n/a · loss";
+
+/**
+ * Jurisdictional ETR for display. Art. 5.1.2: a Net GloBE Loss jurisdiction has no ETR,
+ * and the engine's `etr: 0` placeholder must not be shown as a 0% tax rate.
+ */
+export function etrPct(c: { etr: number; globeIncome: number; etrComputed?: boolean }, digits = 1) {
+  const computed = c.etrComputed ?? c.globeIncome > 0;
+  return computed ? pct(c.etr, digits) : NO_ETR;
+}
+
 export function money(n: number) {
   return Math.round(n);
 }

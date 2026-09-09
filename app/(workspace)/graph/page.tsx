@@ -6,7 +6,7 @@ import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
 import { classFor } from "@/lib/entityClass";
 import { useCalc } from "@/lib/useCalc";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 
 export default function GraphPage() {
@@ -60,7 +60,7 @@ export default function GraphPage() {
                   height="44"
                 />
                 <text x={e.graph.x} y={e.graph.y - 4} textAnchor="middle" fontSize="11" fontFamily="Archivo" fontWeight="800" fill="var(--color-text)">{e.iso} · {classFor(e.id).tag}</text>
-                <text x={e.graph.x} y={e.graph.y + 12} textAnchor="middle" fontSize="10" fontFamily="Archivo" fill="var(--color-neutral-700)">{pct(c?.etr ?? 0, 0)} ETR</text>
+                <text x={e.graph.x} y={e.graph.y + 12} textAnchor="middle" fontSize="10" fontFamily="Archivo" fill="var(--color-neutral-700)">{c ? (c.etrComputed ? `${etrPct(c, 0)} ETR` : "loss · no ETR") : "— ETR"}</text>
               </g>
             );
           })}
@@ -79,7 +79,7 @@ export default function GraphPage() {
             <div className="kpi"><div className="kpi-label">Revenue</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.revenue, true)}</div></div>
             <div className="kpi"><div className="kpi-label">GloBE</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.globeIncome} audit={jc.trace.globe} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Covered tax</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.coveredTax} audit={jc.trace.covered} compact /></div></div>
-            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} audit={jc.trace.etr} compact /></div></div>
+            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} label={etrPct(jc, 2)} audit={jc.trace.etr} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Safe harbour</div><div className="kpi-val" style={{ fontSize: 18 }}>{jc.sh.outcome}{jc.sh.barred ? " · barred" : ""}</div></div>
             <div className="kpi"><div className="kpi-label">Top-up</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></div></div>
           </div>

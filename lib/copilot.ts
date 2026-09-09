@@ -1,7 +1,7 @@
 import { DATA, RULES } from "./model";
 import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
 import { shippingPost } from "./shipping";
-import { eur, pct, thb } from "./format";
+import { etrPct, eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
 import { thaiLiability } from "./thailand";
 import { optimizeBoi } from "./boiOptimizer";
@@ -514,7 +514,7 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
   if (named) {
     return {
       role: "assistant",
-      text: `${named.name} (${named.iso}) — FY2026 snapshot.\n\nGloBE income ${eur(named.globeIncome)} · Covered taxes ${eur(named.coveredTax)} · ETR ${pct(named.etr, 2)} · SBIE ${eur(named.sbie)} · Top-up ${eur(named.jurisdictionalTopUp)}.\nCollection: ${named.collection.payer}.\n\n${named.sh.navigator}\n\nData completeness ${named.completeness}%. Engine GMT24-CALC 2026.2.`,
+      text: `${named.name} (${named.iso}) — FY2026 snapshot.\n\nGloBE income ${eur(named.globeIncome)} · Covered taxes ${eur(named.coveredTax)} · ETR ${etrPct(named, 2)}${named.etrComputed ? "" : " (Art. 5.1.2 Net GloBE Loss — no ETR; top-up only via Art. 4.1.5 ACTTT)"} · SBIE ${eur(named.sbie)} · Top-up ${eur(named.jurisdictionalTopUp)}.\nCollection: ${named.collection.payer}.\n\n${named.sh.navigator}\n\nData completeness ${named.completeness}%. Engine GMT24-CALC 2026.2.`,
       cites: [{ label: named.pack?.qualified ?? "Rulebook 2026.2" }],
     };
   }

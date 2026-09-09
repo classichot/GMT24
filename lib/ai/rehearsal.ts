@@ -1,5 +1,5 @@
 import type { JurCalc } from "../engine";
-import { eur, pct } from "../format";
+import { etrPct, eur, pct } from "../format";
 import { DATA } from "../model";
 import { findingStatus, missingEvidence, type XrayFinding, type XrayState } from "../xray";
 import { propose } from "./actions";
@@ -45,7 +45,7 @@ export function rehearse(i: RehearsalInput): RehearsalQ[] {
     {
       const gaps = open.filter((f) => ["covered", "deferred"].includes(f.engine)).map((f) => `${f.title} (${f.entityCode}) unconfirmed — ${f.missing}`);
       if (c.completeness < 90) gaps.push(`Data completeness ${c.completeness}%.`);
-      out.push({ id: `etr-${c.iso}`, area: "ETR", iso: c.iso, question: `How did you derive the ${c.name} GloBE ETR of ${pct(c.etr, 2)}?`, answer: `Adjusted Covered Taxes ${eur(c.coveredTax)} ÷ Net GloBE Income ${eur(c.globeIncome)} across ${c.entities.length} constituent entit${c.entities.length === 1 ? "y" : "ies"} (${ents}). Covered taxes start from current tax expense with Art. 4.1 adjustments; deferred tax is recast at 15% (Art. 4.4).${c.enteOriginated ? ` Negative covered taxes triggered the Art. 5.2.1 ENTE procedure — Top-up % capped at 15%, ${eur(c.enteCarryforward)} carried forward.` : ""}`, evidence: [`Trace: ${c.name} → ETR → Adjusted Covered Taxes / GloBE income`, ...uniq(c.trace.covered.children?.map((n) => n.sourceFile).filter(Boolean) as string[] ?? [])], gaps, strength: gaps.length ? (gaps.length > 1 ? "weak" : "partial") : "strong" });
+      out.push({ id: `etr-${c.iso}`, area: "ETR", iso: c.iso, question: c.etrComputed ? `How did you derive the ${c.name} GloBE ETR of ${pct(c.etr, 2)}?` : `Why is there no ${c.name} GloBE ETR this year?`, answer: `${c.etrComputed ? "" : `Art. 5.1.2 — Net GloBE Income ${eur(c.globeIncome)} is not positive, so no ETR is computed and Top-up % is nil. ${c.actttReason} `}Adjusted Covered Taxes ${eur(c.coveredTax)} ÷ Net GloBE Income ${eur(c.globeIncome)} across ${c.entities.length} constituent entit${c.entities.length === 1 ? "y" : "ies"} (${ents}). Covered taxes start from current tax expense with Art. 4.1 adjustments; deferred tax is recast at 15% (Art. 4.4).${c.enteOriginated ? ` Negative covered taxes triggered the Art. 5.2.1 ENTE procedure — Top-up % capped at 15%, ${eur(c.enteCarryforward)} carried forward.` : ""}`, evidence: [`Trace: ${c.name} → ETR → Adjusted Covered Taxes / GloBE income`, ...uniq(c.trace.covered.children?.map((n) => n.sourceFile).filter(Boolean) as string[] ?? [])], gaps, strength: gaps.length ? (gaps.length > 1 ? "weak" : "partial") : "strong" });
     }
     // SBIE
     if (c.sbie > 0) {

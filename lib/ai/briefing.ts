@@ -1,5 +1,5 @@
 import type { JurCalc } from "../engine";
-import { eur, pct } from "../format";
+import { etrPct, eur } from "../format";
 import { hardStop, openExposure, type XrayFinding, type XrayState } from "../xray";
 import { groupTotals, movementVsBaseline, movementVsPrior, type CalcInputs } from "./calc";
 import { propose } from "./actions";
@@ -48,7 +48,7 @@ export function briefing(i: BriefingInput): { sections: Section[]; markdown: str
 
   const sections: Section[] = [];
   sections.push({ kind: "conclusion", text: `${ctx.groupName} · ${ctx.fy} · ${ctx.calcVersion}${provisional ? " · PROVISIONAL" : " · approved snapshot"}. Group top-up ${eur(t.topUp)} across ${t.low} low-taxed jurisdiction${t.low === 1 ? "" : "s"}; collected as QDMTT ${eur(t.qdmtt)}, IIR ${eur(t.iir)}, UTPR ${eur(t.utpr)}.` });
-  sections.push({ kind: "table", title: "Exposure by jurisdiction", head: ["Jurisdiction", "GloBE ETR", "Top-up", "Collected by", "Status"], rows: top.slice(0, detail).map((c) => [c.name, pct(c.etr, 2), eur(c.jurisdictionalTopUp), c.collection.payer, c.completeness < 90 ? `provisional (${c.completeness}% data)` : hs.reasons.some((r) => r.jurisdiction === c.name) ? "X-Ray open" : "supported"]) });
+  sections.push({ kind: "table", title: "Exposure by jurisdiction", head: ["Jurisdiction", "GloBE ETR", "Top-up", "Collected by", "Status"], rows: top.slice(0, detail).map((c) => [c.name, etrPct(c, 2), eur(c.jurisdictionalTopUp), c.collection.payer, c.completeness < 90 ? `provisional (${c.completeness}% data)` : hs.reasons.some((r) => r.jurisdiction === c.name) ? "X-Ray open" : "supported"]) });
   const mv: string[] = [];
   if (mvPrior) {
     const moved = mvPrior.cmp.calcs.filter((r) => Math.abs(r.dTopUp) >= 1).sort((a, b) => Math.abs(b.dTopUp) - Math.abs(a.dTopUp)).slice(0, detail);
@@ -89,7 +89,7 @@ export function briefing(i: BriefingInput): { sections: Section[]; markdown: str
     md.push("");
   }
   md.push("## Where each figure comes from");
-  for (const c of top.slice(0, detail)) md.push(`- ${c.name}: GloBE ETR ${pct(c.etr, 2)}, top-up ${eur(c.jurisdictionalTopUp)} — ${ctx.calcVersion} trace → ${c.name} → Top-up (trace: /etr?iso=${c.iso}; audit view: /audit)`);
+  for (const c of top.slice(0, detail)) md.push(`- ${c.name}: GloBE ETR ${etrPct(c, 2)}, top-up ${eur(c.jurisdictionalTopUp)} — ${ctx.calcVersion} trace → ${c.name} → Top-up (trace: /etr?iso=${c.iso}; audit view: /audit)`);
   md.push(`- Group totals — ${ctx.calcVersion} group trace (/overview, /top-up)`, mvPrior ? `- Movement — year ledger, ${mvPrior.prior.fy} lock versus ${ctx.fy} (/years)` : "- Movement — no prior lock on the year ledger", "- Uncertainty — Pillar Two X-Ray open items (/xray) and Calculation Reviewer (/reviewer)", "");
   md.push("---", `Every figure is copied from calculation version ${ctx.calcVersion}. Items marked provisional or X-Ray open may change. This document is a draft for internal review.`);
   return { sections, markdown: md.join("\n"), provisional };

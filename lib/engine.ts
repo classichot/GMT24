@@ -11,7 +11,7 @@ import {
 } from "./model";
 import { findGroup } from "./onboard";
 import { DEFAULT_SEED_ID, activeSeedId, isSeededGroup, setActiveSeed } from "./seeds";
-import { money } from "./format";
+import { money, pct } from "./format";
 import { deferredTaxAdjustment, viewsForEntity, type DtView } from "./deferredTax";
 import {
   classifyAll,
@@ -76,6 +76,8 @@ export type JurCalc = {
   coveredTaxRaw: number;
   coveredTax: number;
   etr: number;
+  /** Art. 5.1.2 — false when Net GloBE Income ≤ 0; `etr` is then a 0 placeholder, not a rate. */
+  etrComputed: boolean;
   payrollCarve: number;
   assetCarve: number;
   sbie: number;
@@ -770,7 +772,7 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
       ruleId: "OECD-SBIE-2026",
       ruleVersion: "2026.1",
       sourceFile: "Payroll_TH_FY2026.csv",
-      detail: `Art. 5.3.3 / 9.2 · ${PAYROLL_RATE * 100}% × eligible payroll ${payroll.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).payrollStrip) ? " · Art. 3.4 shipping payroll stripped" : ""}`,
+      detail: `Art. 5.3.3 / 9.2 · ${pct(PAYROLL_RATE, 1)} × eligible payroll ${payroll.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).payrollStrip) ? " · Art. 3.4 shipping payroll stripped" : ""}`,
     };
     const assetTrace: AuditNode = {
       id: `${aid}-assets`,
@@ -780,7 +782,7 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
       ruleId: "OECD-SBIE-2026",
       ruleVersion: "2026.1",
       sourceFile: "Fixed_asset_register_TH.xlsx",
-      detail: `Art. 5.3.4 / 9.2 · ${ASSET_RATE * 100}% × eligible tangible assets ${assets.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).assetStrip) ? " · Art. 3.4 shipping assets stripped" : ""}`,
+      detail: `Art. 5.3.4 / 9.2 · ${pct(ASSET_RATE, 1)} × eligible tangible assets ${assets.toLocaleString("en-GB")}${fins.some((f) => shippingPost(f.entityId).assetStrip) ? " · Art. 3.4 shipping assets stripped" : ""}`,
     };
     const sbieTrace: AuditNode = {
       id: `${aid}-sbie`,
@@ -896,6 +898,7 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
       coveredTaxRaw,
       coveredTax,
       etr,
+      etrComputed,
       payrollCarve,
       assetCarve,
       sbie,

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCalc } from "@/lib/useCalc";
-import { pct } from "@/lib/format";
+import { etrPct } from "@/lib/format";
 import { runAllSafeHarbours, sbtishTrace, SBTISH_EXPENDITURE } from "@/lib/harbours2026";
 import { DATA } from "@/lib/model";
 
@@ -106,7 +106,7 @@ export default function SafeHarbourPage() {
               <tr key={c.blendKey}>
                 <td>
                   <div style={{ fontWeight: 700 }}>{c.name}</div>
-                  <div className="text-muted" style={{ fontSize: 11 }}>CbCR ETR path · GloBE {pct(c.etr, 1)}</div>
+                  <div className="text-muted" style={{ fontSize: 11 }}>CbCR ETR path · GloBE {etrPct(c, 1)}</div>
                 </td>
                 {TESTS.map(([k]) => {
                   const v = c.sh[k];

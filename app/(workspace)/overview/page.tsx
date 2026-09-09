@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DATA, MAP_COORDS } from "@/lib/model";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur, pct } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
 import { WorldMap } from "@/components/WorldMap";
@@ -107,7 +107,7 @@ export default function OverviewPage() {
                       </span>
                     )}
                   </span>
-                  <span style={{ fontSize: 12, color: fill, fontWeight: 800 }}>{pct(c.etr, 1)}</span>
+                  <span style={{ fontSize: 12, color: fill, fontWeight: 800 }}>{etrPct(c, 1)}</span>
                 </div>
                 <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{c.name}</div>
                 <div style={{ height: 5, background: "color-mix(in srgb, var(--color-text) 12%, transparent)" }}>
@@ -138,8 +138,8 @@ export default function OverviewPage() {
                   type="button"
                   className="map-pin"
                   style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  title={`${d.name} · ETR ${pct(d.main.etr, 2)}`}
-                  aria-label={`${d.name}, ETR ${pct(d.main.etr, 2)}`}
+                  title={`${d.name} · ETR ${etrPct(d.main, 2)}`}
+                  aria-label={`${d.name}, ETR ${etrPct(d.main, 2)}`}
                   onClick={() => router.push(`/etr-map?iso=${d.iso}`)}
                 >
                   <span className={`map-dot ${cls}`} />
@@ -157,7 +157,7 @@ export default function OverviewPage() {
           <div className="panel-body">
             {th && (
               <>
-                <div className="wf-row"><span>ETR</span><Amount n={th.etr} audit={th.trace.etr} /></div>
+                <div className="wf-row"><span>ETR</span><Amount n={th.etr} label={etrPct(th, 2)} audit={th.trace.etr} /></div>
                 <div className="wf-row"><span>GloBE income</span><Amount n={th.globeIncome} audit={th.trace.globe} compact /></div>
                 <div className="wf-row"><span>Covered taxes</span><Amount n={th.coveredTax} audit={th.trace.covered} compact /></div>
                 <div className="wf-row"><span>SBIE</span><Amount n={th.sbie} audit={th.trace.sbie} compact /></div>
@@ -188,7 +188,7 @@ export default function OverviewPage() {
                     <td>{c.name}</td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
-                    <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
+                    <td className="num"><Amount n={c.etr} label={etrPct(c, 2)} audit={c.trace.etr} compact /></td>
                     <td>{c.jurisdictionalTopUp > 0 ? <span className="tag tag-hot">Exposure</span> : c.exposure === "Safe harbour" ? <span className="tag tag-warn">Review SH</span> : c.exposure === "Review" ? <span className="tag tag-warn">Review SH</span> : <span className="tag tag-ok">No top-up</span>}</td>
                   </tr>
                 ))}
