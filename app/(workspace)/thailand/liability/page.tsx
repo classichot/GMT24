@@ -58,7 +58,7 @@ export default function ThaiLiabilityPage() {
               <Amount n={L.iirAlready} audit={L.audit.children?.[2]} />
             </div>
             <div className="wf-row">
-              <span>Residual UTPR<div className="text-muted" style={{ fontSize: 12 }}>{L.utprNote}</div></span>
+              <span>Residual after foreign reductions<div className="text-muted" style={{ fontSize: 12 }}>Before Thai QDMTT · UTPR collectible {eur(L.thaiUtprCollect)}</div></span>
               <Amount n={L.residualUtpr} audit={L.audit.children?.[3]} />
             </div>
             <div className="wf-row">

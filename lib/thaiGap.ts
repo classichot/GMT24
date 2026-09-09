@@ -335,9 +335,16 @@ export function reviewOecdRdGap(th: JurCalc) {
       };
     }
     if (g.id === "G-ORDER") {
+      const usd = (n: number) => n.toLocaleString("en-GB");
+      const iirBit = L.thaiIir > 0
+        ? `Thai IIR on foreign blends ${usd(L.thaiIir)}${L.thaiIirRows.length ? ` (${L.thaiIirRows.map((r) => r.name).join(", ")})` : ""}`
+        : "Thai IIR $0";
       return {
         ...g,
-        finding: `Core jurisdictional top-up ${th.jurisdictionalTopUp.toLocaleString("en-GB")} = Thai QDMTT payable ${L.payable.toLocaleString("en-GB")}. Foreign QDMTT $0 · IIR $0 · residual UTPR $0.`,
+        core: L.thaiIir > 0
+          ? "Thailand QDMTT collects the Thai jurisdictional top-up. Residual UTPR $0 on Thai profits after QDMTT. Thai IIR adds residual from foreign blends."
+          : "Thailand QDMTT collects the jurisdictional top-up. Residual IIR/UTPR $0 on Thai profits.",
+        finding: `Thai QDMTT ${usd(L.thaiQdmtt)} equals Core jurisdictional top-up ${usd(th.jurisdictionalTopUp)}. Foreign QDMTT ${usd(L.foreignQdmtt)} · IIR already imposed ${usd(L.iirAlready)} · residual UTPR collectible ${usd(L.thaiUtprCollect)}. ${iirBit}. Thai amount payable ${usd(L.payable)}.`,
       };
     }
     if (g.id === "G-ETR") {
@@ -376,6 +383,8 @@ export function reviewOecdRdGap(th: JurCalc) {
     oecdScope: "IN SCOPE",
     thaiScope: scope.status,
     payable: L.payable,
+    thaiQdmtt: L.thaiQdmtt,
+    thaiIir: L.thaiIir,
     topUp: th.jurisdictionalTopUp,
     fileReady: false,
     headline: `${count("diverge")} diverge · ${count("pending")} pending RD instruments · ${count("calc-gap")} Core data gaps`,
