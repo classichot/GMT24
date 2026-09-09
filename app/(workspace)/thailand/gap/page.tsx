@@ -90,7 +90,7 @@ export default function OecdRdGapPage() {
         <div className="kpi">
           <div className="kpi-label">Top-up vs Thai payable</div>
           <div className="kpi-val"><Amount n={R.payable} audit={th.audit} compact /></div>
-          <div className="kpi-sub">Core {eur(R.topUp, true)} · QDMTT collects</div>
+          <div className="kpi-sub">Core {eur(R.topUp, true)} · {R.thaiIir > 0 ? `QDMTT + IIR ${eur(R.thaiIir, true)}` : "QDMTT collects"}</div>
         </div>
       </div>
 

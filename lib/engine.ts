@@ -662,7 +662,8 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
     const cbcrPbt = sum(fins.map((f) => f.cbcrProfit));
     const cbcrTax = sum(fins.map((f) => f.cbcrTax));
     const cbcrEtr = cbcrPbt > 0 ? cbcrTax / cbcrPbt : 0;
-    const routine = money(cbcrRev * 0.1); // simplified routine profits proxy for demo
+    // OECD TCSH routine-profits: CbCR PBT ≤ SBIE from payroll and tangible assets (not a % of revenue).
+    const routine = sbie;
     const pack = effectivePack(iso, ctx?.packOverlay);
 
     const deMinimis = shPass(cbcrRev < DEMIN_REV && cbcrPbt < DEMIN_PBT);

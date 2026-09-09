@@ -188,7 +188,7 @@ const girSections: GroupSeed["girSections"] = [
 ];
 
 const activity: GroupSeed["activity"] = [
-  { text: "Thailand QDMTT + POPE IIR calculation locked for review — $5.9M", who: "K. Suksawat", when: "14 Aug, 16:10" },
+  { text: "Thailand QDMTT $10.0M + POPE IIR $0.4M locked for review — $10.4M payable", who: "K. Suksawat", when: "14 Aug, 16:10" },
   { text: "Singapore MTT exposure on GTP income confirmed with J. Lim", who: "K. Suksawat", when: "14 Aug, 11:30" },
   { text: "Data request sent to Mongolia finance: DTA/DTL opening balances", who: "GMT24 Gap Hunter", when: "13 Aug, 10:05" },
   { text: "Lao associate confirmed outside the GloBE perimeter (Art. 10.1 JV test)", who: "AI Reviewer", when: "12 Aug, 17:40" },

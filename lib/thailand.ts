@@ -371,7 +371,7 @@ const THAICOAL_THAI: ThaiFacts = {
       { fy: "FY2023", usd: 5_160_000_000 },
       { fy: "FY2024", usd: 5_430_000_000 },
       { fy: "FY2025", usd: 4_880_000_000 },
-      { fy: "FY2026", usd: 4_610_000_000 },
+      { fy: "FY2026", usd: 6_240_000_000 },
     ],
     gaap: "UPE consolidates under TFRS (Thailand) — an Acceptable Financial Accounting Standard on the Notification No. 1 whitelist. Overseas CEs are converted to TFRS in the consolidation pack. Material presentation difference: not applicable to the UPE's own standard.",
     proration: "FY2026 is a 12-month calendar year. No merger / demerger in the window; the Mongolian disposal completes after year-end.",
@@ -506,6 +506,7 @@ export function thaiLiability(th: JurCalc, all?: JurCalc[]) {
     .map((c) => ({ id: c.entity.id, code: c.entity.code, name: c.entity.name, globe: c.globe, share: globe > 0 ? Math.max(0, c.globe) / globe : 0 }))
     .map((r) => ({ ...r, statutory: money(payable * r.share) }));
   const designatedId = statutory.some((r) => r.id === F.liability.designatedId) ? F.liability.designatedId : statutory[0]?.id ?? F.liability.designatedId;
+  const usd = (n: number) => `$${n.toLocaleString("en-GB")}`;
 
   const audit: AuditNode = {
     id: "TH-liability",
@@ -514,12 +515,12 @@ export function thaiLiability(th: JurCalc, all?: JurCalc[]) {
     kind: "result",
     ruleId: "TH-QDMTT-2025",
     ruleVersion: "2567.2",
-    detail: "Thai Liability Orchestrator · Jurisdictional top-up − foreign QDMTT − IIR already imposed = residual UTPR. Thai QDMTT collects the Thai jurisdictional amount; Thai IIR adds the residual from foreign blends where the UPE or POPE is Thai. Engine posted, not the LLM.",
+    detail: "Thai Liability Orchestrator · Jurisdictional top-up − foreign QDMTT − IIR already imposed = residual after foreign reductions. Thai QDMTT collects the Thai jurisdictional amount; Thai IIR adds the residual from foreign blends where the UPE or POPE is Thai. Engine posted, not the LLM.",
     children: [
       { id: "TH-jt", label: "Jurisdictional Top-up Tax", amount: th.jurisdictionalTopUp, kind: "formula", ruleId: "OECD-GloBE-15", ruleVersion: "2026.1", detail: "From GMT24 Global GloBE Core · Art. 5.2.3", children: [th.audit] },
       { id: "TH-fqdmtt", label: "− Foreign QDMTT", amount: foreignQdmtt, kind: "formula", ruleId: "TH-QDMTT-2025", ruleVersion: "2567.2", detail: F.liability.foreignQdmttDetail },
       { id: "TH-iir", label: "− IIR already imposed", amount: iirAlready, kind: "formula", ruleId: "prk2567", ruleVersion: "2567.2", detail: F.liability.iirDetail },
-      { id: "TH-utpr", label: "Residual UTPR", amount: residualUtpr, kind: "formula", ruleId: "dgtopuptax5", ruleVersion: "2567.2", detail: "Thai UTPR not in force for FY2026 in the signed pack. Residual on Thai profits is $0 after QDMTT." },
+      { id: "TH-utpr", label: "Residual after foreign reductions", amount: residualUtpr, kind: "formula", ruleId: "dgtopuptax5", ruleVersion: "2567.2", detail: `Amount left after foreign QDMTT and IIR already imposed. Thai QDMTT collects this; UTPR collectible is ${usd(0)} in FY2026.` },
       {
         id: "TH-iir-collect",
         label: "+ Thai IIR on foreign blends",
@@ -534,12 +535,11 @@ export function thaiLiability(th: JurCalc, all?: JurCalc[]) {
     ],
   };
 
-  const usd = (n: number) => `$${n.toLocaleString("en-GB")}`;
   const path = [
     "Jurisdictional Top-up Tax (GloBE Core)",
     `− Foreign QDMTT ${usd(foreignQdmtt)}`,
     `− IIR already imposed ${usd(iirAlready)}`,
-    `Residual UTPR ${usd(residualUtpr)}`,
+    `Residual after foreign reductions ${usd(residualUtpr)} · UTPR collectible ${usd(thaiUtprCollect)}`,
     "Thailand QDMTT collects",
     ...(thaiIir > 0 ? [`+ Thai IIR on ${iir.rows.map((r) => r.name).join(", ")}`] : []),
     "Thai liable entity (election / statutory)",
