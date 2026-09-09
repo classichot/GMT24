@@ -92,21 +92,21 @@ const adjustments: Adjustment[] = [
 ];
 
 const accounts: AccountMap[] = [
-  { account: "410000", name: "Revenue — coal sales (domestic)", entityId: "TC-UPE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 1_120_000_000 },
-  { account: "420000", name: "Revenue — coal export & trading", entityId: "TC-UPE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 800_000_000 },
+  { account: "410000", name: "Revenue — coal sales (domestic)", entityId: "TC-UPE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 1_512_000_000 },
+  { account: "420000", name: "Revenue — coal export & trading", entityId: "TC-UPE", financial: "Revenue", globe: "FANIL — revenue", confidence: 99, approved: true, amount: 1_080_000_000 },
   { account: "610001", name: "Staff cost", entityId: "TC-UPE", financial: "Payroll", globe: "FANIL — opex", adjustment: "None", sbie: "Eligible payroll", confidence: 98, approved: true, amount: 39_000_000 },
   { account: "610020", name: "Bonus & provident fund", entityId: "TC-UPE", financial: "Payroll", globe: "FANIL — opex", adjustment: "None", sbie: "Eligible payroll", confidence: 96, approved: true, amount: 9_000_000 },
   { account: "610030", name: "Retirement benefit accrual (TFRS)", entityId: "TC-UPE", financial: "Payroll / pension", globe: "Art. 3.2.3 pension adjustment", adjustment: "Book expense → contributions paid (+$0.40M)", confidence: 78, approved: false, amount: 1_600_000 },
-  { account: "720050", name: "Income tax", entityId: "TC-UPE", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 99, approved: true, amount: 9_500_000 },
-  { account: "720060", name: "Deferred income tax", entityId: "TC-UPE", financial: "Deferred tax", globe: "Covered tax — deferred", coveredTax: "Covered — recast 15%", confidence: 90, approved: true, amount: -1_200_000 },
-  { account: "720080", name: "Signboard tax & local levies", entityId: "TC-UPE", financial: "Other tax", globe: "Non-covered tax", coveredTax: "Non-covered", confidence: 88, approved: true, amount: 620_000 },
+  { account: "720050", name: "Income tax", entityId: "TC-UPE", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 99, approved: true, amount: 14_250_000 },
+  { account: "720060", name: "Deferred income tax", entityId: "TC-UPE", financial: "Deferred tax", globe: "Covered tax — deferred", coveredTax: "Covered — recast 15%", confidence: 90, approved: true, amount: -1_800_000 },
+  { account: "720080", name: "Signboard tax & local levies", entityId: "TC-UPE", financial: "Other tax", globe: "Non-covered tax", coveredTax: "Non-covered", confidence: 88, approved: true, amount: 930_000 },
   { account: "810020", name: "Dividend income", entityId: "TC-UPE", financial: "Other income", globe: "Excluded dividends", adjustment: "Art. 3.2.1(b)", confidence: 97, approved: true, amount: 186_000_000 },
   { account: "830010", name: "FX on USD coal receivables", entityId: "TC-UPE", financial: "FX", globe: "FANIL — other", adjustment: "Review FX policy", confidence: 64, approved: false, amount: 2_300_000 },
   { account: "150100", name: "Mine plant, port & barge infrastructure", entityId: "TC-UPE", financial: "PPE", globe: "SBIE tangible", sbie: "Eligible tangible assets", confidence: 94, approved: true, amount: 212_000_000 },
   { account: "150300", name: "Solar farms & battery storage (PPE)", entityId: "TC-TH-NRG", financial: "PPE", globe: "SBIE tangible", sbie: "Eligible tangible assets", confidence: 95, approved: true, amount: 262_000_000 },
-  { account: "720050", name: "Income tax — non-promoted activities", entityId: "TC-TH-NRG", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 97, approved: true, amount: 900_000 },
+  { account: "720050", name: "Income tax — non-promoted activities", entityId: "TC-TH-NRG", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 97, approved: true, amount: 1_350_000 },
   { account: "640500", name: "Intra-group trading & marketing service fee", entityId: "TC-SG-HC", financial: "Operating expense", globe: "Art. 3.2.4 arm's-length principle", adjustment: "Arm's-length true-up +$0.42M", confidence: 92, approved: true, amount: 1_900_000 },
-  { account: "720050", name: "Income tax (GTP 10%)", entityId: "TC-SG-HC", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 98, approved: true, amount: 5_800_000 },
+  { account: "720050", name: "Income tax (GTP 10%)", entityId: "TC-SG-HC", financial: "Current tax", globe: "Covered tax — current", coveredTax: "Covered", confidence: 98, approved: true, amount: 8_700_000 },
 ];
 
 const files: SourceFile[] = [
@@ -143,7 +143,7 @@ const issues: Issue[] = [
   { id: "IQ-09", severity: "warn", area: "Deferred tax", entity: "TC-US-GAS", jurisdiction: "United States", title: "IDC deferred-tax roll-forward narrative", detail: "Intangible drilling cost DTL movement $25.2M lacks Art. 4.4.5(a) recapture-exception tagging in the register.", owner: "US Tax" },
   { id: "IQ-10", severity: "warn", area: "Deferred tax", entity: "TC-UPE", jurisdiction: "Thailand", title: "Unrecognised loss carry-forward", detail: "FY2024–25 tax losses shelter FY2026 taxable profit but no DTA was recognised. Art. 4.4.1 / 4.4.4 — test whether a GloBE Loss Election (Art. 4.5) or DTA recognition changes the Thai ETR before locking.", owner: "P. Wongchai" },
   { id: "IQ-11", severity: "info", area: "Safe harbour", entity: "TC-MN-MINE", jurisdiction: "Mongolia", title: "De minimis test met", detail: "Revenue $6.2M < €10M and profit $0.4M < €1M. Elect SH_TCSH on the GIR — not electing this year bars TCSH next year (once out, always out).", owner: "Group Tax" },
-  { id: "IQ-12", severity: "info", area: "GloBE income", entity: "TC-AU-COAL", jurisdiction: "Australia", title: "Net GloBE Loss — no ETR", detail: "Australian coal CE is loss-making. Art. 5.1.2: no ETR is computed. Adjusted Covered Taxes −$5.0M against Expected −$6.3M — no Art. 4.1.5 Additional Current Top-up Tax.", owner: "Group Tax" },
+  { id: "IQ-12", severity: "info", area: "GloBE income", entity: "TC-AU-COAL", jurisdiction: "Australia", title: "Net GloBE Loss — no ETR", detail: "Australian coal CE is loss-making. Art. 5.1.2: no ETR is computed. Adjusted Covered Taxes −$7.5M (deferred recast 30% → 15%) are less negative than Expected −$9.45M (−$63.0M × 15%) — no Art. 4.1.5 Additional Current Top-up Tax, no ENTE.", owner: "Group Tax" },
 ];
 
 const incentives: Incentive[] = [
