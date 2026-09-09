@@ -1157,6 +1157,21 @@ html[data-theme="bw"] .map-dot.topup {
   .play-go { grid-column: 2; justify-self: start; }
 }
 
+.etr-risk-badge {
+  display: inline-flex; align-items: center; flex: none;
+  font-size: 8px; font-weight: 800; letter-spacing: 0.08em; line-height: 1;
+  text-transform: uppercase; padding: 3px 5px;
+  background: var(--color-hot); color: var(--color-on-accent);
+  animation: etr-risk-blink 1.05s ease-in-out infinite;
+}
+@keyframes etr-risk-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.22; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .etr-risk-badge { animation: none; }
+}
+
 .copilot-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); animation: pulse 1s ease-in-out infinite; flex: none; }
 @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 .model-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--color-neutral-500); margin-right: 5px; vertical-align: middle; }
