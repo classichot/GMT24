@@ -26,11 +26,17 @@ function MapInner() {
     const el = scroller.current;
     const layer = el?.firstElementChild as HTMLElement | null;
     if (!el || !layer) return;
+    const pin = el.querySelector(`[data-iso="${sel.iso}"]`) as HTMLElement | null;
     const id = requestAnimationFrame(() => {
-      el.scrollTop = Math.max(0, (layer.offsetHeight - el.clientHeight) / 2);
+      if (pin) {
+        const top = pin.offsetTop - el.clientHeight / 2 + pin.offsetHeight / 2;
+        el.scrollTo({ top: Math.max(0, top), behavior: iso ? "smooth" : "auto" });
+      } else {
+        el.scrollTop = Math.max(0, (layer.offsetHeight - el.clientHeight) / 2);
+      }
     });
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [sel.iso, iso]);
 
   return (
     <div>
@@ -43,10 +49,36 @@ function MapInner() {
             const pos = MAP_COORDS[d.iso];
             if (!pos) return null;
             const cls = d.jurisdictionalTopUp > 0 ? "topup" : d.exposure === "Safe harbour" || d.exposure === "Review" ? "sh" : "ok";
+            const on = sel.iso === d.iso;
             return (
-              <button key={d.iso} className={`map-dot ${cls}${sel.iso === d.iso ? " active" : ""}`} style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => router.push(`/etr-map?iso=${d.iso}`)} title={d.name} />
+              <button
+                key={d.iso}
+                type="button"
+                className="map-pin"
+                data-iso={d.iso}
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                onClick={() => router.push(`/etr-map?iso=${d.iso}`)}
+                title={`${d.name} · ETR ${pct(d.main.etr, 2)}`}
+                aria-label={`${d.name}, ETR ${pct(d.main.etr, 2)}`}
+                aria-pressed={on}
+              >
+                <span className={`map-dot ${cls}${on ? " active" : ""}`} />
+              </button>
             );
           })}
+          {MAP_COORDS[sel.iso] && (
+            <div
+              className={`map-callout${MAP_COORDS[sel.iso].y < 24 ? " below" : ""}`}
+              style={{ left: `${MAP_COORDS[sel.iso].x}%`, top: `${MAP_COORDS[sel.iso].y}%` }}
+              role="status"
+            >
+              <div className="map-callout-kicker">{sel.iso} · {sel.exposure}</div>
+              <div className="map-callout-name">{sel.name}</div>
+              <div className="map-callout-etr">{pct(sel.etr, 2)}</div>
+              <div className="map-callout-meta">Jurisdictional ETR</div>
+              <div className="map-callout-meta">Top-up {eur(sel.jurisdictionalTopUp, true)}</div>
+            </div>
+          )}
         </div>
       </div>
       <div className="grid-split">
@@ -74,7 +106,7 @@ function MapInner() {
               <thead><tr><th>Jurisdiction</th><th className="num">ETR</th><th className="num">Top-up</th></tr></thead>
               <tbody>
                 {calcs.map((c) => (
-                  <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
+                  <tr key={c.blendKey} className={`clickable${c.iso === sel.iso && (!blend || c.blendKey === blend) ? " selected" : ""}`} onClick={() => router.push(`/etr-map?iso=${c.iso}${c.blendKind === "main" ? "" : `&blend=${encodeURIComponent(c.blendKey)}`}`)}>
                     <td>{c.name}</td>
                     <td className="num">{pct(c.etr, 1)}</td>
                     <td className="num">{eur(c.jurisdictionalTopUp, true)}</td>

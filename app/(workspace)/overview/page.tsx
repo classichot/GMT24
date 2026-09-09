@@ -125,11 +125,15 @@ export default function OverviewPage() {
               return (
                 <button
                   key={d.iso}
-                  className={`map-dot ${cls}`}
+                  type="button"
+                  className="map-pin"
                   style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  title={`${d.name} ${pct(d.main.etr)}`}
-                  onClick={() => router.push(etrHref(d.main))}
-                />
+                  title={`${d.name} · ETR ${pct(d.main.etr, 2)}`}
+                  aria-label={`${d.name}, ETR ${pct(d.main.etr, 2)}`}
+                  onClick={() => router.push(`/etr-map?iso=${d.iso}`)}
+                >
+                  <span className={`map-dot ${cls}`} />
+                </button>
               );
             })}
           </div>
