@@ -5,7 +5,7 @@ import { Amount } from "@/components/Amount";
 import { ElectionBar } from "@/components/ElectionBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur, pct } from "@/lib/format";
 import {
   eligibilityEngine,
   scoreWorking,
@@ -380,7 +380,7 @@ export default function YearsPage() {
                   <td style={{ fontWeight: 700 }}>{c.name}</td>
                   <td className="num"><Amount n={c.dGlobe} compact /></td>
                   <td className="num"><Amount n={c.dCovered} compact /></td>
-                  <td className="num">{pct(c.etrPrior, 1)} → {pct(c.etr, 1)}</td>
+                  <td className="num">{etrPct({ etr: c.etrPrior, globeIncome: c.globePrior }, 1)} → {etrPct({ etr: c.etr, globeIncome: c.globe }, 1)}</td>
                   <td className="num"><Amount n={c.dTopUp} compact /></td>
                   <td className="num"><Amount n={c.topUp} compact /></td>
                 </tr>

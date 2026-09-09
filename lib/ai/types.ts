@@ -324,6 +324,9 @@ export type ScenarioJurRow = {
   topUp: number;
   baseEtr: number;
   etr: number;
+  /** Net GloBE Income; ≤ 0 means Art. 5.1.2 no-ETR, so `etr` is a placeholder. Optional for scenarios saved before this field existed. */
+  baseGlobe?: number;
+  globe?: number;
   payer: string;
 };
 

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { pct } from "@/lib/format";
+import { etrPct, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
 import { BlendBadge } from "@/components/BlendBadge";
@@ -86,7 +86,7 @@ function Inner() {
           <Link href="/covered-taxes" className="btn btn-secondary">Covered taxes</Link>
           <Link href="/deferred-tax" className="btn btn-secondary">Deferred tax</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
-          <button className="btn btn-primary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(sel.etrComputed ? `Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?` : `Why does ${sel.name} have no ETR and no top-up this year?`)}>Ask GMT24</button>
         </div>
       </div>
 
@@ -314,7 +314,7 @@ function Inner() {
                     <td className="num">{sel.coveredTaxRaw.toLocaleString("en-GB")}</td>
                     <td className="num">—</td>
                     <td className="num">{sel.coveredTax.toLocaleString("en-GB")}</td>
-                    <td className="num">{sel.globeIncome > 0 ? pct(sel.etr, 2) : "N/A (Loss)"}</td>
+                    <td className="num">{etrPct(sel, 2)}</td>
                     <td className="num">{sel.globeIncome > 0 ? pct(sel.topUpRate, 2) : "—"}</td>
                   </tr>
                   {(() => {

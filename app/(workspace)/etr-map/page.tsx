@@ -5,7 +5,7 @@ import { Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { MAP_COORDS } from "@/lib/model";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { WorldMap } from "@/components/WorldMap";
 import { FlowBar } from "@/components/FlowBar";
@@ -58,8 +58,8 @@ function MapInner() {
                 data-iso={d.iso}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                 onClick={() => router.push(`/etr-map?iso=${d.iso}`)}
-                title={`${d.name} · ETR ${pct(d.main.etr, 2)}`}
-                aria-label={`${d.name}, ETR ${pct(d.main.etr, 2)}`}
+                title={`${d.name} · ETR ${etrPct(d.main, 2)}`}
+                aria-label={`${d.name}, ETR ${etrPct(d.main, 2)}`}
                 aria-pressed={on}
               >
                 <span className={`map-dot ${cls}${on ? " active" : ""}`} />
@@ -74,8 +74,8 @@ function MapInner() {
             >
               <div className="map-callout-kicker">{sel.iso} · {sel.exposure}</div>
               <div className="map-callout-name">{sel.name}</div>
-              <div className="map-callout-etr">{pct(sel.etr, 2)}</div>
-              <div className="map-callout-meta">Jurisdictional ETR</div>
+              <div className="map-callout-etr">{etrPct(sel, 2)}</div>
+              <div className="map-callout-meta">{sel.etrComputed ? "Jurisdictional ETR" : "Net GloBE Loss · Art. 5.1.2"}</div>
               <div className="map-callout-meta">Top-up {eur(sel.jurisdictionalTopUp, true)}</div>
             </div>
           )}
@@ -87,7 +87,7 @@ function MapInner() {
           <div className="panel-body">
             <div className="wf-row"><span>GloBE income</span><Amount n={sel.globeIncome} audit={sel.audit} /></div>
             <div className="wf-row"><span>Covered taxes</span><Amount n={sel.coveredTax} audit={sel.audit} /></div>
-            <div className="wf-row"><span>ETR</span><strong>{pct(sel.etr, 2)}</strong></div>
+            <div className="wf-row"><span>ETR</span><strong>{etrPct(sel, 2)}</strong></div>
             <div className="wf-row"><span>SBIE</span><span>{eur(sel.sbie)}</span></div>
             <div className="wf-row total"><span>Top-up tax</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
             <p className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>{sel.sh.navigator}</p>
@@ -95,7 +95,7 @@ function MapInner() {
               <Link href={etrHref(sel)} className="btn btn-primary">Open ETR</Link>
               <Link href="/top-up" className="btn btn-secondary">Top-up</Link>
               <Link href="/allocation" className="btn btn-secondary">Allocation</Link>
-              <button className="btn btn-secondary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
+              <button className="btn btn-secondary" onClick={() => ask(sel.etrComputed ? `Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?` : `Why does ${sel.name} have no ETR and no top-up this year?`)}>Ask GMT24</button>
             </div>
           </div>
         </div>
@@ -108,7 +108,7 @@ function MapInner() {
                 {calcs.map((c) => (
                   <tr key={c.blendKey} className={`clickable${c.iso === sel.iso && (!blend || c.blendKey === blend) ? " selected" : ""}`} onClick={() => router.push(`/etr-map?iso=${c.iso}${c.blendKind === "main" ? "" : `&blend=${encodeURIComponent(c.blendKey)}`}`)}>
                     <td>{c.name}</td>
-                    <td className="num">{pct(c.etr, 1)}</td>
+                    <td className="num">{etrPct(c, 1)}</td>
                     <td className="num">{eur(c.jurisdictionalTopUp, true)}</td>
                   </tr>
                 ))}

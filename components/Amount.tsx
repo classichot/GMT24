@@ -9,14 +9,17 @@ export function Amount({
   audit,
   compact,
   className,
+  label: override,
 }: {
   n: number;
   audit?: AuditNode;
   compact?: boolean;
   className?: string;
+  /** Replace the auto-formatted value (e.g. "n/a · loss" for an Art. 5.1.2 no-ETR jurisdiction). */
+  label?: string;
 }) {
   const { openAudit } = useStore();
-  const label = n !== 0 && Math.abs(n) <= 1 && Math.abs(n) > 0 && n < 2 ? pct(n, 2) : eur(n, compact);
+  const label = override ?? (n !== 0 && Math.abs(n) <= 1 && Math.abs(n) > 0 && n < 2 ? pct(n, 2) : eur(n, compact));
   if (!audit) return <span className={className}>{label}</span>;
   return (
     <button

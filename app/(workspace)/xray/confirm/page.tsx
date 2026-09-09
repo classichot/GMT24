@@ -9,7 +9,7 @@ import { ScoreBar, SeverityTag, StatusTag } from "@/components/XrayBits";
 import { XrayDocumentReading } from "@/components/XrayDocumentReading";
 import { useStore } from "@/lib/store";
 import { useXray } from "@/lib/useXray";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import {
   ENGINE_META,
   activeQuestions,
@@ -262,7 +262,7 @@ function ConfirmWorkflow() {
                         </td>
                         <td className="text-muted" style={{ fontSize: 12, maxWidth: 340 }}>{b.treatment}</td>
                         <td className="num">{eur(im.globeIncome, true)}</td>
-                        <td className="num">{calc.globeIncome > 0 ? pct(im.etr, 2) : "N/A (Loss)"}</td>
+                        <td className="num">{etrPct(im, 2)}</td>
                         <td className="num">{eur(im.topUp, true)}</td>
                         <td className="num" style={{ fontWeight: 800, color: im.topUpDelta > 0 ? "var(--color-hot)" : im.topUpDelta < 0 ? "var(--color-ok)" : undefined }}>
                           {im.topUpDelta === 0 ? "—" : `${im.topUpDelta > 0 ? "+" : "−"}${eur(Math.abs(im.topUpDelta), true).replace("$", "$")}`}
@@ -279,7 +279,7 @@ function ConfirmWorkflow() {
           <div className="panel-body">
             <p className="text-muted" style={{ margin: 0, fontSize: 12 }}>
               Current position: GloBE income {calc ? eur(calc.globeIncome, true) : "—"}, ETR{" "}
-              {calc && calc.globeIncome > 0 ? pct(calc.etr, 2) : "N/A (Loss)"}, top-up{" "}
+              {calc ? etrPct(calc, 2) : "—"}, top-up{" "}
               {calc ? eur(calc.jurisdictionalTopUp, true) : "—"}. The spread across the answers is the reason to
               chase this confirmation — or to leave it.
             </p>
