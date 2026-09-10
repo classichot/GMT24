@@ -50,7 +50,7 @@ export const ONBOARDING: Record<UserRole, { title: string; steps: WalkStep[] }> 
       { href: "/jurisdictions", target: "scan", text: "Scan the OECD Central Record. Differences become proposals; reviewers decide; you close the change record." },
       { href: "/settings", target: "settings", text: "Operating mode, theme, evidence-history immutability." },
       { href: "/evidence-history", target: "chain", text: "Verify the hash chain. Turning immutability off is itself logged." },
-      { href: "/host", target: "desk", text: "Host desk mints 1–30 day review links. The host key never appears on the public login page." },
+      { href: "/host", target: "desk", text: "Host desk mints 1–45 day review links. The host key never appears on the public login page." },
       { href: "/copilot", target: "quality", text: "Watch Co-Pilot quality: grounded answers, unsupported statements, failed actions." },
     ],
   },
