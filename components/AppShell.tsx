@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  Bot,
   Building2,
   Check,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   Landmark,
   LayoutGrid,
   Link2,
+  ListChecks,
   LogOut,
   Map,
   Menu,
@@ -34,6 +36,7 @@ import { DATA, ADVISOR_USER } from "@/lib/model";
 import { SEEDS } from "@/lib/seeds";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
+import { AgiToggle } from "@/components/AgiToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
@@ -138,6 +141,22 @@ const NAV = [
   ]},
 ];
 
+/**
+ * AGI mode is a separate layer: its menu only exists while the toggle is on,
+ * and none of the normal-mode groups above change either way.
+ */
+const AGI_NAV = {
+  group: "AGI Mode",
+  items: [
+    { href: "/agi", label: "Mission Overview", icon: Bot },
+    { href: "/agi/options", label: "Options and Elections", icon: SlidersHorizontal },
+    { href: "/agi/calculation", label: "Calculation Review", icon: ListChecks },
+    { href: "/agi/compliance", label: "Compliance Review", icon: Scale },
+    { href: "/agi/audit-file", label: "Audit File", icon: FileText },
+    { href: "/agi/connections", label: "Agent Connections", icon: Link2 },
+  ],
+};
+
 const TABS = [
   { href: "/overview", label: "Home", icon: LayoutGrid },
   { href: "/graph", label: "Graph", icon: Globe },
@@ -210,11 +229,18 @@ const TITLES: Record<string, [string, string]> = {
   "/rulebook": ["Killer feature", "GMT24 Global Rulebook"],
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
+  "/agi": ["AGI Mode", "Mission Overview"],
+  "/agi/options": ["AGI Mode", "Options and Elections"],
+  "/agi/calculation": ["AGI Mode", "Calculation Review"],
+  "/agi/compliance": ["AGI Mode", "Compliance Review"],
+  "/agi/audit-file": ["AGI Mode", "Audit File"],
+  "/agi/connections": ["AGI Mode", "Agent Connections"],
 };
 
 function isActive(path: string, href: string) {
   if (href === "/thailand") return path === "/thailand";
   if (href === "/xray") return path === "/xray";
+  if (href === "/agi") return path === "/agi";
   return path === href || path.startsWith(href + "/");
 }
 
@@ -314,7 +340,7 @@ function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { model } = useAi();
   const llmLive = model.configured && model.reachable;
-  const { logout, toast, navOpen, setNavOpen, mode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
+  const { logout, toast, navOpen, setNavOpen, mode, agiMode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
   const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
   const { stop } = useXray();
@@ -389,6 +415,24 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
+          {agiMode && !invite && (
+            <div className="nav-agi-layer">
+              <div className="nav-group agi"><Bot size={12} />{AGI_NAV.group}<span className="nav-num" style={{ marginLeft: "auto" }}>ON</span></div>
+              <div className="nav-agi-note">Mission-execution layer. Agents prepare; people approve. Normal mode below is unchanged.</div>
+              {AGI_NAV.items.map((item, ii) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.href} className="nav-row">
+                    <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                      <span className="nav-num">A.{ii + 1}</span>
+                      <Icon size={15} />
+                      <span className="nav-label">{item.label}</span>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {NAV.flatMap((g) => {
             const items = g.items.filter((i) => {
               if ("advisor" in i && i.advisor && mode !== "advisor") return false;
@@ -501,12 +545,14 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
           <span className="tag tag-outline header-hide-sm">{activeFy}</span>
+          {agiMode && path.startsWith("/agi") && <span className="tag tag-accent header-hide-sm"><Bot size={11} style={{ marginRight: 4 }} />AGI layer</span>}
           {mode === "advisor" && !invite && (
             <span className="header-hide-sm">
               <StartEngage />
             </span>
           )}
           <ModeToggle compact />
+          {!invite && <AgiToggle compact />}
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
           )}
