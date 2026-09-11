@@ -1551,7 +1551,7 @@ const CACHE = new Map<string, XrayFinding[]>();
  */
 export function runXray(ctx: XrayScanCtx = {}): XrayFinding[] {
   const on = ctx.electionsOn ?? {};
-  const key = Object.keys(on).filter((k) => on[k]).sort().join("|");
+  const key = `${DATA.seedId}::${Object.keys(on).filter((k) => on[k]).sort().join("|")}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
   const findings = [

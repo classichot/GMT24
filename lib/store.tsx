@@ -89,6 +89,9 @@ type Store = {
   themeVars: Record<string, string>;
   mode: ProductMode;
   setMode: (m: ProductMode) => void;
+  /** AGI mode: the mission-execution layer above normal mode. Off by default; normal mode is unchanged either way. */
+  agiMode: boolean;
+  setAgiMode: (on: boolean) => void;
   groupId: string;
   setGroupId: (id: string) => void;
   groups: Group[];
@@ -210,6 +213,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [authed, setAuthed] = useState(false);
   const [theme, setThemeState] = useState<ThemeKey>("dark");
   const [mode, setModeState] = useState<ProductMode>("inhouse");
+  const [agiMode, setAgiModeState] = useState(false);
   const [groupId, setGroupIdRaw] = useState(DEFAULT_SEED_ID);
   /** Every group change also points the shared dataset (`DATA`) at that group's seed. */
   const setGroupIdState = useCallback((id: string) => {
@@ -275,6 +279,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setThemeState(normalizeTheme(localStorage.getItem("gmt24_theme")));
     const m = localStorage.getItem("gmt24_mode");
     if (m === "advisor" || m === "inhouse") setModeState(m);
+    setAgiModeState(localStorage.getItem("gmt24_agi_mode") === "1");
     const extras = parseStoredGroups(localStorage.getItem(ENGAGEMENT_KEY));
     setExtraGroups(extras);
     registerExtras(extras);
@@ -386,6 +391,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fy: fyRef.current,
       href: "/settings",
       ref: m,
+    });
+    applyLedger(next);
+  }, [applyLedger]);
+
+  const setAgiMode = useCallback((on: boolean) => {
+    setAgiModeState(on);
+    localStorage.setItem("gmt24_agi_mode", on ? "1" : "0");
+    const actor = modeRef.current === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
+    const next = appendEvent(ledgerRef.current, {
+      kind: "action",
+      title: `AGI mode → ${on ? "on" : "off"}`,
+      detail: on
+        ? `${actor.name} turned AGI mode on. Missions, agent connections and the AGI workspace are available; normal mode data, engines and approvals are unchanged.`
+        : `${actor.name} turned AGI mode off. The AGI workspace and gateway controls are hidden; mission records are kept.`,
+      actor: actor.name,
+      role: actor.role,
+      fy: fyRef.current,
+      href: "/agi",
+      ref: on ? "agi-on" : "agi-off",
     });
     applyLedger(next);
   }, [applyLedger]);
@@ -962,6 +986,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       themeVars,
       mode,
       setMode,
+      agiMode,
+      setAgiMode,
       groupId,
       setGroupId,
       groups,
@@ -1023,7 +1049,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signXray,
       resetXray,
     }),
-    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, queuedDrops, noteFileDrop, packAmendments, packChanges, packOverlay, scanPacks, adminReviewPackChange, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
+    [ready, authed, login, logout, theme, setTheme, themeVars, mode, setMode, agiMode, setAgiMode, groupId, setGroupId, groups, group, addEngagement, toast, flash, navOpen, copilotOpen, pendingAsk, ask, consumeAsk, audit, approvedMaps, approveMap, scenario, setScenario, workflow, patchWorkflow, electionsOn, setElection, resetElections, sbieClaim, setSbieClaim, activeFy, yearRecords, yearLocked, lockCurrentYear, openNextYear, setActiveFy, historyEvents, historyImmutable, historyChainOk, appendHistory, setHistoryImmutable, deleteHistoryEvent, resetHistory, ingestStatus, ingestProgress, loadDemoPack, resetIngest, queuedDrops, noteFileDrop, packAmendments, packChanges, packOverlay, scanPacks, adminReviewPackChange, decidePackAmendment, revertPackAmendment, clearPackAmendments, xray, answerXray, attachXrayEvidence, signXray, resetXray],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
