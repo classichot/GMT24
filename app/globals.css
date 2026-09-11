@@ -1191,6 +1191,8 @@ html[data-theme="bw"] .map-dot.topup {
 }
 .agi-switch:hover { border-color: var(--color-accent); }
 .agi-switch.on { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-accent); }
+.agi-switch-icon { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1; }
+.agi-switch-caption { font-size: 7px; letter-spacing: 0.12em; font-weight: 800; }
 .agi-switch-track {
   position: relative; width: 30px; height: 16px; flex: none;
   border: 2px solid currentColor; box-sizing: border-box;
@@ -1202,6 +1204,7 @@ html[data-theme="bw"] .map-dot.topup {
 .agi-switch.on .agi-switch-knob { left: 15px; }
 .agi-switch-state { min-width: 2.2em; text-align: left; }
 .agi-switch.compact .agi-switch-label { display: none; }
+.agi-switch:not(.compact) .agi-switch-caption { display: none; }
 @media (max-width: 720px) {
   .agi-switch .agi-switch-label { display: none; }
   .agi-switch .agi-switch-state { display: none; }

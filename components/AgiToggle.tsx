@@ -27,7 +27,10 @@ export function AgiToggle({ compact = false, goto = true }: { compact?: boolean;
         if (!next && goto && typeof window !== "undefined" && window.location.pathname.startsWith("/agi")) router.push("/overview");
       }}
     >
-      <Bot size={compact ? 15 : 16} />
+      <span className="agi-switch-icon" aria-hidden>
+        <Bot size={compact ? 15 : 16} />
+        <span className="agi-switch-caption">AGI</span>
+      </span>
       <span className="agi-switch-label">AGI mode</span>
       <span className="agi-switch-track" aria-hidden><span className="agi-switch-knob" /></span>
       <span className="agi-switch-state">{agiMode ? "On" : "Off"}</span>
