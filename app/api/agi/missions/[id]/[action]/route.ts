@@ -56,7 +56,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       await record(p, { missionId: id, action: "missions.run", ok: true, detail: `${r.ran.length} step(s) · ${r.stoppedBecause}` });
       return NextResponse.json({ ok: true, mission: summarise(r.mission), ran: r.ran, stoppedBecause: r.stoppedBecause });
     }
-    let next = touch(m, p.client, p.actor);
+    // A person's control action does not take the mission away from the agent executing it; an agent's does renew its lease.
+    let next = p.kind === "workspace" ? m : touch(m, p.client, p.actor);
     switch (act) {
       case "pause": next = pause(next, p.actor); break;
       case "resume": next = resume(next, p.actor); break;

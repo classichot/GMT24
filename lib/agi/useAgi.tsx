@@ -14,7 +14,7 @@ import { labelElection } from "../evidenceHistory";
 import { useStore } from "../store";
 import { buildSnapshot, caseHash } from "./case";
 import { advanceMission, applicableChanges, recordDecision, type AdvanceResult } from "./executor";
-import { cancel as cancelMission, complete as completeMission, handoff as handoffMission, markApplied, pause as pauseMission, rebase, resume as resumeMission, setObjectives as setMissionObjectives, touch, type CompletionGate, completionGate } from "./mission";
+import { cancel as cancelMission, complete as completeMission, handoff as handoffMission, markApplied, pause as pauseMission, rebase, resume as resumeMission, setObjectives as setMissionObjectives, type CompletionGate, completionGate } from "./mission";
 import { callTool, ToolError, type ToolCtx } from "./tools";
 import type { AgentClientId, CaseSnapshot, MissionObjectives, MissionRecord, ToolName, ToolResult } from "./types";
 import type { SbieMode } from "../electionEngine";
@@ -223,19 +223,19 @@ export function AgiProvider({ children }: { children: ReactNode }) {
       return r;
     }),
     tool: <T,>(name: ToolName, args: Record<string, unknown>) => guarded(name, () => callTool(name, args, ctx) as ToolResult<T>),
-    pause: (id) => { guarded("pause", () => save(pauseMission(touch(get(id), "workspace", actor), actor))); },
-    resume: (id) => { guarded("resume", () => save(resumeMission(touch(get(id), "workspace", actor), actor))); },
-    cancel: (id, reason) => { guarded("cancel", () => save(cancelMission(touch(get(id), "workspace", actor), actor, reason))); },
-    decide: (id, decisionId, verdict, chosen, note) => guarded("decide", () => { save(recordDecision(touch(get(id), "workspace", actor), decisionId, verdict, actor, chosen, note)); return true; }) ?? false,
-    complete: (id, note) => guarded("complete", () => { save(completeMission(touch(get(id), "workspace", actor), actor, note)); flash("Mission completed — package approved"); return true; }) ?? false,
+    pause: (id) => { guarded("pause", () => save(pauseMission(get(id), actor))); },
+    resume: (id) => { guarded("resume", () => save(resumeMission(get(id), actor))); },
+    cancel: (id, reason) => { guarded("cancel", () => save(cancelMission(get(id), actor, reason))); },
+    decide: (id, decisionId, verdict, chosen, note) => guarded("decide", () => { save(recordDecision(get(id), decisionId, verdict, actor, chosen, note)); return true; }) ?? false,
+    complete: (id, note) => guarded("complete", () => { save(completeMission(get(id), actor, note)); flash("Mission completed — package approved"); return true; }) ?? false,
     handoff: (id, to, note) => { guarded("handoff", () => { save(handoffMission(get(id), to, actor, note)); flash(`Mission handed to ${to}`); }); },
     recheck: (id) => guarded("recheck", () => {
-      const r = rebase(touch(get(id), "workspace", actor), live, actor);
+      const r = rebase(get(id), live, actor);
       save(r.mission);
       flash(r.changes.length ? `Case changed: ${r.changes.length} difference(s) — approvals reset` : "No change since the mission's case version");
       return r.changes;
     }),
-    setObjectives: (id, objectives) => { guarded("objectives", () => save(setMissionObjectives(touch(get(id), "workspace", actor), objectives, actor))); },
+    setObjectives: (id, objectives) => { guarded("objectives", () => save(setMissionObjectives(get(id), objectives, actor))); },
     applyApproved: (id) => guarded("apply", () => {
       const m = get(id);
       const { proposals } = applicableChanges(m);
