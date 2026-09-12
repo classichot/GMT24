@@ -89,7 +89,8 @@ function hasRule(c: JurCalc, ruleId: string) {
 export function sourceLine(s: RegSourceState): string {
   const when = s.lastChecked ? `last checked ${s.lastChecked.slice(0, 16).replace("T", " ")}` : "not yet checked";
   const st = s.lastStatus === "error" ? ` — unreachable: ${s.lastError}` : s.lastChangedAt ? ` — last change ${s.lastChangedAt.slice(0, 10)}` : s.lastStatus === "ok" ? " — unchanged since baseline" : "";
-  return `${s.label} — ${s.cadence}, ${when}${st}`;
+  const via = s.lastStatus === "ok" && s.via?.kind === "archive" ? ` (publisher blocks automated readers; read from the Internet Archive capture of ${s.via.capturedAt.slice(0, 10)})` : "";
+  return `${s.label} — ${s.cadence}, ${when}${st}${via}`;
 }
 
 export function regwatchReply(items: WatchItem[], ctx: WorkContext, focus?: string, sources: RegSourceState[] = []): Reply {

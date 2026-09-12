@@ -40,7 +40,11 @@ export type SourceState = {
   isPdf: boolean;
   knownLinks: { url: string; title: string; firstSeen: string }[];
   versions: { hash: string; at: string; excerpt: string; bytes: number }[];
+  /** Set when the last successful read came through a fallback rather than the publisher directly. */
+  via?: SourceVia | null;
 };
+
+type SourceVia = NonNullable<RegSourceState["via"]>;
 
 /** Enum coercion: small models paraphrase labels ("draft", "guidance"); map them rather than reject the whole record. */
 const KIND_MAP: Record<string, ChangeSummary["kind"]> = { "new-guidance": "new-guidance", guidance: "new-guidance", new: "new-guidance", publication: "new-guidance", draft: "new-guidance", amendment: "amendment", amended: "amendment", change: "amendment", update: "amendment", consultation: "consultation", administrative: "administrative", notice: "administrative", other: "other" };
@@ -63,7 +67,7 @@ export type DetectedChange = RegChange;
 
 /** Client-safe projection: drops the stored text versions. */
 export function publicState(s: SourceState): RegSourceState {
-  return { id: s.id, label: s.label, url: s.url, cadence: s.cadence, jurisdictions: s.jurisdictions, lastChecked: s.lastChecked, lastChangedAt: s.lastChangedAt, lastStatus: s.lastStatus, lastError: s.lastError, hash: s.hash, title: s.title, isPdf: s.isPdf, knownLinks: s.knownLinks.length, versions: s.versions.map((v) => ({ hash: v.hash, at: v.at, bytes: v.bytes })) };
+  return { id: s.id, label: s.label, url: s.url, cadence: s.cadence, jurisdictions: s.jurisdictions, lastChecked: s.lastChecked, lastChangedAt: s.lastChangedAt, lastStatus: s.lastStatus, lastError: s.lastError, hash: s.hash, title: s.title, isPdf: s.isPdf, knownLinks: s.knownLinks.length, versions: s.versions.map((v) => ({ hash: v.hash, at: v.at, bytes: v.bytes })), via: s.via ?? null };
 }
 
 const SOURCE_KEY = (id: string) => `regwatch:source:${id}`;
@@ -81,7 +85,7 @@ export function configuredSources(): WatchedSource[] {
 }
 
 function emptyState(s: WatchedSource): SourceState {
-  return { id: s.id, label: s.label, url: s.url, cadence: s.cadence, jurisdictions: s.jurisdictions, lastChecked: null, lastChangedAt: null, lastStatus: "unchecked", lastError: null, hash: null, title: null, bytes: 0, isPdf: false, knownLinks: [], versions: [] };
+  return { id: s.id, label: s.label, url: s.url, cadence: s.cadence, jurisdictions: s.jurisdictions, lastChecked: null, lastChangedAt: null, lastStatus: "unchecked", lastError: null, hash: null, title: null, bytes: 0, isPdf: false, knownLinks: [], versions: [], via: null };
 }
 
 export async function sourceStates(): Promise<SourceState[]> {
@@ -137,22 +141,40 @@ function harvestDocLinks(html: string, pageUrl: URL): { url: string; title: stri
   return out;
 }
 
-type ReadSource = { text: string; html: string | null; title: string; bytes: number; isPdf: boolean; finalUrl: string };
+type ReadSource = { text: string; html: string | null; title: string; bytes: number; isPdf: boolean; finalUrl: string; via: SourceVia | null };
 
-/** One fetch per source: HTML is kept for link harvesting, PDFs go through the document service. */
-async function readSource(url: string): Promise<ReadSource> {
-  const res = await fetch(url, { cache: "no-store", headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36", accept: "application/pdf,text/html;q=0.9,*/*;q=0.8", "accept-language": "en-GB,en;q=0.9,th;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(40000) });
-  if (res.status === 403 || res.status === 429) throw new Error(`Publisher refuses automated readers from this network (HTTP ${res.status}). Configure an accessible mirror or feed for this source, or check it manually.`);
-  if (!res.ok) throw new Error(`Source returned HTTP ${res.status}`);
-  const ct = res.headers.get("content-type") ?? "";
-  const buf = Buffer.from(await res.arrayBuffer());
+const READER_HEADERS = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36", accept: "application/pdf,text/html;q=0.9,*/*;q=0.8", "accept-language": "en-GB,en;q=0.9,th;q=0.8" };
+
+class PublisherBlocked extends Error {
+  constructor(public readonly status: number, public readonly challenge: boolean) {
+    super(challenge
+      ? `Publisher serves a browser challenge (Cloudflare) to automated readers from this network (HTTP ${status}).`
+      : `Publisher refuses automated readers from this network (HTTP ${status}).`);
+  }
+}
+
+/** Cloudflare's managed challenge answers 403 with `cf-mitigated: challenge` and an interstitial that no server-side reader can pass. */
+function isChallenge(res: Response, body?: Buffer) {
+  if ((res.headers.get("cf-mitigated") ?? "").toLowerCase() === "challenge") return true;
+  if (!body) return false;
+  const head = body.subarray(0, 4000).toString("utf8");
+  return /challenges\.cloudflare\.com|<title>Just a moment\.\.\.<\/title>/i.test(head);
+}
+
+/** Parse a response body into readable text (HTML kept for link harvesting; PDFs go through the document service). */
+async function parseBody(url: string, finalUrl: string, ct: string, raw: Buffer, via: SourceVia | null): Promise<ReadSource> {
+  let buf = raw;
+  // Archived responses can arrive still gzip-encoded when the capture lacked a content-encoding header.
+  if (buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+    const { gunzipSync } = await import("node:zlib");
+    try { buf = gunzipSync(buf); } catch { /* keep raw */ }
+  }
   if (buf.length > 25 * 1024 * 1024) throw new Error("Source exceeds the 25 MB limit.");
-  const finalUrl = res.url || url;
   const isPdf = /pdf/i.test(ct) || buf.subarray(0, 5).toString() === "%PDF-";
   if (isPdf) {
     const { pdfPages } = await import("./pdf");
     const r = await pdfPages(buf, { maxPages: 300 });
-    return { text: r.pages.map((p) => p.text).join("\n"), html: null, title: url.split("/").pop() ?? url, bytes: buf.length, isPdf: true, finalUrl };
+    return { text: r.pages.map((p) => p.text).join("\n"), html: null, title: url.split("/").pop() ?? url, bytes: buf.length, isPdf: true, finalUrl, via };
   }
   const html = buf.toString("utf8").slice(0, 3_000_000);
   const title = decodeEntities(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? url);
@@ -160,7 +182,74 @@ async function readSource(url: string): Promise<ReadSource> {
     .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<nav[\s\S]*?<\/nav>|<footer[\s\S]*?<\/footer>/gi, " ")
     .replace(/<\/(p|div|li|tr|h\d|br|td|th)>/gi, "\n")
     .split("\n").map((l) => decodeEntities(l)).filter(Boolean).join("\n");
-  return { text, html, title, bytes: buf.length, isPdf: false, finalUrl };
+  return { text, html, title, bytes: buf.length, isPdf: false, finalUrl, via };
+}
+
+/** Wayback timestamp "20260903110920" → ISO string. */
+function archiveStamp(ts: string) {
+  const m = ts.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : new Date().toISOString();
+}
+
+/**
+ * Fallback reader: the Internet Archive's most recent capture of the page. The
+ * `id_` flag returns the original bytes without the Wayback toolbar, so text
+ * hashing and link harvesting behave exactly as on a direct read. Relative
+ * links are resolved against the original URL, not web.archive.org.
+ */
+async function latestCapture(url: string): Promise<string> {
+  // The availability API answers empty for scheme-prefixed URLs; query it host-first.
+  const bare = url.replace(/^https?:\/\//i, "");
+  try {
+    const avail = await fetch(`https://archive.org/wayback/available?url=${encodeURIComponent(bare)}`, { cache: "no-store", headers: { accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+    if (avail.ok) {
+      const j = (await avail.json()) as { archived_snapshots?: { closest?: { available?: boolean; timestamp?: string; status?: string } } };
+      const c = j.archived_snapshots?.closest;
+      if (c?.available && c.timestamp && c.status === "200") return c.timestamp;
+    }
+  } catch { /* fall through to the CDX index */ }
+  const cdx = await fetch(`https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(bare)}&output=json&fl=timestamp,statuscode&filter=statuscode:200&limit=-1`, { cache: "no-store", headers: { accept: "application/json" }, signal: AbortSignal.timeout(30000) });
+  if (!cdx.ok) throw new Error(`Internet Archive index returned HTTP ${cdx.status}`);
+  const rows = (await cdx.json()) as string[][];
+  const ts = rows.length > 1 ? rows[rows.length - 1]?.[0] : undefined;
+  if (!ts) throw new Error("No Internet Archive capture of this page is available.");
+  return ts;
+}
+
+async function readViaArchive(url: string): Promise<ReadSource> {
+  const timestamp = await latestCapture(url);
+  const archiveUrl = `https://web.archive.org/web/${timestamp}id_/${url}`;
+  const res = await fetch(archiveUrl, { cache: "no-store", headers: READER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(60000) });
+  if (!res.ok) throw new Error(`Internet Archive returned HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (isChallenge(res, buf)) throw new Error("The archived copy is itself a browser-challenge page.");
+  const ct = res.headers.get("content-type") ?? res.headers.get("x-archive-orig-content-type") ?? "";
+  return parseBody(url, url, ct, buf, { kind: "archive", capturedAt: archiveStamp(timestamp), archiveUrl: `https://web.archive.org/web/${timestamp}/${url}` });
+}
+
+/**
+ * One fetch per source. When the publisher blocks automated readers (HTTP
+ * 403/429, typically a Cloudflare challenge — oecd.org does this for its HTML
+ * pages while still serving its PDFs) the monitor falls back to the Internet
+ * Archive's latest capture and records that provenance instead of failing.
+ */
+async function readSource(url: string): Promise<ReadSource> {
+  let blocked: PublisherBlocked;
+  const res = await fetch(url, { cache: "no-store", headers: READER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(40000) });
+  if (res.status === 403 || res.status === 429) {
+    blocked = new PublisherBlocked(res.status, isChallenge(res));
+  } else {
+    if (!res.ok) throw new Error(`Source returned HTTP ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!isChallenge(res, buf)) return parseBody(url, res.url || url, res.headers.get("content-type") ?? "", buf, null);
+    blocked = new PublisherBlocked(res.status, true);
+  }
+  try {
+    return await readViaArchive(url);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    throw new Error(`${blocked.message} Internet Archive fallback failed: ${why} Configure an accessible mirror or feed for this source, or check it manually.`);
+  }
 }
 
 /** Lines present in `next` but not in `prev` (order preserved), capped for storage. */
@@ -244,6 +333,7 @@ export async function checkSources(opts: { sourceIds?: string[]; summarise?: boo
       state.isPdf = doc.isPdf;
       state.lastStatus = "ok";
       state.lastError = null;
+      state.via = doc.via;
 
       // New document links.
       if (doc.html) {
