@@ -45,7 +45,7 @@ export default function ConnectionsPage() {
       </div>
 
       <div className="callout">
-        <strong>Connecting an external assistant is not the same as selecting a model.</strong> Grok Bot, Claude Cowork and GPT Work are the three clients that can drive a GMT24 mission from outside; each connects to the same Agent Gateway and uses the same eleven tools, so a mission started in one can be continued in another under the same mission id. Model choice for GMT24's own Co-Pilot lives in <Link href="/settings">Settings</Link> and is unrelated. Keys are scoped to this group; approval scopes do not exist — agents prepare, people approve in GMT24.
+        <strong>Connecting an external assistant is not the same as selecting a model.</strong> Grok Bot, Claude Cowork and GPT Work are the three clients that can drive a GMT24 mission from outside; each connects to the same Agent Gateway and uses the same twelve tools, so a mission started in one can be continued in another under the same mission id. Model choice for GMT24's own Co-Pilot lives in <Link href="/settings">Settings</Link> and is unrelated. Keys are scoped to this group; approval scopes do not exist — agents prepare, people approve in GMT24.
       </div>
       {err && <div className="callout" style={{ borderLeftColor: "var(--color-hot)" }}>Gateway unreachable: {err}</div>}
 

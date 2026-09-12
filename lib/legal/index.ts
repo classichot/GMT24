@@ -218,7 +218,11 @@ export function legalHref(p: LegalPassage) {
 /** Citation label such as "Model Rules Art. 4.4.4" and the in-app link to the passage. */
 export function citeLegal(p: LegalPassage): { label: string; href: string; url: string; authority: LegalAuthority } {
   const s = sourceOf(p);
-  return { label: `${s.short} ${p.ref}`, href: legalHref(p), url: s.url, authority: s.authority };
+  // Single-passage instruments repeat their own name in `ref` ("MOF Notification No. 1"); do not print it twice.
+  const short = s.short.toLowerCase();
+  const ref = p.ref.toLowerCase();
+  const label = short.endsWith(ref) || ref === short ? s.short : ref.startsWith(short) ? p.ref : `${s.short} ${p.ref}`;
+  return { label, href: legalHref(p), url: s.url, authority: s.authority };
 }
 
 export type LegalCoverage = {

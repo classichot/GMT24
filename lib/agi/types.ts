@@ -479,7 +479,8 @@ export type ToolName =
   | "propose_change"
   | "request_approval"
   | "build_audit_pack"
-  | "get_mission_status";
+  | "get_mission_status"
+  | "search_legal_corpus";
 
 export type ToolResult<T = unknown> = {
   ok: boolean;
