@@ -77,6 +77,7 @@ export const SIDEBAR_MENUS: SidebarMenu[] = [
   { group: "AI Co-Pilot", href: "/feedback", label: "Feedback" },
   { group: "Intelligence", href: "/rulebook", label: "OECD rulebook" },
   { group: "Intelligence", href: "/legal", label: "Legal corpus" },
+  { group: "Intelligence", href: "/publications", label: "OECD publications" },
   { group: "Intelligence", href: "/jurisdictions", label: "Jurisdiction rules" },
   { group: "Intelligence", href: "/settings", label: "Settings" },
 ];

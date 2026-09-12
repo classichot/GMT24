@@ -23,6 +23,7 @@ import {
   type LegalPassage,
 } from "@/lib/legal";
 import { legalIntegrity } from "@/lib/legal/integrity";
+import { publicationForSource } from "@/lib/publications";
 
 type AuthorityFilter = "all" | "OECD" | "TH" | "other";
 
@@ -99,7 +100,7 @@ function Inner() {
   return (
     <div>
       <div className="callout" style={{ marginBottom: 16 }}>
-        <strong>Legal corpus.</strong> Passage-level text behind the <Link href="/rulebook">rule pack</Link>, the <Link href="/elections">election register</Link>, the <Link href="/thailand">Thai instrument list</Link> and the <Link href="/thailand/gap">OECD-vs-RD gap review</Link>. OECD and domestic law are separate authorities and every passage is effective-dated, so an answer can say “not in force for this year” instead of citing silently. The Co-Pilot, the AGI compliance review and the audit pack cite these same passage ids. Texts are GMT24 paraphrases or summaries — confirm wording against the linked source before relying on it.
+        <strong>Legal corpus.</strong> Passage-level text behind the <Link href="/rulebook">rule pack</Link>, the <Link href="/elections">election register</Link>, the <Link href="/thailand">Thai instrument list</Link> and the <Link href="/thailand/gap">OECD-vs-RD gap review</Link>. OECD and domestic law are separate authorities and every passage is effective-dated, so an answer can say “not in force for this year” instead of citing silently. The Co-Pilot, the AGI compliance review and the audit pack cite these same passage ids. The OECD documents themselves are kept under <Link href="/publications">OECD publications</Link>. Texts are GMT24 paraphrases or summaries — confirm wording against the linked source before relying on it.
       </div>
 
       <div className="kpi-grid cols-6" style={{ marginBottom: 16 }}>
@@ -185,7 +186,10 @@ function Inner() {
                     <td className="mono" style={{ fontSize: 12 }}>{s.effectiveFrom ?? "—"}{s.effectiveTo ? ` → ${s.effectiveTo}` : ""}</td>
                     <td><span className={`tag ${s.status === "in-force" ? "tag-ok" : s.status === "superseded" ? "tag-warn" : "tag-neutral"}`} style={{ fontSize: 10 }}>{s.status}</span></td>
                     <td>{n ? <Link href={`/legal?source=${encodeURIComponent(s.id)}`} className="mono">{n}</Link> : <span className="text-muted">0</span>}</td>
-                    <td><a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>open</a></td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>open</a>
+                      {publicationForSource(s.id) && <> · <Link href={`/publications#${publicationForSource(s.id)!.id}`} style={{ fontSize: 12 }}>PDF on file</Link></>}
+                    </td>
                   </tr>
                 );
               })}
