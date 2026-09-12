@@ -163,7 +163,8 @@ export default function GirPage() {
                       <span className={o.elected ? "status-done" : o.available ? "status-prep" : "text-muted"}>{o.elected ? "Reported" : o.available ? "Available" : "—"}</span>
                     </div>
                   ))}
-                  {selected.coding.issues.map((i) => <p key={i} className="text-muted" style={{ fontSize: 11, margin: "8px 0 0", color: "var(--color-hot)" }}>Issue · {i}</p>)}
+                  {selected.coding.issues.map((i) => <p key={i} style={{ fontSize: 11, margin: "8px 0 0", color: "var(--color-hot)" }}>Issue · {i}</p>)}
+                  {selected.coding.notes.map((i) => <p key={i} className="text-muted" style={{ fontSize: 11, margin: "8px 0 0" }}>Note · {i}</p>)}
                   <div style={{ marginTop: 10, fontSize: 12 }}>
                     <strong>2.1.5 reportable differences: {selected.reportable.answer}.</strong> {selected.reportable.consequence}
                     {selected.reportable.taxingRights.length > 0 && <div className="text-muted" style={{ fontSize: 11, marginTop: 4 }}>Taxing rights: {selected.reportable.taxingRights.map((r) => `${r.name} (${r.basis})`).join(" · ")}</div>}

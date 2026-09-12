@@ -133,7 +133,10 @@ export type SbsElection = {
   suppressed: string[];
   /** Jurisdictions still needing Sections 2 and 3 (QDMTT jurisdictions only). */
   jurisdictionSectionsFor: string[];
+  /** Blocking inconsistencies (election switched on without eligibility). */
   issues: string[];
+  /** Advisory points that do not stop the return. */
+  notes: string[];
 };
 
 export function sbsElection(group: Group, electionsOn: Record<string, boolean>, calcs: JurCalc[], overlay?: PackOverlay): SbsElection {
@@ -142,11 +145,12 @@ export function sbsElection(group: Group, electionsOn: Record<string, boolean>, 
   const elected = Boolean(electionsOn[`SH_SBS@${group.upeIso}`] || electionsOn["SH_SBS@GROUP"] || electionsOn["SH_SBS"]);
   const applies = eligible && elected;
   const issues: string[] = [];
+  const notes: string[] = [];
   if (elected && !eligible) issues.push(`SH_SBS is switched on but ${upePack?.name ?? group.upeIso} is not recorded as a Qualified Side-by-Side Regime in the Central Record — the 1.3.1.6 election cannot be made.`);
-  if (eligible && !elected) issues.push(`${upePack?.name ?? group.upeIso} is a Qualified Side-by-Side Regime; the 1.3.1.6 election is available but not switched on, so the full return (summary table, all jurisdictional sections) is populated.`);
+  if (eligible && !elected) notes.push(`${upePack?.name ?? group.upeIso} is a Qualified Side-by-Side Regime; the 1.3.1.6 election is available but not switched on, so the full return (summary table, all jurisdictional sections) is populated.`);
   for (const c of calcs) {
     if (c.iso !== group.upeIso && c.sh.sbs === "Pass") {
-      issues.push(`${c.name}: the engine applies Side-by-Side relief to a non-UPE jurisdiction. The GIR carries Side-by-Side only as the group election in 1.3.1.6 (UPE regime) — there is no jurisdiction-level SbS option in 2.2.1.1.1; report ${c.name} under the Transitional UTPR Safe Harbour (j) or full GloBE instead.`);
+      notes.push(`${c.name}: the engine applies Side-by-Side relief to a non-UPE jurisdiction. The GIR carries Side-by-Side only as the group election in 1.3.1.6 (UPE regime) — there is no jurisdiction-level SbS option in 2.2.1.1.1, so ${c.name} is reported with its full computation (ETR ${(c.etr * 100).toFixed(1)}%, top-up ${c.jurisdictionalTopUp.toLocaleString("en-GB")}); elect SH_TCSH@${c.iso} to report a TCSH test instead.`);
     }
   }
   return {
@@ -160,6 +164,7 @@ export function sbsElection(group: Group, electionsOn: Record<string, boolean>, 
       : [],
     jurisdictionSectionsFor: applies ? calcs.filter((c) => effectivePack(c.iso, overlay)?.qdmtt).map((c) => c.iso) : calcs.map((c) => c.iso),
     issues,
+    notes,
   };
 }
 
@@ -213,7 +218,10 @@ export type ShCoding = {
   primary: ShOptionCode | null;
   /** Option letters reported (2.2.1.1.1 allows (d) alongside (a)–(c) and (f)). */
   reported: ShOptionCode[];
+  /** Blocking coding errors. */
   issues: string[];
+  /** Advisory points. */
+  notes: string[];
 };
 
 const on = (electionsOn: Record<string, boolean>, ids: string[], iso: string) =>
@@ -240,6 +248,7 @@ export function safeHarbourCoding(calc: JurCalc, group: Group, electionsOn: Reco
     { code: "k", label: SH_OPTION_LABEL.k, switches: ["SH_UPE"], result: isUpeRegime(pack) ? "Qualified UPE Regime" : "Not a Qualified UPE Regime", available: isUpe && isUpeRegime(pack), elected: isUpe && isUpeRegime(pack) && on(electionsOn, ["SH_UPE"], iso), note: isUpe ? (isUpeRegime(pack) ? "UPE jurisdiction listed as a Qualified UPE Regime." : `${pack?.name ?? iso} is not listed as a Qualified UPE Regime; (k) is unavailable.`) : "UPE jurisdiction only." },
   ];
   const issues: string[] = [];
+  const notes: string[] = [];
   const elected = options.filter((o) => o.elected);
   const primaryOrder: ShOptionCode[] = ["e", "a", "b", "c", "j", "k", "g", "h", "i", "f", "d"];
   const primary = primaryOrder.find((code) => elected.some((o) => o.code === code)) ?? null;
@@ -249,11 +258,16 @@ export function safeHarbourCoding(calc: JurCalc, group: Group, electionsOn: Reco
   const scsh = reported.filter((c) => c === "g" || c === "h" || c === "i");
   if (scsh.length && (tcshCodes.length || reported.includes("e"))) issues.push(`${calc.name}: Simplified Calculations options (g)–(i) cannot be combined with TCSH or the QDMTT Safe Harbour.`);
   if (reported.includes("d") && reported.some((c) => !["a", "b", "c", "f", "d"].includes(c))) issues.push(`${calc.name}: option (d) may only be combined with (a)–(c) or (f).`);
-  if (!isUpe && (on(electionsOn, ["SH_UTPR"], iso) || calc.sh.utprSH === "Pass")) issues.push(`${calc.name}: Transitional UTPR Safe Harbour is reported for the UPE jurisdiction only; ${iso} is not the UPE jurisdiction (${group.upeIso}).`);
-  if (isUpe && !window.open && (on(electionsOn, ["SH_UTPR"], iso) || calc.sh.utprSH === "Pass")) issues.push(`${calc.name}: ${window.reason}`);
+  if (!isUpe && on(electionsOn, ["SH_UTPR"], iso)) issues.push(`${calc.name}: Transitional UTPR Safe Harbour is reported for the UPE jurisdiction only; ${iso} is not the UPE jurisdiction (${group.upeIso}).`);
+  else if (!isUpe && calc.sh.utprSH === "Pass") notes.push(`${calc.name}: engine relies on the UTPR / Side-by-Side path, which the GIR reports only for the UPE jurisdiction; the blend is reported with its full computation.`);
+  if (isUpe && !window.open && on(electionsOn, ["SH_UTPR"], iso)) issues.push(`${calc.name}: ${window.reason}`);
+  else if (isUpe && !window.open && calc.sh.utprSH === "Pass") notes.push(`${calc.name}: ${window.reason}`);
   if (on(electionsOn, ["SH_UPE"], iso) && !isUpeRegime(pack)) issues.push(`${calc.name}: SH_UPE switched on but the jurisdiction is not a Qualified UPE Regime — option (k) cannot be reported.`);
-  if (calc.exposure === "Safe harbour" && !primary) issues.push(`${calc.name}: engine outcome is Safe harbour but no 2.2.1.1.1 option letter is elected — identify the harbour relied on.`);
-  return { iso, options, primary, reported, issues };
+  if (calc.exposure === "Safe harbour" && !primary) {
+    const text = `${calc.name}: engine outcome is Safe harbour but no 2.2.1.1.1 option letter is elected — ${calc.jurisdictionalTopUp > 0 ? "identify the harbour relied on before filing" : "full computation is reported (top-up nil); elect the harbour to report a letter"}.`;
+    if (calc.jurisdictionalTopUp > 0) issues.push(text); else notes.push(text);
+  }
+  return { iso, options, primary, reported, issues, notes };
 }
 
 /* ------------------------------------------ Simplified ETR 2.2.1.2(b) */

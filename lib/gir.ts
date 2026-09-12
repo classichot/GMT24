@@ -218,7 +218,7 @@ export function validateGirPackage(opts: {
   const t = totals(calcs);
   const emitted = jurisdictions.filter((j) => j.emitted);
   const codingIssues = jurisdictions.flatMap((j) => j.coding.issues);
-  const sbsBlocking = sbs.issues.filter((i) => i.includes("cannot be made") || i.includes("no jurisdiction-level SbS option"));
+  const sbsBlocking = sbs.issues;
   const utprIssues = codingIssues.filter((i) => /UTPR Safe Harbour/.test(i));
   const reportableYes = jurisdictions.filter((j) => j.reportable.answer === "Yes");
   const ceRequired = jurisdictions.filter((j) => j.ceByCe.required);
@@ -248,7 +248,8 @@ export function validateGirPackage(opts: {
     edition.schema.status === "pending"
       ? `${provisional} September 2026 data points (Side-by-Side election, rule options (v)/(vi), safe-harbour letters, Simplified ETR, STISH, banded summary, reportable differences, CE detail) are carried in the gir26 provisional namespace until the OECD publishes the revised schema and its cut-off date; the globe v1.0 elements are unchanged.`
       : `${provisional} provisional elements.`,
-    ...sbs.issues.filter((i) => !sbsBlocking.includes(i)),
+    ...sbs.notes,
+    ...jurisdictions.flatMap((j) => j.coding.notes),
     ...jurisdictions.filter((j) => j.coding.reported.includes("d")).map((j) => `${j.calc.name}: Simplified ETR data points [H], [M], [N] cross-fill 3.2.1.1 / 3.2.1.2 / 3.2.2.1 — do not key Section 3 separately.`),
     ...jurisdictions.filter((j) => j.coding.reported.includes("f")).map((j) => `${j.calc.name}: STISH depreciation base is not on the dataset; the payroll cap is used until the fixed-asset register is loaded.`),
     `${(xml.match(/<globe:GloBEStatus>GIR315<\/globe:GloBEStatus>/g) ?? []).length} Non-Material Constituent Entity records use identity-level simplified reporting and do not create invented jurisdictional calculations.`,
