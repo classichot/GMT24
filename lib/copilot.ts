@@ -9,6 +9,7 @@ import { optimizeBoi } from "./boiOptimizer";
 import { optimizeGlobe } from "./electionEngine";
 import { WORKED_SBC_THB } from "./elections";
 import { activeSeedId } from "./seeds";
+import { citeLegal, fyStartDate, searchPassages } from "./legal";
 
 export type CopilotMsg = {
   role: "user" | "assistant";
@@ -522,7 +523,22 @@ const CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg 
   },
 ];
 
+/** Adds the legal passages that ground the answer, so every Co-Pilot reply resolves to the same corpus as the rulebook and the AGI compliance review. */
+function withLegalCites(q: string, msg: CopilotMsg): CopilotMsg {
+  const hits = searchPassages(q, { asOf: fyStartDate("FY2026"), limit: 2 });
+  if (!hits.length) return msg;
+  const have = new Set((msg.cites ?? []).map((c) => c.href ?? c.label));
+  const extra = hits
+    .map((h) => { const c = citeLegal(h.passage); return { label: `${c.label}${h.current ? "" : " (not in force for FY2026)"}`, href: c.href }; })
+    .filter((c) => !have.has(c.href));
+  return extra.length ? { ...msg, cites: [...(msg.cites ?? []), ...extra] } : msg;
+}
+
 export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
+  return withLegalCites(q, answerCore(q, calcs));
+}
+
+function answerCore(q: string, calcs?: JurCalc[]): CopilotMsg {
   const seed = activeSeedId();
   const hit = CANNED.find((c) => (!c.seed || c.seed === seed) && c.match.test(q));
   if (hit) return hit.answer(q);

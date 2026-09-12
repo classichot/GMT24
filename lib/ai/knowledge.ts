@@ -1,4 +1,6 @@
 import { RULES } from "../model";
+import { citationsIn } from "../legal";
+import { legalKbEntries } from "../legal/kb";
 import type { Authority, KbEntry, WorkContext } from "./types";
 
 const OECD_COMMENTARY_URL = "https://www.oecd.org/en/publications/tax-challenges-arising-from-the-digitalisation-of-the-economy-consolidated-commentary-to-the-global-anti-base-erosion-model-rules-2026_4377e89f-en.html";
@@ -7,15 +9,17 @@ const RD_MAP_URL = "https://www.rd.go.th/fileadmin/user_upload/porsor/topuptaxre
 
 export const AUTHORITY_LABEL: Record<Authority, string> = {
   "thai-law": "Thai law",
+  "domestic-law": "Domestic law",
   "oecd-model": "OECD Model Rules",
   "oecd-commentary": "OECD Commentary",
   "oecd-ag": "OECD Administrative Guidance",
   internal: "GMT24 internal interpretation",
 };
 
-/** Authority rank used when two sources conflict: Thai instrument first, then OECD, then internal. */
+/** Authority rank used when two sources conflict: domestic instrument first, then OECD, then internal. */
 export const AUTHORITY_RANK: Record<Authority, number> = {
   "thai-law": 0,
+  "domestic-law": 0,
   "oecd-model": 1,
   "oecd-commentary": 2,
   "oecd-ag": 2,
@@ -107,10 +111,23 @@ export type Retrieved = { entry: KbEntry; score: number; current: boolean };
 /** Words every Pillar Two passage contains; they never make a passage relevant on their own. */
 const GENERIC = new Set(["tax", "taxes", "rate", "rates", "income", "group", "entity", "entities", "rule", "rules", "pillar", "two", "oecd", "globe", "year", "fiscal", "jurisdiction", "jurisdictions", "amount", "percentage", "apply", "applies"]);
 
+/** Article pins in a provision string, used to collapse a curated entry and a corpus passage on the same article. */
+function articleKey(e: KbEntry) {
+  const pins = citationsIn(e.provision).filter((c) => c.startsWith("art ") || c.startsWith("s "));
+  return pins.length ? `${e.authority}|${pins.sort().join(",")}` : null;
+}
+
+/**
+ * Searches the curated knowledge base and the legal corpus together. Corpus
+ * passages carry a small penalty so a curated entry wins a tie, and an entry
+ * whose article pins are already covered by a higher-ranked hit is dropped.
+ */
 export function retrieve(q: string, ctx: Pick<WorkContext, "fy" | "iso">, limit = 4): Retrieved[] {
   const toks = tokens(q);
+  const pins = citationsIn(q);
   const out: Retrieved[] = [];
-  for (const e of KNOWLEDGE) {
+  const corpus = new Set(legalKbEntries().map((e) => e.id));
+  for (const e of [...KNOWLEDGE, ...legalKbEntries()]) {
     let score = 0;
     let hit = 0;
     let topicHit = false;
@@ -120,17 +137,30 @@ export function retrieve(q: string, ctx: Pick<WorkContext, "fy" | "iso">, limit 
       else if (!GENERIC.has(t) && t.length >= 4 && e.topics.some((x) => x.includes(t) || t.includes(x))) { score += 2; hit += 1; topicHit = true; }
       else if (hay.includes(t)) { score += 1; hit += 1; }
     }
+    if (pins.length && citationsIn(e.provision).some((own) => pins.some((pin) => pin === own || (pin.startsWith("art ") && own.startsWith("art ") && (own.startsWith(`${pin}.`) || pin.startsWith(`${own}.`)))))) { score += 4; topicHit = true; }
     if (ctx.iso && e.jurisdictions.includes(ctx.iso)) score += 1;
+    if (corpus.has(e.id)) score -= 0.5;
     // Relevance floor: a passage that merely shares generic words ("tax", "rate") with the question
     // is not authority for it. Require a topic match or most of the question's terms to land.
     const relevant = toks.length > 0 && score >= 3 && (topicHit || hit / toks.length >= 0.5);
     if (relevant) out.push({ entry: e, score, current: applicable(e, ctx) && e.status !== "pending-review" && e.status !== "draft" });
   }
-  return out.sort((a, b) => b.score - a.score || AUTHORITY_RANK[a.entry.authority] - AUTHORITY_RANK[b.entry.authority]).slice(0, limit);
+  out.sort((a, b) => b.score - a.score || AUTHORITY_RANK[a.entry.authority] - AUTHORITY_RANK[b.entry.authority]);
+  const picked: Retrieved[] = [];
+  const keys = new Set<string>();
+  for (const r of out) {
+    const k = articleKey(r.entry);
+    if (k && keys.has(k)) continue;
+    if (k) keys.add(k);
+    picked.push(r);
+    if (picked.length >= limit) break;
+  }
+  return picked;
 }
 
+/** Curated entries first, then legal-corpus passages keyed to the rule — so a rule with no curated note still cites its provision. */
 export function byRule(ruleId: string): KbEntry[] {
-  return KNOWLEDGE.filter((e) => e.ruleIds.includes(ruleId));
+  return [...KNOWLEDGE, ...legalKbEntries()].filter((e) => e.ruleIds.includes(ruleId));
 }
 
 export function ruleVersion(ruleId: string) {

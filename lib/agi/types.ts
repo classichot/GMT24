@@ -339,6 +339,8 @@ export type ComplianceFinding = {
   evidence: string[];
   href?: string;
   iso?: string;
+  /** Legal-corpus passage ids (lib/legal) the requirement is read from. */
+  passages?: string[];
 };
 
 export type OptionScore = {
