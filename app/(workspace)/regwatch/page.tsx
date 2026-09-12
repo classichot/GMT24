@@ -89,13 +89,15 @@ export default function RegwatchPage() {
                 <td>{s.cadence}</td>
                 <td>{fmt(s.lastChecked)}</td>
                 <td>{s.lastChangedAt ? fmt(s.lastChangedAt) : s.lastStatus === "ok" ? <span className="text-muted">unchanged since baseline</span> : "—"}</td>
-                <td>{s.lastStatus === "ok" ? <span className="tag tag-ok" style={{ fontSize: 10 }}>reachable</span> : s.lastStatus === "error" ? <><span className="tag tag-warn" style={{ fontSize: 10 }}>unreachable</span><div className="text-muted" style={{ fontSize: 11, maxWidth: 320 }}>{s.lastError}</div></> : <span className="tag tag-neutral" style={{ fontSize: 10 }}>unchecked</span>}</td>
+                <td>{s.lastStatus === "ok" ? (s.via?.kind === "archive"
+                  ? <><span className="tag tag-ok" style={{ fontSize: 10 }}>reachable via archive</span><div className="text-muted" style={{ fontSize: 11, maxWidth: 320 }}>Publisher blocks automated readers; text read from the <a href={s.via.archiveUrl} target="_blank" rel="noreferrer">Internet Archive capture</a> of {fmt(s.via.capturedAt)}.</div></>
+                  : <span className="tag tag-ok" style={{ fontSize: 10 }}>reachable</span>) : s.lastStatus === "error" ? <><span className="tag tag-warn" style={{ fontSize: 10 }}>unreachable</span><div className="text-muted" style={{ fontSize: 11, maxWidth: 320 }}>{s.lastError}</div></> : <span className="tag tag-neutral" style={{ fontSize: 10 }}>unchecked</span>}</td>
                 <td style={{ textAlign: "right" }}><button className="btn btn-ghost" style={{ fontSize: 11 }} disabled={ai.regwatch.checking} onClick={() => void runCheck([s.id])}>Check</button></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-        <div className="text-muted" style={{ fontSize: 11, padding: "8px 16px 12px" }}>Sources are configured on the server (<code>GMT24_REGWATCH_SOURCES</code>); the defaults are the OECD Central Record, the OECD global minimum tax hub and the Thai Revenue Department&apos;s Top-up Tax and announcement pages. Some publishers refuse automated readers from data-centre networks; those show as unreachable with the reason, and can be checked manually or through an accessible mirror.</div>
+        <div className="text-muted" style={{ fontSize: 11, padding: "8px 16px 12px" }}>Sources are configured on the server (<code>GMT24_REGWATCH_SOURCES</code>); the defaults are the OECD Central Record, the OECD global minimum tax hub and the Thai Revenue Department&apos;s Top-up Tax and announcement pages. Some publishers refuse automated readers from data-centre networks (oecd.org answers its HTML pages with a browser challenge while still serving its PDFs); for those the monitor reads the Internet Archive&apos;s latest capture and says so, with the capture date. A source is only marked unreachable when neither the publisher nor the archive can be read.</div>
       </div>
 
       <div className="panel">

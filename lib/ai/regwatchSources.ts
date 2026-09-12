@@ -52,6 +52,12 @@ export type RegSourceState = {
   isPdf: boolean;
   knownLinks: number;
   versions: { hash: string; at: string; bytes: number }[];
+  /**
+   * How the last successful read was obtained. `null` means straight from the
+   * publisher. `archive` means the publisher blocked the reader and the text
+   * came from the Internet Archive's latest capture, dated `capturedAt`.
+   */
+  via?: { kind: "archive"; capturedAt: string; archiveUrl: string } | null;
 };
 
 export const DEFAULT_WATCHED_SOURCES: WatchedSource[] = [
