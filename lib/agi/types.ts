@@ -339,6 +339,8 @@ export type ComplianceFinding = {
   evidence: string[];
   href?: string;
   iso?: string;
+  /** Legal-corpus passage ids (lib/legal) the requirement is read from. */
+  passages?: string[];
 };
 
 export type OptionScore = {
@@ -477,7 +479,8 @@ export type ToolName =
   | "propose_change"
   | "request_approval"
   | "build_audit_pack"
-  | "get_mission_status";
+  | "get_mission_status"
+  | "search_legal_corpus";
 
 export type ToolResult<T = unknown> = {
   ok: boolean;

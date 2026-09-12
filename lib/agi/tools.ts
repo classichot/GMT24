@@ -26,6 +26,7 @@ import { assessOptions, optionToChanges } from "./elections";
 import { verifyCase, checkSummary } from "./verify";
 import { reviewComplianceFor, complianceSummary } from "./compliance";
 import { buildAuditPack, latestRun } from "./auditPack";
+import { TEXT_KIND_LABEL, citeLegal, fyStartDate, legalCoverage, searchPassages } from "../legal";
 import {
   MISSION_STATE_LABEL, type AgentClientId, type AgentScope, type CaseSnapshot, type Job, type MissionRecord, type StepId, type ToolName, type ToolResult,
 } from "./types";
@@ -73,6 +74,17 @@ export const TOOL_SCHEMAS = {
   }),
   build_audit_pack: z.object({ missionId: z.string() }),
   get_mission_status: z.object({ missionId: z.string() }),
+  search_legal_corpus: z.object({
+    query: z.string().min(2).max(400),
+    authority: z.enum(["OECD", "TH", "IE", "JP", "US", "domestic"]).optional(),
+    jurisdiction: z.string().length(2).optional(),
+    asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    ruleId: z.string().max(40).optional(),
+    electionId: z.string().max(40).optional(),
+    instrumentId: z.string().max(40).optional(),
+    missionId: z.string().optional(),
+    limit: z.number().int().min(1).max(20).optional(),
+  }),
 } satisfies Record<ToolName, z.ZodTypeAny>;
 
 export type ToolArgs<N extends ToolName> = z.infer<(typeof TOOL_SCHEMAS)[N]>;
@@ -89,6 +101,7 @@ export const TOOL_CATALOGUE: { name: ToolName; title: string; description: strin
   { name: "request_approval", title: "Request approval", scope: "approval:request", step: "decision", longRunning: false, description: "Ask a person with approval permission to decide. For election-package requests, present option ids; the mission moves to Waiting for Approval. Agents never approve.", inputSchema: obj({ missionId: str("Mission id"), kind: { type: "string", enum: ["election-package", "correction", "technical-judgment", "accept-exception", "completion"] }, title: str("Title"), detail: str("What is being decided and why"), optionIds: { type: "array", items: { type: "string" } }, proposalIds: { type: "array", items: { type: "string" } } }, ["missionId"]) },
   { name: "build_audit_pack", title: "Build audit package", scope: "pack:build", step: "pack", longRunning: true, description: "Assemble the audit package: executive summary, election register, calculation summary, checks, compliance findings, decisions, evidence index and outstanding issues. Moves a fully checked mission to Ready for Review.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
   { name: "get_mission_status", title: "Mission status", scope: "case:read", longRunning: false, description: "Current state, step checkpoints, blockers, open decisions, latest calculation, checks and completion gate for a mission.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
+  { name: "search_legal_corpus", title: "Search legal corpus", scope: "case:read", longRunning: false, description: "Search the dated legal corpus behind the rule pack: OECD Model Rules, Commentary and Administrative Guidance, Thai decree and notifications, and other domestic instruments. Returns passages keyed to rule, election and instrument ids with effective dates; passages not in force on the as-of date are flagged, never hidden. Texts are GMT24 paraphrases — the source URL is returned for confirmation. Read-only, no mission required.", inputSchema: obj({ query: str("Question or citation, e.g. 'Art. 4.4.4 recapture' or 'Thai QDMTT filing deadline'"), authority: { type: "string", enum: ["OECD", "TH", "IE", "JP", "US", "domestic"], description: "Limit to one authority, or 'domestic' for every non-OECD source" }, jurisdiction: str("ISO code — keeps global passages and this jurisdiction's own"), asOf: str("ISO date used for in-force flags (default: the mission's fiscal-year start, else today)"), ruleId: str("Rule id from the rule pack, e.g. OECD-SBIE-53"), electionId: str("Election id, e.g. OECD_3.2.2"), instrumentId: str("Thai instrument id, e.g. dgtopuptax4"), missionId: str("Mission id — used only for the as-of date and case hash"), limit: { type: "integer", description: "Max passages (default 6, max 20)" } }, ["query"]) },
 ];
 
 function obj(props: Record<string, unknown>, required: string[] = []) {
@@ -198,8 +211,52 @@ export function callTool(name: ToolName, rawArgs: unknown, ctx: ToolCtx): ToolRe
     case "get_case_context": return getCaseContext(args as ToolArgs<"get_case_context">, ctx);
     case "create_mission": return createMissionTool(args as ToolArgs<"create_mission">, ctx);
     case "get_mission_status": return getMissionStatus(args as ToolArgs<"get_mission_status">, ctx);
+    case "search_legal_corpus": return searchLegal(args as ToolArgs<"search_legal_corpus">, ctx);
     default: return missionTool(name, args, ctx);
   }
+}
+
+function searchLegal(a: ToolArgs<"search_legal_corpus">, ctx: ToolCtx): ToolResult {
+  const mission = a.missionId ? requireMission(ctx, a.missionId) : null;
+  const asOf = a.asOf ?? fyStartDate(mission?.scope.fy ?? null);
+  const caseHash = mission?.case.hash ?? "corpus";
+  const hits = searchPassages(a.query, { authority: a.authority, jurisdiction: a.jurisdiction, asOf, ruleId: a.ruleId, electionId: a.electionId, instrumentId: a.instrumentId, limit: a.limit ?? 6 });
+  const jobId = jobIdFor("search_legal_corpus", { ...a, asOf }, caseHash);
+  const result = {
+    query: a.query,
+    asOf,
+    hits: hits.map((h) => {
+      const cite = citeLegal(h.passage);
+      return {
+        id: h.passage.id,
+        citation: cite.label,
+        authority: h.source.authority,
+        source: { id: h.source.id, title: h.source.title, url: h.source.url, status: h.source.status, version: h.source.version ?? null },
+        ref: h.passage.ref,
+        heading: h.passage.heading,
+        text: h.passage.text,
+        textKind: h.passage.textKind,
+        textKindLabel: TEXT_KIND_LABEL[h.passage.textKind],
+        jurisdiction: h.passage.jurisdiction,
+        effectiveFrom: h.passage.effectiveFrom,
+        effectiveTo: h.passage.effectiveTo ?? null,
+        inForce: h.current,
+        ruleIds: h.passage.ruleIds,
+        electionIds: h.passage.electionIds,
+        instrumentIds: h.passage.instrumentIds,
+        gapIds: h.passage.gapIds,
+        href: cite.href,
+        score: h.score,
+      };
+    }),
+    coverage: (() => { const c = legalCoverage(); return { passages: c.passages, sources: c.sources }; })(),
+  };
+  const unresolved = [
+    ...(hits.length ? [] : ["No passage matched — rephrase, cite an article number, or check the source directly."]),
+    ...hits.filter((h) => !h.current).map((h) => `${citeLegal(h.passage).label}: not in force on ${asOf}${h.source.status === "superseded" ? " (superseded)" : h.passage.textKind === "pending" ? " (instrument not yet issued)" : ""}`),
+    ...(hits.some((h) => h.passage.textKind !== "summary") ? ["Passage texts are GMT24 paraphrases — confirm wording against the linked source before relying on it."] : []),
+  ];
+  return envelope("search_legal_corpus", jobId, caseHash, result, { missionId: mission?.id, ruleVersions: mission?.case.snapshot.ruleVersions ?? [], sources: [...new Set(hits.map((h) => citeLegal(h.passage).label))], unresolved });
 }
 
 function getCaseContext(a: ToolArgs<"get_case_context">, ctx: ToolCtx): ToolResult {

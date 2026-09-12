@@ -7,6 +7,7 @@ import { NoMission } from "@/components/agi/AgiFrame";
 import { EvidencePanel } from "@/components/agi/Evidence";
 import { complianceSummary } from "@/lib/agi/compliance";
 import { useAgi } from "@/lib/agi/useAgi";
+import { citeLegal, passageById } from "@/lib/legal";
 import type { ComplianceFinding, MissionRecord } from "@/lib/agi/types";
 
 export default function CompliancePage() {
@@ -76,7 +77,7 @@ function FindingsTable({ title, sub, rows }: { title: string; sub: string; rows:
         <div style={{ color: "var(--color-neutral-600)", marginBottom: 8 }}>{sub}</div>
         {rows.length === 0 ? <div>No findings for this filter.</div> : (
           <table className="table">
-            <thead><tr><th>Requirement</th><th>Instrument</th><th>Effective</th><th>Status</th><th>Finding</th><th>Evidence</th></tr></thead>
+            <thead><tr><th>Requirement</th><th>Instrument</th><th>Effective</th><th>Status</th><th>Finding</th><th>Evidence</th><th>Law</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -86,6 +87,7 @@ function FindingsTable({ title, sub, rows }: { title: string; sub: string; rows:
                   <td><span className={`tag ${STATUS_TAG[r.status]}`} style={{ fontSize: 10 }}>{r.applies ? r.status : "does not apply"}</span></td>
                   <td style={{ lineHeight: 1.5 }}>{r.finding}</td>
                   <td>{r.evidence.slice(0, 4).join(", ")}{r.evidence.length > 4 ? ` +${r.evidence.length - 4}` : ""}{r.href && <> · <Link href={r.href}>open</Link></>}</td>
+                  <td><ReadTheLaw ids={r.passages} /></td>
                 </tr>
               ))}
             </tbody>
@@ -93,5 +95,18 @@ function FindingsTable({ title, sub, rows }: { title: string; sub: string; rows:
         )}
       </div>
     </section>
+  );
+}
+
+/** Links each finding to the corpus passages it was read from — the same passages the rulebook and Co-Pilot cite. */
+function ReadTheLaw({ ids }: { ids?: string[] }) {
+  const passages = (ids ?? []).map(passageById).filter((p): p is NonNullable<typeof p> => Boolean(p));
+  if (!passages.length) return <span style={{ color: "var(--color-neutral-500)" }}>—</span>;
+  const shown = passages.slice(0, 3);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2, whiteSpace: "nowrap" }}>
+      {shown.map((p) => { const c = citeLegal(p); return <Link key={p.id} href={c.href} title={p.heading}>{c.label}</Link>; })}
+      {passages.length > shown.length && <Link href={`/legal?p=${passages.map((p) => encodeURIComponent(p.id)).join(",")}`}>+{passages.length - shown.length} more · read the law</Link>}
+    </div>
   );
 }

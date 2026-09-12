@@ -203,7 +203,7 @@ export type Thread = {
   messages: ThreadMessage[];
 };
 
-export type Authority = "thai-law" | "oecd-model" | "oecd-commentary" | "oecd-ag" | "internal";
+export type Authority = "thai-law" | "domestic-law" | "oecd-model" | "oecd-commentary" | "oecd-ag" | "internal";
 
 export type KbStatus = "final" | "guidance" | "draft" | "pending-review" | "superseded";
 

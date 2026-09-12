@@ -11,6 +11,7 @@ import { reviewOecdRdGap } from "../thaiGap";
 import { eur, etrPct, pct } from "../format";
 import { eligibilityEngine, splitSwitch } from "../electionEngine";
 import { electionById } from "../elections";
+import { passagesForGap, passagesForRule, passagesForJurisdiction, resolveCitation } from "../legal";
 import type { CaseSnapshot, CheckResult, ComplianceFinding } from "./types";
 
 type Req = {
@@ -21,6 +22,8 @@ type Req = {
   effectiveTo: string | null;
   title: string;
   href?: string;
+  /** Legal-corpus passage ids behind the requirement. */
+  passages?: string[];
   test: (ctx: Ctx) => { status: ComplianceFinding["status"]; finding: string; evidence: string[]; iso?: string }[];
 };
 
@@ -30,12 +33,12 @@ const fyStart = (s: CaseSnapshot) => `${s.fy.replace("FY", "")}-01-01`;
 
 const OECD_REQS: Req[] = [
   {
-    id: "OECD-1.1", authority: "OECD", instrument: "GloBE Model Rules Art. 1.1 (Dec 2021) · Commentary 2023", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-1.1", authority: "OECD", instrument: "GloBE Model Rules Art. 1.1 (Dec 2021) · Commentary 2023", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-1.1", "LP-MR-1.2-1.3"],
     title: "Group in scope: consolidated revenue ≥ EUR 750m in two of the four preceding years", href: "/scope",
     test: ({ s }) => [{ status: "met", finding: `${s.groupName} passes the Art. 1.1 revenue window on the UPE presentation currency (rule OECD-SCOPE-750).`, evidence: ["OECD-SCOPE-750"] }],
   },
   {
-    id: "OECD-3", authority: "OECD", instrument: "GloBE Model Rules Art. 3.1–3.5", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-3", authority: "OECD", instrument: "GloBE Model Rules Art. 3.1–3.5", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-3.1", "LP-MR-3.2.1", "LP-MR-3.2.3", "LP-MR-3.4", "LP-MR-3.5"],
     title: "GloBE Income computed from FANIL with Art. 3.2 adjustments per constituent entity", href: "/globe-income",
     test: ({ scoped, checks }) => scoped.map((c) => {
       const gap = checks.find((k) => k.id === `rev-recon-${c.blendKey}` && k.status !== "pass");
@@ -43,7 +46,7 @@ const OECD_REQS: Req[] = [
     }),
   },
   {
-    id: "OECD-4", authority: "OECD", instrument: "GloBE Model Rules Art. 4.1–4.6 · AG Feb 2023 (deferred tax recast)", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-4", authority: "OECD", instrument: "GloBE Model Rules Art. 4.1–4.6 · AG Feb 2023 (deferred tax recast)", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-4.1", "LP-MR-4.1.5", "LP-MR-4.2", "LP-MR-4.4.1", "LP-MR-4.4.4", "LP-AG23-02-2.7"],
     title: "Adjusted Covered Taxes: current tax, deferred tax recast at 15%, Art. 4.1.5 expected-tax test", href: "/covered-taxes",
     test: ({ scoped }) => scoped.map((c) => ({
       status: c.coveredTax < 0 && c.globeIncome > 0 && !c.enteOriginated ? "gap" as const : "met" as const,
@@ -55,7 +58,7 @@ const OECD_REQS: Req[] = [
     })),
   },
   {
-    id: "OECD-5", authority: "OECD", instrument: "GloBE Model Rules Art. 5.1–5.3", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-5", authority: "OECD", instrument: "GloBE Model Rules Art. 5.1–5.3", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-5.1", "LP-MR-5.2", "LP-MR-5.3", "LP-MR-9.2"],
     title: "Jurisdictional ETR, Top-up Tax Percentage, SBIE and Excess Profit computed per jurisdiction", href: "/etr",
     test: ({ scoped }) => scoped.map((c) => ({
       status: "met" as const,
@@ -67,7 +70,7 @@ const OECD_REQS: Req[] = [
     })),
   },
   {
-    id: "OECD-SH", authority: "OECD", instrument: "Safe Harbours and Penalty Relief (Dec 2022) · AG Dec 2023", effectiveFrom: "2024-01-01", effectiveTo: "2028-12-31",
+    id: "OECD-SH", authority: "OECD", instrument: "Safe Harbours and Penalty Relief (Dec 2022) · AG Dec 2023", effectiveFrom: "2024-01-01", effectiveTo: "2028-12-31", passages: ["LP-MR-8.2", "LP-SH22-1", "LP-AG23-12-1", "LP-SBS26-2"],
     title: "Transitional CbCR Safe Harbour tested where elected; elected test identified in the GIR", href: "/safe-harbours",
     test: ({ scoped }) => scoped.map((c) => ({
       status: c.exposure === "Safe harbour" ? "met" as const : c.sh.outcome === "Review" ? "judgment" as const : c.sh.outcome === "Not tested" && c.jurisdictionalTopUp > 0 ? "gap" as const : "n/a" as const,
@@ -77,7 +80,7 @@ const OECD_REQS: Req[] = [
     })),
   },
   {
-    id: "OECD-ELEC", authority: "OECD", instrument: "GloBE Model Rules Art. 1.5 / 3.2 / 5.3.1 / 7.x elections · GIR Part 2", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-ELEC", authority: "OECD", instrument: "GloBE Model Rules Art. 1.5 / 3.2 / 5.3.1 / 7.x elections · GIR Part 2", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-1.5", "LP-MR-3.2.2", "LP-MR-5.3", "LP-MR-7.5-7.6", "LP-GIR25-1"],
     title: "Every election on the working package is eligible, recorded and consistent with prior-year five-year locks", href: "/elections",
     test: ({ s, calcs, jurisdictions }) => {
       const elig = eligibilityEngine(calcs);
@@ -93,7 +96,7 @@ const OECD_REQS: Req[] = [
     },
   },
   {
-    id: "OECD-8.1", authority: "OECD", instrument: "GloBE Model Rules Art. 8.1 · GIR (Jan 2025) · GIR XML Schema v1.0", effectiveFrom: "2024-01-01", effectiveTo: null,
+    id: "OECD-8.1", authority: "OECD", instrument: "GloBE Model Rules Art. 8.1 · GIR (Jan 2025) · GIR XML Schema v1.0", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-8.1", "LP-MR-9.4", "LP-GIR25-1", "LP-GIRXML-1"],
     title: "GloBE Information Return prepared per jurisdiction; first-year filing 18 months after FY end, then 15 months", href: "/gir",
     test: ({ s, checks }) => [{
       status: checks.some((c) => c.status === "fail" && c.severity === "block") ? "gap" : "met",
@@ -115,6 +118,7 @@ function domesticReqs(iso: string, s: CaseSnapshot): Req[] {
     effectiveTo: r.effectiveTo,
     title: `${iso} domestic: ${r.ruleType.replace(/-/g, " ")} — ${r.formula}`,
     href: "/rules",
+    passages: passagesForRule(r.id).map((p) => p.id),
     test: ({ scoped }) => {
       const c = scoped.find((x) => x.iso === iso);
       const applies = r.effectiveFrom <= fyStart(s) && (!r.effectiveTo || r.effectiveTo >= fyStart(s));
@@ -141,6 +145,7 @@ function packReq(c: JurCalc, s: CaseSnapshot): Req | null {
     effectiveTo: null,
     title: `${p.name}: charging provisions in force (IIR ${p.iir ? "yes" : "no"} · QDMTT ${p.qdmtt ? "yes" : "no"}${p.qdmttSH ? " (QDMTT safe harbour)" : ""} · UTPR ${p.utpr ? "yes" : "no"})`,
     href: "/oecd-central-record",
+    passages: ["LP-CR-1", ...passagesForJurisdiction(c.iso).filter((x) => x.textKind === "summary" || x.ref.startsWith("ss 9")).map((x) => x.id)],
     test: () => [{
       status: s.packOverlay[c.iso] ? "judgment" : "met",
       iso: c.iso,
@@ -176,6 +181,7 @@ export function reviewComplianceFor(s: CaseSnapshot, calcs: JurCalc[], checks: C
         evidence: res.evidence,
         href: r.href,
         iso: res.iso,
+        passages: r.passages,
       });
     });
   }
@@ -199,6 +205,7 @@ export function reviewComplianceFor(s: CaseSnapshot, calcs: JurCalc[], checks: C
         evidence: g.refs.map((ref) => `${ref.label} ${ref.pin}`),
         href: g.href,
         iso: "TH",
+        passages: [...new Set([...passagesForGap(g.id), ...resolveCitation(g.rdCite, "TH"), ...resolveCitation(g.oecdCite, "OECD")].map((p) => p.id))],
       });
     }
   }

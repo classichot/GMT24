@@ -296,6 +296,9 @@ const BASE: GapItem[] = [
   },
 ];
 
+/** Stable ids of the gap register, for cross-references from the legal corpus. */
+export const GAP_IDS: string[] = BASE.map((g) => g.id);
+
 export const GAP_PLAY = [
   { n: "01", title: "Separate the tests", body: "Open the source pin before anyone copies a GloBE number onto a Thai form. Scope, FX and situs each have an OECD article and a Thai instrument. Lock BOT rates and PE category first.", href: "/thailand/scope", hrefLabel: "Scope memo" },
   { n: "02", title: "Reconcile the numbers that diverge", body: "Thai SBIE (Notification No. 4) vs OECD SBIE. Covered-tax questionnaire vs Art. 4. FANIL stays on OECD 3.2 until s 31 exists — do not let the LLM fill the gap. Track back through the RD mapping PDF.", href: "/thailand/sbie", hrefLabel: "Thai SBIE" },

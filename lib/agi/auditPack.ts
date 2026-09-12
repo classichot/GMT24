@@ -11,6 +11,7 @@ import { MISSION_STATE_LABEL, type AuditPack, type MissionRecord, type PackSecti
 import { shortHash } from "./case";
 import { checkSummary } from "./verify";
 import { complianceSummary } from "./compliance";
+import { citeLegal, passageById } from "../legal";
 import { completionGate, openBlockers, openDecisions, uid } from "./mission";
 import { labelElection } from "../evidenceHistory";
 
@@ -80,8 +81,8 @@ export function buildAuditPack(m: MissionRecord): AuditPack {
       title: "Compliance findings",
       body: ["OECD Model Rules and domestic instruments are listed separately with effective dates. Where they differ, both are shown."],
       table: {
-        head: ["Authority", "Instrument", "Effective", "Requirement", "Status", "Finding"],
-        rows: m.compliance.filter((r) => r.applies).map((r) => [r.authority, r.instrument, `${r.effectiveFrom}${r.effectiveTo ? ` → ${r.effectiveTo}` : ""}`, r.title, r.status, r.finding]),
+        head: ["Authority", "Instrument", "Effective", "Requirement", "Status", "Finding", "Law"],
+        rows: m.compliance.filter((r) => r.applies).map((r) => [r.authority, r.instrument, `${r.effectiveFrom}${r.effectiveTo ? ` → ${r.effectiveTo}` : ""}`, r.title, r.status, r.finding, lawRefs(r.passages)]),
       },
     },
     {
@@ -134,4 +135,10 @@ export function packToMarkdown(p: AuditPack, m: MissionRecord): string {
   if (!p.outstanding.length) lines.push("- None.");
   for (const o of p.outstanding) lines.push(`- ${o}`);
   return lines.join("\n");
+}
+
+/** Legal-corpus citations for a compliance finding, as "Source ref" labels (paraphrases — the pack points at the corpus, not the statute text). */
+function lawRefs(ids?: string[]): string {
+  const labels = (ids ?? []).map(passageById).filter((p): p is NonNullable<typeof p> => Boolean(p)).map((p) => citeLegal(p).label);
+  return labels.length ? labels.join("; ") : "—";
 }
