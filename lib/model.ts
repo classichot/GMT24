@@ -342,7 +342,7 @@ export const RULES: Rule[] = [
     ruleType: "election",
     effectiveFrom: "2024-01-01",
     effectiveTo: null,
-    source: "GloBE Model Rules Arts. 1.5.3–9.1.3 · Consolidated Commentary 2026 · GIR Jan 2025 / XML · Side-by-Side Package January 2026 · Central Record",
+    source: "GloBE Model Rules Arts. 1.5.3–9.1.3 · Consolidated Commentary 2026 · GIR Sep 2026 / XML v1.0 · Side-by-Side Package January 2026 · Central Record",
     version: "2026.2",
     formula: "baseline Core GloBE; eligibility by OECD scope; scenario overlay restates GloBE income / SBIE / harbour zero; rank bookable packages; do not elect at one CE where the Rules require all CEs in the jurisdiction",
     parameters: { minimumRate: 0.15, lockYears: 5 },

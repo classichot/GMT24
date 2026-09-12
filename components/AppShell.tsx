@@ -137,6 +137,7 @@ const NAV = [
   { group: "Intelligence", items: [
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
     { href: "/legal", label: "Legal corpus", icon: Landmark },
+    { href: "/publications", label: "OECD publications", icon: FileText },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
   ]},
@@ -229,6 +230,7 @@ const TITLES: Record<string, [string, string]> = {
   "/feedback": ["AI Co-Pilot", "Feedback"],
   "/rulebook": ["Killer feature", "GMT24 Global Rulebook"],
   "/legal": ["Intelligence", "Legal corpus"],
+  "/publications": ["Intelligence", "OECD publications"],
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
   "/agi": ["AGI Mode", "Mission Overview"],
