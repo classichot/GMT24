@@ -9,6 +9,7 @@ import { pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { FxNote } from "@/components/FxNote";
 
 const METHOD = [
   {
@@ -97,9 +98,10 @@ function Inner() {
 
       <div className="grid-split">
         <div className="panel">
-          <div className="panel-head">
+          <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
             <h4>{sel.name} bridge</h4>
             <Link href="/rulebook" className="tag tag-accent">OECD-SBIE-2026 v2026.1</Link>
+            <div style={{ flexBasis: "100%" }}><FxNote entities={sel.entities} iso={sel.iso} compact /></div>
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">

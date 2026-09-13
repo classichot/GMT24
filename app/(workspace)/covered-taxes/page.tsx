@@ -10,6 +10,7 @@ import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { FxNote } from "@/components/FxNote";
 
 const METHOD = [
   {
@@ -115,9 +116,10 @@ export default function CoveredTaxesPage() {
 
       <div className="grid-split">
         <div className="panel">
-          <div className="panel-head">
+          <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
             <h4>{row.entity.code} bridge</h4>
             <Link href="/rulebook" className="tag tag-accent">OECD-GloBE-15 v2026.1</Link>
+            <div style={{ flexBasis: "100%" }}><FxNote entities={[row.entity]} iso={row.entity.iso} compact /></div>
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">
