@@ -13,9 +13,10 @@ import { useCalc } from "@/lib/useCalc";
 import { etrHref, pickCalc, summarizeByIso } from "@/lib/engine";
 import { BlendBadge, blendSplitText, blendsForIso, EtrGroupsBadge } from "@/components/BlendBadge";
 import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
 
 function MapInner() {
-  const { ask } = useStore();
+  const { ask, electionsOn } = useStore();
   const { calcs, t } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
@@ -109,6 +110,7 @@ function MapInner() {
             <div className="wf-row total"><span>Top-up tax</span><Amount n={sel.jurisdictionalTopUp} audit={sel.audit} /></div>
             <p className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>{sel.sh.navigator}</p>
             <div style={{ marginTop: 10 }}><FxNote entities={sel.entities} iso={sel.iso} compact /></div>
+            <div style={{ marginTop: 4 }}><GaapNote entities={sel.entities} electionsOn={electionsOn} compact /></div>
             <div className="stack-actions" style={{ marginTop: 16 }}>
               <Link href={etrHref(sel)} className="btn btn-primary">Open ETR</Link>
               <Link href="/top-up" className="btn btn-secondary">Top-up</Link>

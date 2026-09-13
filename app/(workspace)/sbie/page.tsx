@@ -10,6 +10,7 @@ import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
 import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
 
 const METHOD = [
   {
@@ -52,7 +53,7 @@ const REFERENCES = [
 ];
 
 function Inner() {
-  const { ask } = useStore();
+  const { ask, electionsOn } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
@@ -102,6 +103,7 @@ function Inner() {
             <h4>{sel.name} bridge</h4>
             <Link href="/rulebook" className="tag tag-accent">OECD-SBIE-2026 v2026.1</Link>
             <div style={{ flexBasis: "100%" }}><FxNote entities={sel.entities} iso={sel.iso} compact /></div>
+            <div style={{ flexBasis: "100%" }}><GaapNote entities={sel.entities} electionsOn={electionsOn} compact /></div>
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">

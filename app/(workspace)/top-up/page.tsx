@@ -9,9 +9,11 @@ import { useStore } from "@/lib/store";
 import { pickCalc, etrHref } from "@/lib/engine";
 import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
 import { fxNoteText, fxRowsFor } from "@/components/FxNote";
+import { gaapShort } from "@/components/GaapNote";
+import { ArticleLocators } from "@/components/ArticleLocators";
 
 export default function TopUpPage() {
-  const { ask } = useStore();
+  const { ask, electionsOn } = useStore();
   const { calcs, t } = useCalc();
   const router = useRouter();
   const th = pickCalc(calcs, "TH") ?? calcs[0];
@@ -27,6 +29,7 @@ export default function TopUpPage() {
           <Link href="/etr?iso=HK">Hong Kong ETR</Link>
         </div>
       )}
+      <ArticleLocators calcs={calcs} />
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <strong>{th.name} top-up tax: </strong>
@@ -45,7 +48,7 @@ export default function TopUpPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Jurisdiction</th><th title="Locked rate translating this blend to presentation USD — full table on /fx">FX</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Less: QDMTT</th><th className="num">Top-up</th>
+                <th>Jurisdiction</th><th title="Locked rate translating this blend to presentation USD — full table on /fx">FX</th><th title="Accounting standard FANIL is computed on (UPE CFS Art. 3.1.1 or local Art. 3.1.3)">GAAP</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Less: QDMTT</th><th className="num">Top-up</th>
               </tr>
             </thead>
             <tbody>
@@ -53,6 +56,7 @@ export default function TopUpPage() {
                 <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
                   <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /><EtrGroupsBadge calc={c} calcs={calcs} /></td>
                   <td className="mono" style={{ fontSize: 11, whiteSpace: "nowrap" }} title={fxNoteText(c.entities, c.iso)}>{fxRowsFor(c.entities, c.iso).map(({ row, currency }) => row ? (row.currency === "USD" ? "USD" : `${row.currency} ${row.localPerUsd.toLocaleString("en-GB")}`) : `${currency} ?`).join(" · ")}</td>
+                  <td style={{ fontSize: 11 }} title={gaapShort(c.entities, electionsOn)}>{gaapShort(c.entities, electionsOn)}</td>
                   <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                   <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
                   <td className="num">
