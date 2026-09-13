@@ -511,7 +511,26 @@ export function reportableDifferences(calc: JurCalc, group: Group, overlay?: Pac
 
 /* ---------------------------------------------- CE-by-CE Section 3 path */
 
-export type CeRow = { id: string; code: string; name: string; type: string; fanil: number; revenue: number; currentTax: number; deferredTax: number; payroll: number; tangible: number; adjustments: number; adjustmentCount: number };
+export type CeRow = {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  fanil: number;
+  revenue: number;
+  currentTax: number;
+  deferredTax: number;
+  payroll: number;
+  tangible: number;
+  adjustments: number;
+  adjustmentCount: number;
+  globeIncome: number;
+  deemedGlobe: number;
+  share: number;
+  rateTopUp: number;
+  acttt: number;
+  topUp: number;
+};
 
 export type CeByCe = {
   iso: string;
@@ -534,7 +553,27 @@ export function ceByCe(calc: JurCalc, group: Group): CeByCe {
   const rows: CeRow[] = (required || !transitionalOpen) ? calc.entities.map((e) => {
     const f = fin(e.id);
     const adj = DATA.adjustments.filter((a) => a.entityId === e.id);
-    return { id: e.id, code: e.code, name: e.name, type: e.type, fanil: f?.fanil ?? 0, revenue: f?.revenue ?? 0, currentTax: f?.currentTax ?? 0, deferredTax: f?.deferredTax ?? 0, payroll: f?.payrollEligible ?? 0, tangible: f?.tangibleEligible ?? 0, adjustments: money(adj.reduce((s, a) => s + a.amount, 0)), adjustmentCount: adj.length };
+    const alloc = calc.ceAlloc.rows.find((r) => r.id === e.id);
+    return {
+      id: e.id,
+      code: e.code,
+      name: e.name,
+      type: e.type,
+      fanil: f?.fanil ?? 0,
+      revenue: f?.revenue ?? 0,
+      currentTax: f?.currentTax ?? 0,
+      deferredTax: f?.deferredTax ?? 0,
+      payroll: f?.payrollEligible ?? 0,
+      tangible: f?.tangibleEligible ?? 0,
+      adjustments: money(adj.reduce((s, a) => s + a.amount, 0)),
+      adjustmentCount: adj.length,
+      globeIncome: alloc?.globeIncome ?? 0,
+      deemedGlobe: alloc?.deemedGlobe ?? 0,
+      share: alloc?.share ?? 0,
+      rateTopUp: alloc?.rateTopUp ?? 0,
+      acttt: alloc?.acttt ?? 0,
+      topUp: alloc?.topUp ?? 0,
+    };
   }) : [];
   return { iso: calc.iso, required: required || !transitionalOpen, reason, rows };
 }

@@ -257,18 +257,18 @@ export default function GirPage() {
               {selected.ceByCe.rows.length > 0 ? (
                 <div className="table-wrap">
                   <table className="table">
-                    <thead><tr><th>CE</th><th>Type</th><th style={{ textAlign: "right" }}>FANIL</th><th style={{ textAlign: "right" }}>Adjustments</th><th style={{ textAlign: "right" }}>Current tax</th><th style={{ textAlign: "right" }}>Deferred tax</th><th style={{ textAlign: "right" }}>Payroll</th><th style={{ textAlign: "right" }}>Tangible</th></tr></thead>
+                    <thead><tr><th>CE</th><th>Type</th><th style={{ textAlign: "right" }}>GloBE</th><th style={{ textAlign: "right" }}>Deemed GloBE</th><th style={{ textAlign: "right" }}>Share</th><th style={{ textAlign: "right" }}>Rate top-up</th><th style={{ textAlign: "right" }}>ACTTT</th><th style={{ textAlign: "right" }}>Allocated top-up</th></tr></thead>
                     <tbody>
                       {selected.ceByCe.rows.map((r) => (
                         <tr key={r.id}>
                           <td><strong>{r.name}</strong><div className="mono text-muted" style={{ fontSize: 11 }}>{r.code}</div></td>
                           <td>{r.type}</td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.fanil)}</td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.adjustments)} <span className="text-muted">({r.adjustmentCount})</span></td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.currentTax)}</td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.deferredTax)}</td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.payroll)}</td>
-                          <td className="mono" style={{ textAlign: "right" }}>{num(r.tangible)}</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{num(r.globeIncome)}</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{r.deemedGlobe ? num(r.deemedGlobe) : "—"}</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{(r.share * 100).toFixed(2)}%</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{num(r.rateTopUp)}</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{num(r.acttt)}</td>
+                          <td className="mono" style={{ textAlign: "right" }}>{num(r.topUp)}</td>
                         </tr>
                       ))}
                     </tbody>

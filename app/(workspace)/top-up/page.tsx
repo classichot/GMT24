@@ -92,6 +92,67 @@ export default function TopUpPage() {
           </table>
         </div>
       </div>
+
+      <div className="panel" style={{ marginTop: 20 }}>
+        <div className="panel-head">
+          <h4>Art. 5.2.4 / 5.2.5 — allocation to Constituent Entities</h4>
+          <span className="tag tag-outline">{calcs.filter((c) => c.ceAlloc.jurisdictionalTopUp > 0).length} blends with Top-up Tax</span>
+        </div>
+        <div className="panel-body text-muted" style={{ fontSize: 12, paddingBottom: 0 }}>
+          Jurisdictional Top-up Tax (Top-up % × Excess + Additional Current Top-up Tax) is allocated to each CE in the blend in proportion to GloBE Income (Art. 5.2.4). Where the blend has no Net GloBE Income and ACTTT arises, the share uses deemed GloBE Income = −ACT ÷ 15% (Art. 5.2.5). Collection to QDMTT / IIR / UTPR still happens on the jurisdictional amount — this table is the CE split.
+        </div>
+        {calcs.filter((c) => c.ceAlloc.jurisdictionalTopUp > 0).map((c) => (
+          <div key={c.blendKey} style={{ padding: "12px 16px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+              <strong>{c.name}</strong>
+              <span className="text-muted" style={{ fontSize: 12 }}>{c.ceAlloc.basisLabel}</span>
+            </div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>CE</th>
+                    <th className="num">GloBE</th>
+                    <th className="num">Covered</th>
+                    <th className="num">Deemed GloBE</th>
+                    <th className="num">Share</th>
+                    <th className="num">Rate top-up</th>
+                    <th className="num">ACTTT</th>
+                    <th className="num">Allocated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.ceAlloc.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><span className="mono">{r.code}</span> {r.name}<div className="text-muted" style={{ fontSize: 11 }}>{r.type}</div></td>
+                      <td className="num"><Amount n={r.globeIncome} compact /></td>
+                      <td className="num"><Amount n={r.coveredTax} compact /></td>
+                      <td className="num">{r.deemedGlobe ? <Amount n={r.deemedGlobe} compact /> : "—"}</td>
+                      <td className="num mono">{(r.share * 100).toFixed(2)}%</td>
+                      <td className="num"><Amount n={r.rateTopUp} compact /></td>
+                      <td className="num"><Amount n={r.acttt} compact /></td>
+                      <td className="num"><Amount n={r.topUp} compact /></td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Blend</th>
+                    <th className="num"><Amount n={c.globeIncome} compact /></th>
+                    <th className="num"><Amount n={c.coveredTax} compact /></th>
+                    <th />
+                    <th className="num">100%</th>
+                    <th className="num"><Amount n={c.ceAlloc.rateTopUp} compact /></th>
+                    <th className="num"><Amount n={c.ceAlloc.additionalCurrentTopUp} compact /></th>
+                    <th className="num"><Amount n={c.ceAlloc.jurisdictionalTopUp} compact /></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {!c.ceAlloc.reconciling && <p className="status-block" style={{ fontSize: 12, marginTop: 6 }}>Allocation remainder {c.ceAlloc.remainder.toLocaleString("en-GB")} — last-penny rounding did not close.</p>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

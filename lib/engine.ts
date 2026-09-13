@@ -21,6 +21,7 @@ import {
   type BlendKind,
 } from "./entityClass";
 import { fxRate, gaapScreen, usdFromFc } from "./fx";
+import { allocateTopUpToCes, ceAllocAudit, type CeAllocation } from "./ceAllocation";
 import { eligibleAssets, eligiblePayroll, shippingPost } from "./shipping";
 import { article43Post } from "./coveredTax";
 import { entityAdjustments } from "./fanil";
@@ -90,6 +91,8 @@ export type JurCalc = {
   enteCarryforward: number;
   enteReason: string;
   jurisdictionalTopUp: number;
+  /** Art. 5.2.4 / 5.2.5 — Jurisdictional Top-up Tax and ACTTT allocated to each CE in the blend. */
+  ceAlloc: CeAllocation;
   sh: {
     deMinimis: ShResult;
     simplifiedEtr: ShResult;
@@ -721,6 +724,25 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
     else if (etrComputed && etr < MIN_RATE) exposure = "Review";
     else if (!etrComputed && additionalCurrentTopUp > 0) exposure = "Top-up";
 
+    const usedRateTopUp = money(Math.max(0, jurisdictionalTopUp - additionalCurrentTopUp));
+    const ceAlloc = allocateTopUpToCes({
+      blendKey,
+      iso,
+      name,
+      entities,
+      globeOf: (id) => {
+        const f = DATA.financials.find((x) => x.entityId === id);
+        return f ? entityGlobe(f, id, ctx) : 0;
+      },
+      coveredOf: (id) => {
+        const f = DATA.financials.find((x) => x.entityId === id);
+        return f ? entityCovered(f) : 0;
+      },
+      rateTopUp: usedRateTopUp,
+      additionalCurrentTopUp: jurisdictionalTopUp > 0 ? additionalCurrentTopUp : 0,
+      jurisdictionalTopUp,
+    });
+
     const vnGap = iso === "VN";
     if (vnGap) {
       // still compute, but flag data gap in completeness
@@ -872,6 +894,7 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
           ruleId: "OECD-GloBE-15",
           ruleVersion: "2026.1",
         },
+        ceAllocAudit(ceAlloc, aid),
         etrTrace,
         sbieTrace,
         excessTrace,
@@ -911,6 +934,7 @@ export function calculateGroup(groupId = activeSeedId(), ctx?: CalcCtx): JurCalc
       enteCarryforward,
       enteReason: enteReason,
       jurisdictionalTopUp,
+      ceAlloc,
       sh: { deMinimis, simplifiedEtr, routineProfits, qdmttSH, sbtish, utprSH, sbs, navigator, outcome, barred: bar.barred, tcshUsed, tcshFailed },
       exposure,
       collection,
@@ -988,13 +1012,31 @@ export function applyScenario(calcs: JurCalc[], s: ScenarioInput, overlay?: Pack
       let jurisdictionalTopUp = money(c.topUpRate * excess + (c.additionalCurrentTopUp ?? 0));
       if (s.boiExtend) jurisdictionalTopUp = money(jurisdictionalTopUp * 0.38);
       const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name, overlay });
-      return { ...c, sbie, excess, jurisdictionalTopUp, collection };
+      const usedRate = money(Math.max(0, jurisdictionalTopUp - (c.additionalCurrentTopUp ?? 0)));
+      const ceAlloc = allocateTopUpToCes({
+        blendKey: c.blendKey, iso: c.iso, name: c.name, entities: c.entities,
+        globeOf: (id) => c.ceAlloc.rows.find((r) => r.id === id)?.globeIncome ?? 0,
+        coveredOf: (id) => c.ceAlloc.rows.find((r) => r.id === id)?.coveredTax ?? 0,
+        rateTopUp: usedRate,
+        additionalCurrentTopUp: jurisdictionalTopUp > 0 ? (c.additionalCurrentTopUp ?? 0) : 0,
+        jurisdictionalTopUp,
+      });
+      return { ...c, sbie, excess, jurisdictionalTopUp, collection, ceAlloc };
     }
     if (c.iso === "IE" && s.tpMargin !== 3) {
       const factor = 1 + ((s.tpMargin - 3) / 2) * 0.08;
       const jurisdictionalTopUp = money(Math.max(0, c.jurisdictionalTopUp * factor));
       const collection = allocateCollection({ topUp: jurisdictionalTopUp, pack: c.pack, entities: c.entities, iso: c.iso, name: c.name, overlay });
-      return { ...c, jurisdictionalTopUp, collection };
+      const usedRate = money(Math.max(0, jurisdictionalTopUp - (c.additionalCurrentTopUp ?? 0)));
+      const ceAlloc = allocateTopUpToCes({
+        blendKey: c.blendKey, iso: c.iso, name: c.name, entities: c.entities,
+        globeOf: (id) => c.ceAlloc.rows.find((r) => r.id === id)?.globeIncome ?? 0,
+        coveredOf: (id) => c.ceAlloc.rows.find((r) => r.id === id)?.coveredTax ?? 0,
+        rateTopUp: usedRate,
+        additionalCurrentTopUp: jurisdictionalTopUp > 0 ? (c.additionalCurrentTopUp ?? 0) : 0,
+        jurisdictionalTopUp,
+      });
+      return { ...c, jurisdictionalTopUp, collection, ceAlloc };
     }
     return c;
   });
