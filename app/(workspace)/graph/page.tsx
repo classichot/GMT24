@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
-import { classFor } from "@/lib/entityClass";
+import { classFor, ownershipChain } from "@/lib/entityClass";
 import { useCalc } from "@/lib/useCalc";
 import { etrPct, eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -70,7 +70,16 @@ export default function GraphPage() {
         <div className="panel-head">
           <div>
             <h4 style={{ margin: 0 }}>{selected.name}</h4>
-            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {classFor(selected.id).tag} · UPE {classFor(selected.id).upeOwnership}% · direct {selected.ownership}%</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {classFor(selected.id).tag} · UPE {classFor(selected.id).upeOwnership}% (effective) · direct {selected.ownership}%</div>
+            <div className="mono" style={{ fontSize: 12, marginTop: 4 }}>
+              {ownershipChain(selected.id).map((lv, i, arr) => (
+                <span key={lv.id}>
+                  {i > 0 && <span className="text-muted"> ─{lv.direct}%→ </span>}
+                  <span style={lv.id === selected.id ? { fontWeight: 700 } : undefined}>{lv.code}</span>
+                  {i === arr.length - 1 && i > 0 && <span className="text-muted"> = {lv.cumulative}% look-through</span>}
+                </span>
+              ))}
+            </div>
           </div>
           <button className="btn btn-primary" onClick={() => router.push(jc ? etrHref(jc) : `/etr?iso=${selected.iso}`)}>Open {jc?.name ?? selected.jurisdiction} calculation</button>
         </div>

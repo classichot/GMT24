@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
-import { classifyAll, classFor, ENTITY_TEST_STEPS } from "@/lib/entityClass";
+import { classifyAll, classFor, ENTITY_TEST_STEPS, ownershipChain } from "@/lib/entityClass";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
@@ -94,7 +94,7 @@ export default function EntitiesPage() {
           <table className="table">
             <thead>
               <tr>
-                <th aria-label="Expand" /><th>Code</th><th>Entity</th><th>Type</th><th>GloBE class</th><th>Jur.</th><th>Direct %</th><th>UPE %</th><th>GAAP</th><th className="num">ETR</th><th>Blend</th><th>Review</th>
+                <th aria-label="Expand" /><th>Code</th><th>Entity</th><th>Type</th><th>GloBE class</th><th>Jur.</th><th title="Ownership Interest held by the immediate parent">Direct %</th><th title="Effective holding: direct % multiplied level by level up to the UPE">UPE % (effective)</th><th>GAAP</th><th className="num">ETR</th><th>Blend</th><th>Review</th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +150,7 @@ function EntityDetail({ id }: { id: string }) {
   const row = classFor(id);
   const entity = DATA.entities.find((e) => e.id === id);
   const jc = calcs.find((c) => c.entities.some((n) => n.id === id));
+  const chain = ownershipChain(id);
   if (!entity) return null;
   return (
     <div className="entity-detail">
@@ -161,6 +162,31 @@ function EntityDetail({ id }: { id: string }) {
         <div className="stack-actions">
           {jc && <button className="btn btn-primary" onClick={(ev) => { ev.stopPropagation(); router.push(etrHref(jc)); }}>Open {jc.name} ETR</button>}
           <button className="btn btn-secondary" onClick={(ev) => { ev.stopPropagation(); ask(`Explain the entity test for ${entity.name} (${entity.code})`); }}>Ask GMT24</button>
+        </div>
+      </div>
+      <div className="table-wrap" style={{ marginBottom: 12 }} onClick={(ev) => ev.stopPropagation()}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Level</th><th>Entity</th><th>Jur.</th><th>Type</th><th className="num">Direct % held by level above</th><th className="num">Outside the group</th><th className="num">UPE look-through (effective)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chain.map((lv, i) => (
+              <tr key={lv.id} style={lv.id === id ? { fontWeight: 700 } : undefined}>
+                <td className="mono">L{lv.level}</td>
+                <td><span className="mono" style={{ marginRight: 6 }}>{lv.code}</span>{lv.name}</td>
+                <td>{lv.iso}</td>
+                <td>{lv.type}</td>
+                <td className="num">{lv.level === 0 ? "UPE" : `${lv.direct}%`}</td>
+                <td className="num">{lv.level === 0 ? "—" : lv.outsiders > 0 ? <span className="tag tag-warn">{lv.outsiders}%</span> : "0%"}</td>
+                <td className="num mono">{i === 0 ? "100%" : `${chain.slice(1, i + 1).map((x) => `${x.direct}%`).join(" × ")} = ${lv.cumulative}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="text-muted" style={{ fontSize: 11, padding: "6px 0 0" }}>
+          Art. 10.1 Ownership Interest look-through: the effective holding is the product of the direct % at each level from the UPE down. MOCE (≤ 30%) and JV (≥ 50%, equity method) tests use the effective figure; the POPE test (outsiders &gt; 20%) reads the "Outside the group" column of a non-UPE Parent.
         </div>
       </div>
       <div className="waterfall">
