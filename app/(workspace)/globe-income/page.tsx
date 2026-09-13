@@ -9,6 +9,8 @@ import { eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
 
 const METHOD = [
   {
@@ -115,9 +117,11 @@ export default function GlobeIncomePage() {
       </select>
 
       <div className="panel">
-        <div className="panel-head">
+        <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
           <h4>GloBE income waterfall · {row.entity.code}</h4>
           <span className="text-muted">{row.adjustments.length} mapped postings · {ship.present ? "Art. 3.4 posted" : "no shipping"} · {jur?.name}</span>
+          <div style={{ flexBasis: "100%" }}><FxNote entities={[row.entity]} iso={row.entity.iso} compact /></div>
+          <div style={{ flexBasis: "100%" }}><GaapNote entities={[row.entity]} electionsOn={electionsOn} compact /></div>
         </div>
         <div className="panel-body waterfall">
           <div className="wf-row">

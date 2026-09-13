@@ -11,6 +11,7 @@ import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { etrHref, summarizeByIso } from "@/lib/engine";
 import { MIN_RATE } from "@/lib/deferredTax";
+import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
 
 export default function OverviewPage() {
   const { mode, ask, scenario, group, ingestStatus } = useStore();
@@ -101,6 +102,8 @@ export default function OverviewPage() {
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                     <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 15 }}>{c.iso}</span>
+                    <BlendBadge blendKind={c.blendKind} />
+                    <EtrGroupsBadge calc={c} calcs={calcs} />
                     {atRisk && (
                       <span className="etr-risk-badge" title={`Jurisdictional ETR ${pct(c.etr, 2)} is below ${pct(MIN_RATE, 0)} — top-up risk`}>
                         Top-up

@@ -80,6 +80,50 @@ export function lookThroughToUpe(entityId: string): number {
   return Math.round(pct * 10000) / 100;
 }
 
+export type ChainLevel = {
+  level: number;
+  id: string;
+  code: string;
+  name: string;
+  iso: string;
+  type: EntityType;
+  /** Ownership Interest the level above holds in this entity (100 for the UPE). */
+  direct: number;
+  /** UPE look-through to this entity = product of the direct % down to here. */
+  cumulative: number;
+  /** Interests held outside the group at this level. */
+  outsiders: number;
+};
+
+/** Ownership chain from the UPE down to the entity, one row per level (Art. 10.1 Ownership Interest look-through). */
+export function ownershipChain(entityId: string): ChainLevel[] {
+  const byId = seedMemo().byId;
+  const path: Entity[] = [];
+  let cur: Entity | undefined = byId[entityId];
+  const seen = new Set<string>();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    path.unshift(cur);
+    cur = cur.parentId ? byId[cur.parentId] : undefined;
+  }
+  let pct = 1;
+  return path.map((e, i) => {
+    const direct = i === 0 ? 100 : e.ownership;
+    pct *= direct / 100;
+    return {
+      level: i,
+      id: e.id,
+      code: e.code,
+      name: e.name,
+      iso: e.iso,
+      type: e.type,
+      direct,
+      cumulative: Math.round(pct * 10000) / 100,
+      outsiders: Math.round((100 - direct) * 100) / 100,
+    };
+  });
+}
+
 /** Ownership Interests the ancestor holds in the descendant (look-through). */
 export function ownershipOf(ancestorId: string, descendantId: string): number {
   if (ancestorId === descendantId) return 100;

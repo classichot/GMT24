@@ -39,6 +39,24 @@ export default function AllocationPage() {
                 Pack: {c.pack?.qualified}. QDMTT {eur(c.collection.qdmtt)} · IIR {eur(c.collection.iir)} · UTPR {eur(c.collection.utpr)}.
                 {c.additionalCurrentTopUp > 0 ? ` Additional Current Top-up ${eur(c.additionalCurrentTopUp)} is in this amount.` : ""}
               </p>
+              {c.ceAlloc.rows.length > 0 && (
+                <div className="table-wrap" style={{ marginTop: 12 }}>
+                  <table className="table">
+                    <thead><tr><th>CE (Art. 5.2.4 / 5.2.5)</th><th className="num">Share</th><th className="num">ACTTT</th><th className="num">Allocated top-up</th></tr></thead>
+                    <tbody>
+                      {c.ceAlloc.rows.map((r) => (
+                        <tr key={r.id}>
+                          <td><span className="mono">{r.code}</span> {r.name}</td>
+                          <td className="num mono">{(r.share * 100).toFixed(2)}%</td>
+                          <td className="num">{eur(r.acttt)}</td>
+                          <td className="num">{eur(r.topUp)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="text-muted" style={{ fontSize: 11, marginTop: 6 }}>{c.ceAlloc.basisLabel}</div>
+                </div>
+              )}
             </div>
           </div>
         ))}

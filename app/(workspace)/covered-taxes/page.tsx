@@ -10,6 +10,9 @@ import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
+import { ArticleLocators } from "@/components/ArticleLocators";
 
 const METHOD = [
   {
@@ -92,6 +95,8 @@ export default function CoveredTaxesPage() {
         </div>
       </div>
 
+      <ArticleLocators calcs={calcs} />
+
       <div className="grid-2" style={{ marginBottom: 20 }}>
         {METHOD.map((m) => (
           <div key={m.n} className="panel">
@@ -115,9 +120,11 @@ export default function CoveredTaxesPage() {
 
       <div className="grid-split">
         <div className="panel">
-          <div className="panel-head">
+          <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
             <h4>{row.entity.code} bridge</h4>
             <Link href="/rulebook" className="tag tag-accent">OECD-GloBE-15 v2026.1</Link>
+            <div style={{ flexBasis: "100%" }}><FxNote entities={[row.entity]} iso={row.entity.iso} compact /></div>
+            <div style={{ flexBasis: "100%" }}><GaapNote entities={[row.entity]} electionsOn={electionsOn} compact /></div>
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">
