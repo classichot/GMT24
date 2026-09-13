@@ -115,8 +115,8 @@ export default function GirPage() {
         </div>
 
         <div className="panel">
-          <div className="panel-head">
-            <h4>September 2026 data points</h4>
+          <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
+            <h4 style={{ flexBasis: "100%" }}>September 2026 data points</h4>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {([
                 ["sections", "Summary 1.4"],
