@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { etrPct, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
-import { BlendBadge } from "@/components/BlendBadge";
+import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
+import { FxNote } from "@/components/FxNote";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { MIN_RATE, pickCalc, etrHref } from "@/lib/engine";
@@ -81,6 +82,7 @@ function Inner() {
           <span className="mono">ETR = Covered Taxes ÷ GloBE income</span>
           {" · "}
           <span className="mono">Top-up % = max(0, {min} − ETR)</span>
+          <div style={{ marginTop: 8 }}><FxNote entities={sel.entities} iso={sel.iso} /></div>
         </div>
         <div className="stack-actions">
           <Link href="/covered-taxes" className="btn btn-secondary">Covered taxes</Link>
@@ -257,7 +259,7 @@ function Inner() {
               <tbody>
                 {calcs.map((c) => (
                   <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
-                    <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /></td>
+                    <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /><EtrGroupsBadge calc={c} calcs={calcs} /></td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
                     <td className="num">

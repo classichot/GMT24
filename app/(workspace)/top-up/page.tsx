@@ -7,7 +7,8 @@ import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { pickCalc, etrHref } from "@/lib/engine";
-import { BlendBadge } from "@/components/BlendBadge";
+import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
+import { fxNoteText, fxRowsFor } from "@/components/FxNote";
 
 export default function TopUpPage() {
   const { ask } = useStore();
@@ -44,13 +45,14 @@ export default function TopUpPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Jurisdiction</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Less: QDMTT</th><th className="num">Top-up</th>
+                <th>Jurisdiction</th><th title="Locked rate translating this blend to presentation USD — full table on /fx">FX</th><th className="num">GloBE</th><th className="num">Covered</th><th className="num">ETR</th><th className="num">Top-up %</th><th className="num">SBIE</th><th className="num">Excess</th><th className="num">ACTTT</th><th className="num">Less: QDMTT</th><th className="num">Top-up</th>
               </tr>
             </thead>
             <tbody>
               {calcs.map((c) => (
                 <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
-                  <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /></td>
+                  <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /><EtrGroupsBadge calc={c} calcs={calcs} /></td>
+                  <td className="mono" style={{ fontSize: 11, whiteSpace: "nowrap" }} title={fxNoteText(c.entities, c.iso)}>{fxRowsFor(c.entities, c.iso).map(({ row, currency }) => row ? (row.currency === "USD" ? "USD" : `${row.currency} ${row.localPerUsd.toLocaleString("en-GB")}`) : `${currency} ?`).join(" · ")}</td>
                   <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                   <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
                   <td className="num">

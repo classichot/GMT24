@@ -6,6 +6,7 @@ import { useCalc } from "@/lib/useCalc";
 import { etrPct } from "@/lib/format";
 import { runAllSafeHarbours, sbtishTrace, SBTISH_EXPENDITURE } from "@/lib/harbours2026";
 import { DATA } from "@/lib/model";
+import { BlendBadge, blendsForIso, EtrGroupsBadge } from "@/components/BlendBadge";
 
 const TESTS = [
   ["deMinimis", "De minimis"],
@@ -105,8 +106,8 @@ export default function SafeHarbourPage() {
             {calcs.map((c) => (
               <tr key={c.blendKey}>
                 <td>
-                  <div style={{ fontWeight: 700 }}>{c.name}</div>
-                  <div className="text-muted" style={{ fontSize: 11 }}>CbCR ETR path · GloBE {etrPct(c, 1)}</div>
+                  <div style={{ fontWeight: 700 }}>{c.name}<BlendBadge blendKind={c.blendKind} /><EtrGroupsBadge calc={c} calcs={calcs} /></div>
+                  <div className="text-muted" style={{ fontSize: 11 }}>{c.entities.map((e) => e.code).join(", ") || "no CE"} · CbCR ETR path · GloBE {etrPct(c, 1)}</div>
                 </td>
                 {TESTS.map(([k]) => {
                   const v = c.sh[k];
