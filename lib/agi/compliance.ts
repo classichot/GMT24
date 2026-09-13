@@ -6,7 +6,8 @@
  * where they diverge, the domestic instrument is shown alongside the OECD text.
  */
 import type { JurCalc } from "../engine";
-import { RULES } from "../model";
+import { DATA, GROUPS, RULES } from "../model";
+import { girEditionFor, penaltyRelief, safeHarbourCoding, sbsElection, utprShWindow } from "../gir2026";
 import { reviewOecdRdGap } from "../thaiGap";
 import { eur, etrPct, pct } from "../format";
 import { eligibilityEngine, splitSwitch } from "../electionEngine";
@@ -70,7 +71,7 @@ const OECD_REQS: Req[] = [
     })),
   },
   {
-    id: "OECD-SH", authority: "OECD", instrument: "Safe Harbours and Penalty Relief (Dec 2022) · AG Dec 2023", effectiveFrom: "2024-01-01", effectiveTo: "2028-12-31", passages: ["LP-MR-8.2", "LP-SH22-1", "LP-AG23-12-1", "LP-SBS26-2"],
+    id: "OECD-SH", authority: "OECD", instrument: "Safe Harbours and Penalty Relief (Dec 2022) · AG Dec 2023 · GIR Sep 2026 §2.2.1.1.1", effectiveFrom: "2024-01-01", effectiveTo: "2028-12-31", passages: ["LP-MR-8.2", "LP-SH22-1", "LP-AG23-12-1", "LP-SBS26-2", "LP-GIR26-2.2.1.1.1"],
     title: "Transitional CbCR Safe Harbour tested where elected; elected test identified in the GIR", href: "/safe-harbours",
     test: ({ scoped }) => scoped.map((c) => ({
       status: c.exposure === "Safe harbour" ? "met" as const : c.sh.outcome === "Review" ? "judgment" as const : c.sh.outcome === "Not tested" && c.jurisdictionalTopUp > 0 ? "gap" as const : "n/a" as const,
@@ -96,7 +97,7 @@ const OECD_REQS: Req[] = [
     },
   },
   {
-    id: "OECD-8.1", authority: "OECD", instrument: "GloBE Model Rules Art. 8.1 · GIR (Jan 2025) · GIR XML Schema v1.0", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-8.1", "LP-MR-9.4", "LP-GIR25-1", "LP-GIRXML-1"],
+    id: "OECD-8.1", authority: "OECD", instrument: "GloBE Model Rules Art. 8.1 · GIR (Sep 2026) · GIR XML Schema v1.0", effectiveFrom: "2024-01-01", effectiveTo: null, passages: ["LP-MR-8.1", "LP-MR-9.4", "LP-GIR26-1", "LP-GIRXML-1"],
     title: "GloBE Information Return prepared per jurisdiction; first-year filing 18 months after FY end, then 15 months", href: "/gir",
     test: ({ s, checks }) => [{
       status: checks.some((c) => c.status === "fail" && c.severity === "block") ? "gap" : "met",
@@ -106,7 +107,68 @@ const OECD_REQS: Req[] = [
       evidence: ["OECD-GIR-XML-1.0"],
     }],
   },
+  {
+    id: "OECD-GIR-2026", authority: "OECD", instrument: "GIR (Sep 2026) §36.1 · 1.3.1.6 · 1.3.1 options (v)–(vi) · 2.2.1.1.1 options (a)–(k)", effectiveFrom: "2025-12-31", effectiveTo: null, passages: ["LP-GIR26-36.1", "LP-GIR26-1.3.1.6", "LP-GIR26-1.3.1", "LP-GIR26-2.2.1.1.1"],
+    title: "Return drafted on the September 2026 template: edition matches the Reporting Fiscal Year, Side-by-Side election consistent with the UPE regime, one safe-harbour option letter per jurisdiction, Transitional UTPR SH only inside its window", href: "/gir",
+    test: ({ s, calcs, scoped }) => {
+      const group = groupOf(s);
+      const edition = girEditionFor(group.fyStart);
+      const sbs = sbsElection(group, s.electionsOn, calcs, s.packOverlay);
+      const window = utprShWindow(group);
+      const out: ReturnType<Req["test"]> = [{
+        status: edition.id === "GIR-2026-09" ? "met" : "judgment",
+        finding: edition.id === "GIR-2026-09"
+          ? `FY commences ${group.fyStart} — on or after 31 Dec 2025, so the ${edition.short} template governs; the XML schema revision is ${edition.schema.status} (${edition.schema.cutOff ? `cut-off ${edition.schema.cutOff}` : "no cut-off date yet"}).`
+          : `FY commences ${group.fyStart} — before 31 Dec 2025, so the January 2025 template still governs this Reporting Fiscal Year; the September 2026 guidance notes still apply where not Side-by-Side specific.`,
+        evidence: [edition.id, "OECD-GIR-XML"],
+      }];
+      const blocking = sbs.issues;
+      out.push({
+        status: blocking.length ? "gap" : (sbs.eligible && !sbs.elected) || sbs.notes.length ? "judgment" : "met",
+        finding: blocking[0] ?? sbs.notes[0] ?? (sbs.applies
+          ? `Side-by-Side election made in 1.3.1.6 (${sbs.upeRegime}); summary table 1.4 and 1.3.1.7–1.3.1.9 not completed; Sections 2–3 only for QDMTT jurisdictions (${sbs.jurisdictionSectionsFor.join(", ") || "none"}).`
+          : sbs.eligible
+            ? `${sbs.upeIso} is a Qualified Side-by-Side Regime but SH_SBS is not switched on — decide whether to make the 1.3.1.6 election; the full return is populated meanwhile.`
+            : `UPE jurisdiction ${sbs.upeIso} (${sbs.upeRegime}) is not a Qualified Side-by-Side Regime; the 1.3.1.6 election is not available and the full return is populated.`),
+        evidence: ["SH_SBS", `Central Record ${sbs.upeIso}`],
+      });
+      for (const c of scoped) {
+        const coding = safeHarbourCoding(c, group, s.electionsOn, s.packOverlay);
+        out.push({
+          status: coding.issues.length ? "gap" : coding.notes.length ? "judgment" : "met",
+          iso: c.iso,
+          finding: coding.issues[0] ?? coding.notes[0] ?? (coding.primary
+            ? `${c.name}: option (${coding.primary}) reported in 2.2.1.1.1${coding.reported.length > 1 ? ` with (${coding.reported.filter((x) => x !== coding.primary).join("), (")})` : ""}.`
+            : `${c.name}: no safe harbour — full GloBE computation reported in Sections 2–3.`),
+          evidence: coding.reported.map((code) => `2.2.1.1.1(${code})`),
+        });
+      }
+      if (scoped.some((c) => c.iso === s.upeIso)) {
+        out.push({ status: window.open ? "met" : "judgment", iso: s.upeIso, finding: `Transitional UTPR Safe Harbour (option j): ${window.reason}`, evidence: ["SH_UTPR"] });
+      }
+      return out;
+    },
+  },
+  {
+    id: "OECD-GIR-ANNEX-C", authority: "OECD", instrument: "GIR (Sep 2026) Annex C — transitional penalty relief", effectiveFrom: "2024-01-01", effectiveTo: "2028-06-30", passages: ["LP-GIR26-ANNEX-C"],
+    title: "Transitional penalty relief: reasonable measures documented for the GIR during the transition period", href: "/gir",
+    test: ({ s, calcs }) => {
+      const relief = penaltyRelief(groupOf(s), calcs, true, s.origin === "seed-default" ? 0 : 1);
+      const open = relief.conditions.filter((c) => !c.met);
+      return [{
+        status: relief.status,
+        finding: relief.transitionYear
+          ? open.length ? `Transition year; open conditions — ${open.map((c) => c.label).join("; ")}.` : "Transition year; audit trail, dissemination register and sealed evidence support a reasonable-measures position."
+          : "Outside the transition period — ordinary domestic penalty regime applies to GIR errors.",
+        evidence: ["Annex C", "Evidence history"],
+      }];
+    },
+  },
 ];
+
+function groupOf(s: CaseSnapshot) {
+  return GROUPS.find((g) => g.id === s.groupId) ?? DATA.group;
+}
 
 function domesticReqs(iso: string, s: CaseSnapshot): Req[] {
   const rules = RULES.filter((r) => r.jurisdiction === iso && r.status === "active");

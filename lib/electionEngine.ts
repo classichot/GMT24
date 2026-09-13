@@ -258,6 +258,14 @@ export function eligibilityEngine(calcs: JurCalc[]): EligibilityRow[] {
         const sb = sbtishResult(c);
         status = sb.result === "Pass" ? "available" : sb.result === "Review" ? "review" : "unavailable";
         reason = sb.detail;
+      } else if (e.id === "STISH_CV") {
+        const withIncentive = c.entities.some((ent) => ent.incentiveIds.length > 0);
+        const tangible = c.entities.reduce((a, ent) => a + (DATA.financials.find((f) => f.entityId === ent.id)?.tangibleEligible ?? 0), 0);
+        const payroll = c.entities.reduce((a, ent) => a + (DATA.financials.find((f) => f.entityId === ent.id)?.payrollEligible ?? 0), 0);
+        status = withIncentive ? "available" : "n/a";
+        reason = withIncentive
+          ? `Carrying-value cap 1% × ${tangible.toLocaleString("en-GB")} = ${Math.round(tangible * 0.01).toLocaleString("en-GB")} vs payroll cap 5.5% × ${payroll.toLocaleString("en-GB")} = ${Math.round(payroll * 0.055).toLocaleString("en-GB")}. Five-year lock; election year reported in GIR 2.2.1.2(c).`
+          : "No substance-based incentive on this blend — the STISH cap basis does not arise.";
       } else if (e.id === "SH_SETR" || e.id === "SETR_APPLY") {
         const setr = setrSimplified(c);
         status = setr.result === "Pass" ? "available" : "review";
