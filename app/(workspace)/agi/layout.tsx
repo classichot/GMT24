@@ -24,7 +24,7 @@ export default function AgiLayout({ children }: { children: ReactNode }) {
         </div>
         <h2>AGI mode is a separate layer</h2>
         <p>
-          AGI mode adds a mission-execution layer above the normal platform: agents (the built-in workspace, Grok Bot, Claude Cowork or GPT Work) plan and run a Pillar Two mission — compare eligible elections, verify the calculation, review compliance and prepare the audit package — while GMT24 keeps the engines, rule versions, permissions and evidence records. Turning it on adds the AGI Mode menu and these six screens. Turning it off hides them; normal mode never changes either way, and mission records are kept.
+          AGI mode is the orchestration layer over GMT24: you assign a mission, and the Mission Director designs the work plan, assembles specialists, coordinates execution and delivers an evidence-backed outcome. Single Bot, Team Bot and Cooperative Swarm are work modes; agent count and autonomy are separate settings. The versioned calculation engine still produces the official numbers. Turning the toggle on adds the AGI Mode menu; turning it off hides it. Normal mode never changes, and mission records are kept.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 16 }}>
           <AgiToggle goto={false} />

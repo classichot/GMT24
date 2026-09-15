@@ -26,6 +26,8 @@ import { assessOptions, optionToChanges } from "./elections";
 import { verifyCase, checkSummary } from "./verify";
 import { reviewComplianceFor, complianceSummary } from "./compliance";
 import { buildAuditPack, latestRun } from "./auditPack";
+import { designTeam, radarHits } from "./director";
+import { auditChallenge, recoverEvidence, impactAnalysis, replayInputs } from "./wow";
 import { TEXT_KIND_LABEL, citeLegal, fyStartDate, legalCoverage, searchPassages } from "../legal";
 import {
   MISSION_STATE_LABEL, type AgentClientId, type AgentScope, type CaseSnapshot, type Job, type MissionRecord, type StepId, type ToolName, type ToolResult,
@@ -50,6 +52,9 @@ export const TOOL_SCHEMAS = {
     objective: z.string().max(400).optional(),
     jurisdictions: z.array(z.string().length(2)).max(20).optional(),
     objectives: Objectives.optional(),
+    workMode: z.enum(["single", "team", "swarm"]).optional(),
+    autonomy: z.enum(["analyse", "draft", "propose"]).optional(),
+    agentCap: z.number().int().min(1).max(16).optional(),
   }),
   check_data_readiness: z.object({ missionId: z.string() }),
   assess_election_options: z.object({ missionId: z.string() }),
@@ -85,13 +90,19 @@ export const TOOL_SCHEMAS = {
     missionId: z.string().optional(),
     limit: z.number().int().min(1).max(20).optional(),
   }),
+  design_team: z.object({ missionId: z.string(), workMode: z.enum(["single", "team", "swarm"]).optional(), autonomy: z.enum(["analyse", "draft", "propose"]).optional(), agentCap: z.number().int().min(1).max(16).optional() }),
+  audit_challenge: z.object({ missionId: z.string() }),
+  recover_evidence: z.object({ missionId: z.string() }),
+  impact_analysis: z.object({ missionId: z.string() }),
+  regulatory_radar: z.object({ missionId: z.string().optional(), groupId: z.string().optional() }),
+  replay_mission: z.object({ missionId: z.string() }),
 } satisfies Record<ToolName, z.ZodTypeAny>;
 
 export type ToolArgs<N extends ToolName> = z.infer<(typeof TOOL_SCHEMAS)[N]>;
 
 export const TOOL_CATALOGUE: { name: ToolName; title: string; description: string; scope: AgentScope; step?: StepId; longRunning: boolean; inputSchema: Record<string, unknown> }[] = [
   { name: "get_case_context", title: "Company context", scope: "case:read", step: "context", longRunning: false, description: "Read the pinned case: group, period, jurisdictions, entities, elections in force, rule versions, data status and the engine's current totals. Read-only.", inputSchema: obj({ groupId: str("Group id (default: the caller's granted group)"), missionId: str("Mission id — read the mission's pinned case version instead of the live case") }) },
-  { name: "create_mission", title: "Create mission", scope: "mission:write", longRunning: false, description: "Create the release-1 mission (review case, compare eligible elections, verify calculation and compliance, prepare audit package) against the current case version. Idempotent per objective, scope and case version.", inputSchema: obj({ groupId: str("Group id"), objective: str("Objective text (default: the release-1 mission)"), jurisdictions: { type: "array", items: { type: "string" }, description: "ISO codes to limit the scope" }, objectives: { type: "object", description: "Weights 0–5: taxCash, complianceEffort, evidenceSupport, uncertainty, futureRestriction" } }, ["groupId"]) },
+  { name: "create_mission", title: "Create mission", scope: "mission:write", longRunning: false, description: "Create a Pillar Two mission. The Mission Director assesses complexity, chooses Single/Team/Swarm unless overridden, and composes Agent Cards from the approved catalogue. Idempotent per objective, scope, mode and case version.", inputSchema: obj({ groupId: str("Group id"), objective: str("Objective text (default: the flagship review mission)"), jurisdictions: { type: "array", items: { type: "string" }, description: "ISO codes to limit the scope" }, objectives: { type: "object", description: "Weights 0–5: taxCash, complianceEffort, evidenceSupport, uncertainty, futureRestriction" }, workMode: { type: "string", enum: ["single", "team", "swarm"] }, autonomy: { type: "string", enum: ["analyse", "draft", "propose"] }, agentCap: { type: "integer", description: "Concurrency cap (1–16); separate from autonomy" } }, ["groupId"]) },
   { name: "check_data_readiness", title: "Data readiness", scope: "case:read", step: "readiness", longRunning: false, description: "Check the required and recommended datasets, data-pack status and completeness for the mission scope. Missing information stays unresolved and blocks the mission in Waiting for Information.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
   { name: "assess_election_options", title: "Election options", scope: "scenario:run", step: "options", longRunning: true, description: "Restate every eligible election package with the shared Election Engine and rank them by the mission's approved objectives. Returns recommended and rejected alternatives with reasons.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
   { name: "run_scenario", title: "Run scenario", scope: "scenario:run", step: "scenario", longRunning: true, description: "Run the GloBE engine for the mission's case version with an option id or explicit election switches. Drafts never touch the approved case. Returns a calculation id.", inputSchema: obj({ missionId: str("Mission id"), optionId: str("Option id from assess_election_options"), electionsOn: { type: "object", additionalProperties: { type: "boolean" }, description: "Election switch keys such as OECD_3.2.2@TH" }, label: str("Run label") }, ["missionId"]) },
@@ -102,6 +113,12 @@ export const TOOL_CATALOGUE: { name: ToolName; title: string; description: strin
   { name: "build_audit_pack", title: "Build audit package", scope: "pack:build", step: "pack", longRunning: true, description: "Assemble the audit package: executive summary, election register, calculation summary, checks, compliance findings, decisions, evidence index and outstanding issues. Moves a fully checked mission to Ready for Review.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
   { name: "get_mission_status", title: "Mission status", scope: "case:read", longRunning: false, description: "Current state, step checkpoints, blockers, open decisions, latest calculation, checks and completion gate for a mission.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
   { name: "search_legal_corpus", title: "Search legal corpus", scope: "case:read", longRunning: false, description: "Search the dated legal corpus behind the rule pack: OECD Model Rules, Commentary and Administrative Guidance, Thai decree and notifications, and other domestic instruments. Returns passages keyed to rule, election and instrument ids with effective dates; passages not in force on the as-of date are flagged, never hidden. Texts are GMT24 paraphrases — the source URL is returned for confirmation. Read-only, no mission required.", inputSchema: obj({ query: str("Question or citation, e.g. 'Art. 4.4.4 recapture' or 'Thai QDMTT filing deadline'"), authority: { type: "string", enum: ["OECD", "TH", "IE", "JP", "US", "domestic"], description: "Limit to one authority, or 'domestic' for every non-OECD source" }, jurisdiction: str("ISO code — keeps global passages and this jurisdiction's own"), asOf: str("ISO date used for in-force flags (default: the mission's fiscal-year start, else today)"), ruleId: str("Rule id from the rule pack, e.g. OECD-SBIE-53"), electionId: str("Election id, e.g. OECD_3.2.2"), instrumentId: str("Thai instrument id, e.g. dgtopuptax4"), missionId: str("Mission id — used only for the as-of date and case hash"), limit: { type: "integer", description: "Max passages (default 6, max 20)" } }, ["query"]) },
+  { name: "design_team", title: "Design specialist team", scope: "mission:write", longRunning: false, description: "Mission Director: assess complexity, choose Single/Team/Swarm, compose Agent Cards from the approved specialist catalogue.", inputSchema: obj({ missionId: str("Mission id"), workMode: { type: "string", enum: ["single", "team", "swarm"] }, autonomy: { type: "string", enum: ["analyse", "draft", "propose"] }, agentCap: { type: "integer" } }, ["missionId"]) },
+  { name: "audit_challenge", title: "AI audit challenge", scope: "case:read", longRunning: false, description: "Independent review agent challenges classifications, elections and evidence. Findings, not a prediction of tax-authority acceptance.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
+  { name: "recover_evidence", title: "Missing evidence recovery", scope: "case:read", longRunning: false, description: "Classify evidence as verified, candidate, assumption or missing and draft targeted information requests.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
+  { name: "impact_analysis", title: "Automatic impact analysis", scope: "case:read", longRunning: false, description: "Compare the live case to the pinned mission version and list steps and specialists that must rerun.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
+  { name: "regulatory_radar", title: "Regulatory change radar", scope: "case:read", longRunning: false, description: "List OECD and country updates that may affect the scoped group. Rule changes stay in review until approved.", inputSchema: obj({ missionId: str("Mission id"), groupId: str("Group id") }) },
+  { name: "replay_mission", title: "Mission replay", scope: "case:read", longRunning: false, description: "Return the pinned snapshot, elections, rule versions and engine version needed to reproduce the calculation.", inputSchema: obj({ missionId: str("Mission id") }, ["missionId"]) },
 ];
 
 function obj(props: Record<string, unknown>, required: string[] = []) {
@@ -212,6 +229,12 @@ export function callTool(name: ToolName, rawArgs: unknown, ctx: ToolCtx): ToolRe
     case "create_mission": return createMissionTool(args as ToolArgs<"create_mission">, ctx);
     case "get_mission_status": return getMissionStatus(args as ToolArgs<"get_mission_status">, ctx);
     case "search_legal_corpus": return searchLegal(args as ToolArgs<"search_legal_corpus">, ctx);
+    case "design_team": return designTeamTool(args as ToolArgs<"design_team">, ctx);
+    case "audit_challenge": return auditChallengeTool(args as ToolArgs<"audit_challenge">, ctx);
+    case "recover_evidence": return recoverEvidenceTool(args as ToolArgs<"recover_evidence">, ctx);
+    case "impact_analysis": return impactTool(args as ToolArgs<"impact_analysis">, ctx);
+    case "regulatory_radar": return radarTool(args as ToolArgs<"regulatory_radar">, ctx);
+    case "replay_mission": return replayTool(args as ToolArgs<"replay_mission">, ctx);
     default: return missionTool(name, args, ctx);
   }
 }
@@ -314,8 +337,8 @@ function createMissionTool(a: ToolArgs<"create_mission">, ctx: ToolCtx): ToolRes
   setActiveSeed(s.groupId);
   const objective = a.objective?.trim() || RELEASE_OBJECTIVE;
   const jurisdictions = a.jurisdictions?.length ? a.jurisdictions.filter((j) => s.jurisdictions.includes(j)) : s.jurisdictions;
-  const fresh = createMission({ snapshot: s, createdBy: ctx.client, actor: ctx.actor, objective, jurisdictions, objectives: a.objectives });
-  const idemKey = hashOf({ objective, jurisdictions: [...jurisdictions].sort(), caseHash: fresh.case.hash, groupId: a.groupId });
+  const fresh = createMission({ snapshot: s, createdBy: ctx.client, actor: ctx.actor, objective, jurisdictions, objectives: a.objectives, workMode: a.workMode, autonomy: a.autonomy, agentCap: a.agentCap });
+  const idemKey = hashOf({ objective, jurisdictions: [...jurisdictions].sort(), caseHash: fresh.case.hash, groupId: a.groupId, workMode: a.workMode ?? "auto", autonomy: a.autonomy ?? "propose", agentCap: a.agentCap ?? 0 });
   const existing = ctx.listMissions(a.groupId).find((m) => m.idempotency.create === idemKey && !["cancelled", "completed"].includes(m.state));
   const jobId = `job_${idemKey.slice(0, 12)}`;
   if (existing) return envelope("create_mission", jobId, existing.case.hash, summarise(existing), { missionId: existing.id, ruleVersions: existing.case.snapshot.ruleVersions, unresolved: ["Mission already exists for this objective, scope and case version — returned the existing record."] });
@@ -357,6 +380,11 @@ export function summarise(m: MissionRecord) {
     packs: m.packs.map((p) => ({ id: p.id, version: p.version, status: p.status, caseHash: p.caseHash, outstanding: p.outstanding.length })),
     completion: completionGate(m),
     evidenceCount: m.evidence.length,
+    workMode: m.workMode ?? null,
+    autonomy: m.autonomy ?? null,
+    agentCap: m.agentCap ?? null,
+    plan: m.plan ? { mode: m.plan.mode, modeWhy: m.plan.modeWhy, briefing: m.plan.briefing, cards: m.plan.cards.length, blockers: m.plan.blockers, completion: m.plan.completion, budget: m.plan.budget } : null,
+    cards: (m.cards ?? m.plan?.cards ?? []).map((c) => ({ id: c.id, role: c.role, title: c.title, status: c.status, why: c.why, output: c.output })),
     updatedAt: m.updatedAt,
   };
 }
@@ -574,4 +602,85 @@ function pack(m: MissionRecord, jobId: string, ctx: ToolCtx) {
   m = endStep(m, "build_audit_pack", ready ? "done" : "blocked", `Pack v${p.version}: ${p.outstanding.length} outstanding.`, ready ? undefined : gate.reasons.join(" "));
   if (ready && m.state === "running") m = setState(m, "ready-for-review", ctx.client, "Audit package built and every check passed; a person now reviews and approves completion.");
   return { m, result: envelope("build_audit_pack", jobId, m.case.hash, { pack: p, completion: gate }, { missionId: m.id, ruleVersions: m.case.snapshot.ruleVersions, unresolved: p.outstanding }) };
+}
+
+function designTeamTool(a: ToolArgs<"design_team">, ctx: ToolCtx): ToolResult {
+  const loaded = requireMission(ctx, a.missionId);
+  let m = requireWritable(ctx, loaded);
+  const plan = designTeam(m.case.snapshot, {
+    mode: a.workMode ?? m.workMode,
+    autonomy: a.autonomy ?? m.autonomy,
+    agentCap: a.agentCap ?? m.agentCap,
+    objectives: m.scope.objectives,
+  });
+  m = { ...m, workMode: plan.mode, autonomy: plan.autonomy, agentCap: plan.agentCap, plan, cards: plan.cards };
+  m = appendEvidence(m, {
+    kind: "review",
+    title: `Mission Director: ${plan.cards.length} specialists · ${plan.mode} · ${plan.autonomy}`,
+    detail: plan.briefing,
+    refs: plan.cards.map((c) => c.id),
+    by: ctx.client,
+    supports: ["context"],
+  });
+  const jobId = jobIdFor("design_team", { id: m.id, mode: plan.mode, autonomy: plan.autonomy, cap: plan.agentCap }, m.case.hash);
+  m = recordJob(m, { id: jobId, tool: "design_team", missionId: m.id, status: "done", startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+  ctx.saveMission(m);
+  return envelope("design_team", jobId, m.case.hash, { plan, cards: plan.cards }, { missionId: m.id, ruleVersions: m.case.snapshot.ruleVersions, unresolved: plan.blockers });
+}
+
+function auditChallengeTool(a: ToolArgs<"audit_challenge">, ctx: ToolCtx): ToolResult {
+  const m = requireMission(ctx, a.missionId);
+  const findings = auditChallenge(m);
+  const jobId = jobIdFor("audit_challenge", { id: m.id, v: m.updatedAt, n: m.checks.length, p: m.packs.length }, m.case.hash);
+  return envelope("audit_challenge", jobId, m.case.hash, { findings, open: findings.filter((f) => f.status === "open").length, method: "Independent review against the defined mission scope. A second AI agreeing is not verification." }, { missionId: m.id, ruleVersions: m.case.snapshot.ruleVersions, sources: findings.flatMap((f) => f.evidence), unresolved: findings.filter((f) => f.status === "open").map((f) => `${f.target}: ${f.gap}`) });
+}
+
+function recoverEvidenceTool(a: ToolArgs<"recover_evidence">, ctx: ToolCtx): ToolResult {
+  const m = requireMission(ctx, a.missionId);
+  const gaps = recoverEvidence(m);
+  const jobId = jobIdFor("recover_evidence", { id: m.id, v: m.updatedAt, n: m.checks.length }, m.case.hash);
+  const counts = { verified: 0, candidate: 0, assumption: 0, missing: 0 };
+  for (const g of gaps) counts[g.klass] += 1;
+  return envelope("recover_evidence", jobId, m.case.hash, { gaps, counts, requests: gaps.filter((g) => g.request).map((g) => ({ id: g.id, request: g.request })) }, { missionId: m.id, unresolved: gaps.filter((g) => g.klass === "missing").map((g) => g.title) });
+}
+
+function impactTool(a: ToolArgs<"impact_analysis">, ctx: ToolCtx): ToolResult {
+  const m = requireMission(ctx, a.missionId);
+  const live = ctx.snapshotFor(m.scope.groupId);
+  const report = impactAnalysis(m, live);
+  const jobId = jobIdFor("impact_analysis", { id: m.id, live: live.takenAt, pin: m.case.hash }, m.case.hash);
+  return envelope("impact_analysis", jobId, m.case.hash, report, { missionId: m.id, ruleVersions: m.case.snapshot.ruleVersions, unresolved: report.changes });
+}
+
+function radarTool(a: ToolArgs<"regulatory_radar">, ctx: ToolCtx): ToolResult {
+  const mission = a.missionId ? requireMission(ctx, a.missionId) : null;
+  const groupId = a.groupId ?? mission?.scope.groupId ?? ctx.grantGroupId;
+  if (!groupId) throw new ToolError("missionId or groupId is required", 400);
+  if (ctx.grantGroupId && groupId !== ctx.grantGroupId) throw new ToolError("Group is outside the grant", 403);
+  const s = mission?.case.snapshot ?? ctx.snapshotFor(groupId);
+  const hits = radarHits(s);
+  const jobId = jobIdFor("regulatory_radar", { groupId, isos: s.jurisdictions }, mission?.case.hash ?? groupId);
+  return envelope("regulatory_radar", jobId, mission?.case.hash ?? hashOf({ live: true, g: groupId }), {
+    hits: hits.map((u) => ({
+      id: u.id,
+      date: u.date,
+      authority: u.authority,
+      title: u.title,
+      kind: u.kind,
+      status: u.status,
+      summary: u.summary,
+      effectiveFrom: u.effectiveFrom ?? null,
+      modules: u.modules,
+      open: u.open ?? null,
+      href: u.built[0]?.href ?? "/updates",
+    })),
+    note: "A detected update enters review before it becomes an approved production rule. The engine still uses the pinned rule versions.",
+  }, { missionId: mission?.id, ruleVersions: s.ruleVersions, sources: hits.map((h) => h.source.label), unresolved: hits.filter((h) => h.status !== "implemented").map((h) => `${h.id}: ${h.status}`) });
+}
+
+function replayTool(a: ToolArgs<"replay_mission">, ctx: ToolCtx): ToolResult {
+  const m = requireMission(ctx, a.missionId);
+  const replay = replayInputs(m);
+  const jobId = jobIdFor("replay_mission", { id: m.id, run: m.runs[m.runs.length - 1]?.id ?? "none" }, m.case.hash);
+  return envelope("replay_mission", jobId, m.case.hash, replay, { missionId: m.id, calculationIds: m.runs.length ? [m.runs[m.runs.length - 1]!.id] : [], ruleVersions: replay.ruleVersions, unresolved: replay.reproduced ? [] : ["No calculation run on this mission — replay inputs are the pinned snapshot only."] });
 }

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       protocolVersion: PROTOCOL,
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "gmt24-agi", version: "1.0.0" },
-      instructions: "GMT24 AGI Mode gateway. Work the release-1 mission in order; never compute tax yourself; propose, do not approve; a mission completes only when GMT24's checks pass.",
+      instructions: "GMT24 AGI Mode — virtual Pillar Two department. The Mission Director designs the specialist team. Never compute tax yourself; propose, do not approve; GIR is separate from domestic returns and payment; a mission completes only when GMT24's checks pass and a person signs off.",
     });
   }
   if (body.method === "notifications/initialized" || body.method.startsWith("notifications/")) return new NextResponse(null, { status: 202 });

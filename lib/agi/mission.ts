@@ -12,6 +12,7 @@
  *  - only the owner (or a handoff) mutates the mission while the lease is live.
  */
 import { describeCaseDiff, shortHash, versionOf } from "./case";
+import { designTeam } from "./director";
 import { appendEvidence } from "./evidence";
 import type {
   AgentClientId, Blocker, CaseSnapshot, CaseVersion, Decision, DecisionKind, DecisionOption, MissionObjectives, MissionRecord, MissionScope,
@@ -88,6 +89,9 @@ export type CreateMissionInput = {
   objectives?: Partial<MissionObjectives>;
   electionSet?: string[];
   id?: string;
+  workMode?: import("./specialists").WorkMode;
+  autonomy?: import("./specialists").Autonomy;
+  agentCap?: number;
 };
 
 export function createMission(i: CreateMissionInput): MissionRecord {
@@ -128,7 +132,16 @@ export function createMission(i: CreateMissionInput): MissionRecord {
     jobs: [],
     handoffs: [],
     idempotency: {},
+    workMode: i.workMode,
+    autonomy: i.autonomy,
+    agentCap: i.agentCap,
   };
+  const plan = designTeam(i.snapshot, { mode: i.workMode, autonomy: i.autonomy, agentCap: i.agentCap, objectives: scope.objectives });
+  m.workMode = plan.mode;
+  m.autonomy = plan.autonomy;
+  m.agentCap = plan.agentCap;
+  m.plan = plan;
+  m.cards = plan.cards;
   m = appendEvidence(m, {
     kind: "source",
     title: `Case version ${shortHash(cv.hash)} pinned`,

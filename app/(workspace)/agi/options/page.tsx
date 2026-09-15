@@ -47,8 +47,8 @@ function Options({ m }: { m: MissionRecord }) {
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, flex: 1 }}>Options and Elections</h2>
-        <button className="btn btn-primary" disabled={busy || locked || m.state === "paused"} onClick={assess}><Sparkles size={15} />{a ? "Re-assess best election combination" : "Find the best election combination"}</button>
+        <h2 style={{ margin: 0, flex: 1 }}>Election Decision Studio</h2>
+        <button className="btn btn-primary" disabled={busy || locked || m.state === "paused"} onClick={assess}><Sparkles size={15} />{a ? "Re-assess eligible combinations" : "Which combination is best over three years?"}</button>
       </div>
 
       <div className="agi-three">
@@ -84,11 +84,14 @@ function Options({ m }: { m: MissionRecord }) {
       {open && (
         <div className="callout" style={{ borderLeftColor: "var(--color-warn)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ flex: 1 }}><strong>Waiting for approval:</strong> {open.title} — {open.options.length} option(s) presented on case {shortHash(open.caseHash)}. A person decides in the Decision and Approval Centre.</span>
-          <Link href="/agi" className="btn btn-primary">Open decision</Link>
+          <Link href="/agi/approvals" className="btn btn-primary">Open decision</Link>
         </div>
       )}
 
-      {!a && <div className="callout">No assessment yet. Run “Find the best election combination”: the Election Engine restates every eligible package from GloBE Core and the analyser ranks them on the weights above, disclosing rejected alternatives with reasons.</div>}
+      <div className="callout">
+        The studio compares eligibility and legal compatibility, modelled tax and cash timing, duration / renewal / revocation, future-year consequences, data effort and evidence strength. “Best” follows the approved objectives — including compliance and defensibility — not tax cash alone. Recommended option, alternatives, assumptions and reasons for rejecting the others are all kept.
+      </div>
+      {!a && <div className="callout">No assessment yet. Run the comparison: the Election Engine restates every eligible package from GloBE Core and the analyser ranks them on the weights above.</div>}
 
       {a && (
         <section className="panel">
