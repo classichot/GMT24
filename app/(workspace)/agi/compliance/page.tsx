@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Scale } from "lucide-react";
+import { Radar, Scale } from "lucide-react";
+import { radarHits } from "@/lib/agi/director";
 import { NoMission } from "@/components/agi/AgiFrame";
 import { EvidencePanel } from "@/components/agi/Evidence";
 import { complianceSummary } from "@/lib/agi/compliance";
@@ -37,6 +38,7 @@ function Compliance({ m }: { m: MissionRecord }) {
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <h2 style={{ margin: 0, flex: 1 }}>Compliance Review</h2>
         <button className="btn btn-primary" disabled={busy || locked} onClick={() => agi.tool("review_compliance", { missionId: m.id })}><Scale size={15} />{rows.length ? "Re-run compliance review" : "Review compliance"}</button>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => agi.tool("regulatory_radar", { missionId: m.id })}><Radar size={15} />Regulatory radar</button>
       </div>
 
       <div className="kpi-grid cols-6">
@@ -64,8 +66,36 @@ function Compliance({ m }: { m: MissionRecord }) {
       {rows.length > 0 && <FindingsTable title="OECD requirements" sub="Model Rules, Commentary and Administrative Guidance — cited as the OECD source, not as domestic law" rows={oecd} />}
       {rows.length > 0 && <FindingsTable title={`Domestic requirements${authorities.length ? ` · ${authorities.join(", ")}` : ""}`} sub="Domestic legislation and guidance for the scoped jurisdictions, with effective dates. Domestic and OECD requirements may differ; differences are reported as findings, not resolved by assumption." rows={domestic} />}
 
+      <RadarPanel m={m} />
+
       <EvidencePanel m={m} supports="compliance" title="Evidence behind the compliance findings" compact />
     </div>
+  );
+}
+
+function RadarPanel({ m }: { m: MissionRecord }) {
+  const hits = radarHits(m.case.snapshot);
+  return (
+    <section className="panel">
+      <div className="panel-head"><h4>Regulatory change impact radar</h4><Link href="/updates" className="btn btn-ghost">Latest update register</Link></div>
+      <div className="panel-body" style={{ fontSize: 12 }}>
+        <p style={{ marginTop: 0, color: "var(--color-neutral-600)" }}>Official updates that may affect this group. A change enters review before it becomes an approved production rule. The mission stays on the pinned rule versions.</p>
+        <table className="table">
+          <thead><tr><th>Date</th><th>Authority</th><th>Update</th><th>GMT24</th><th>Modules</th></tr></thead>
+          <tbody>
+            {hits.map((u) => (
+              <tr key={u.id}>
+                <td style={{ whiteSpace: "nowrap" }}>{u.date}</td>
+                <td>{u.authority}</td>
+                <td><strong>{u.title}</strong><div style={{ color: "var(--color-neutral-600)" }}>{u.summary}</div></td>
+                <td><span className={`tag ${u.status === "implemented" ? "tag-ok" : u.status === "partial" ? "tag-warn" : "tag-neutral"}`} style={{ fontSize: 10 }}>{u.status}</span></td>
+                <td>{u.modules.join(", ")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

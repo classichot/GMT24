@@ -30,6 +30,7 @@ import {
   Sparkles,
   Timer,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 import { DATA, ADVISOR_USER } from "@/lib/model";
@@ -151,11 +152,15 @@ const NAV = [
 const AGI_NAV = {
   group: "AGI Mode",
   items: [
-    { href: "/agi", label: "Mission Overview", icon: Bot },
-    { href: "/agi/options", label: "Options and Elections", icon: SlidersHorizontal },
+    { href: "/agi", label: "Mission Control", icon: Bot },
+    { href: "/agi/team", label: "AI Team Builder", icon: Users },
+    { href: "/agi/data", label: "Data Readiness", icon: Database },
+    { href: "/agi/options", label: "Elections & Scenarios", icon: SlidersHorizontal },
     { href: "/agi/calculation", label: "Calculation Review", icon: ListChecks },
     { href: "/agi/compliance", label: "Compliance Review", icon: Scale },
-    { href: "/agi/audit-file", label: "Audit File", icon: FileText },
+    { href: "/agi/audit-file", label: "Audit Defence", icon: Shield },
+    { href: "/agi/reporting", label: "Reporting & Filing", icon: FileText },
+    { href: "/agi/approvals", label: "Approvals & Exceptions", icon: ClipboardList },
     { href: "/agi/connections", label: "Agent Connections", icon: Link2 },
   ],
 };
@@ -235,11 +240,15 @@ const TITLES: Record<string, [string, string]> = {
   "/updates": ["Intelligence", "Latest update — regulation vs GMT24 build"],
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
-  "/agi": ["AGI Mode", "Mission Overview"],
-  "/agi/options": ["AGI Mode", "Options and Elections"],
+  "/agi": ["AGI Mode", "Mission Control"],
+  "/agi/team": ["AGI Mode", "AI Team Builder"],
+  "/agi/data": ["AGI Mode", "Data Readiness"],
+  "/agi/options": ["AGI Mode", "Election Decision Studio"],
   "/agi/calculation": ["AGI Mode", "Calculation Review"],
   "/agi/compliance": ["AGI Mode", "Compliance Review"],
-  "/agi/audit-file": ["AGI Mode", "Audit File"],
+  "/agi/audit-file": ["AGI Mode", "Audit Defence"],
+  "/agi/reporting": ["AGI Mode", "Reporting & Filing"],
+  "/agi/approvals": ["AGI Mode", "Approvals & Exceptions"],
   "/agi/connections": ["AGI Mode", "Agent Connections"],
 };
 

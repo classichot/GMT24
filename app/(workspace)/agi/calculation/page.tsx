@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Calculator, ListChecks, RefreshCw } from "lucide-react";
+import { Calculator, History, ListChecks, RefreshCw, ScanSearch } from "lucide-react";
 import { NoMission } from "@/components/agi/AgiFrame";
 import { EvidencePanel } from "@/components/agi/Evidence";
 import { shortHash } from "@/lib/agi/case";
@@ -11,6 +11,7 @@ import { latestRun } from "@/lib/agi/auditPack";
 import { checkSummary } from "@/lib/agi/verify";
 import { useAgi } from "@/lib/agi/useAgi";
 import type { CalcRun, CaseSnapshot, CheckResult, MissionRecord } from "@/lib/agi/types";
+import { impactAnalysis, replayInputs } from "@/lib/agi/wow";
 import { etrPct, eur, pct } from "@/lib/format";
 
 const GROUP_LABEL: Record<CheckResult["group"], string> = {
@@ -43,6 +44,7 @@ function Calculation({ m }: { m: MissionRecord }) {
   const run = runs.find((r) => r.id === runId) ?? latest ?? null;
   const [filter, setFilter] = useState<"all" | "fail" | "warn" | "pass">("all");
   const [cmp, setCmp] = useState<string>("");
+  const [openIso, setOpenIso] = useState<string | null>(null);
   const cs = checkSummary(m.checks);
   const busy = !!agi.busy;
   const locked = ["completed", "cancelled", "paused"].includes(m.state);
@@ -58,6 +60,8 @@ function Calculation({ m }: { m: MissionRecord }) {
         <h2 style={{ margin: 0, flex: 1 }}>Calculation Review</h2>
         <button className="btn btn-secondary" disabled={busy || locked} onClick={() => agi.tool("run_scenario", { missionId: m.id })}><Calculator size={15} />Run package</button>
         <button className="btn btn-primary" disabled={busy || locked || !latest} onClick={() => agi.tool("verify_calculation", { missionId: m.id, runId: run?.id, nonce: String(Date.now()).slice(-6) })} title="Reproduce the run from the case version and check it rule by rule"><ListChecks size={15} />Verify this case</button>
+        <button className="btn btn-ghost" disabled={busy} onClick={() => agi.tool("impact_analysis", { missionId: m.id })}><ScanSearch size={15} />Impact vs live case</button>
+        <button className="btn btn-ghost" disabled={busy} onClick={() => agi.tool("replay_mission", { missionId: m.id })}><History size={15} />Replay inputs</button>
       </div>
 
       <div className="kpi-grid cols-4">
@@ -98,7 +102,7 @@ function Calculation({ m }: { m: MissionRecord }) {
               <thead><tr><th>Jurisdiction</th><th className="num">GloBE income</th><th className="num">Covered tax</th><th className="num">ETR</th><th className="num">SBIE</th><th className="num">Excess profit</th><th className="num">Top-up %</th><th className="num">Top-up</th><th className="num">QDMTT</th><th className="num">IIR</th><th className="num">UTPR</th><th>Exposure</th><th className="num">Completeness</th></tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.blendKey}>
+                  <tr key={r.blendKey} className={`clickable${openIso === r.blendKey ? " selected" : ""}`} onClick={() => setOpenIso(openIso === r.blendKey ? null : r.blendKey)}>
                     <td>{r.name} <span className="agi-mono">{r.iso}</span>{r.blendKey !== r.iso && <span className="agi-mono" style={{ color: "var(--color-neutral-600)" }}> · {r.blendKey}</span>}</td>
                     <td className="num">{eur(r.globeIncome)}</td><td className="num">{eur(r.coveredTax)}</td><td className="num">{etrPct(r)}</td><td className="num">{eur(r.sbie)}</td><td className="num">{eur(r.excess)}</td>
                     <td className="num">{r.etrComputed ? pct(r.topUpRate) : "—"}</td><td className="num" style={{ fontWeight: 700 }}>{eur(r.jurisdictionalTopUp)}</td>
@@ -109,7 +113,26 @@ function Calculation({ m }: { m: MissionRecord }) {
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, color: "var(--color-neutral-600)" }}>Every figure comes from GMT24-CALC (engine plus Election Engine overlay), never from an agent. Loss jurisdictions show no ETR (Art. 5.1.2). Drill into the same numbers in normal mode: <Link href="/etr">ETR</Link>, <Link href="/top-up">Top-up</Link>, <Link href="/allocation">Allocation</Link>, <Link href="/audit">Audit trail</Link>.</div>
+            {openIso && run && (
+              <div className="callout" style={{ marginTop: 12 }}>
+                <strong>Click any number → evidence.</strong> {(() => {
+                  const row = rows.find((x) => x.blendKey === openIso);
+                  const ev = m.evidence.filter((e) => e.supports.includes("scenario") || e.supports.includes(run.id) || e.supports.includes("verify"));
+                  const ck = m.checks.filter((c) => !c.iso || c.iso === row?.iso);
+                  return (
+                    <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                      <div>Blend {row?.name} · {row?.iso} · top-up {row ? eur(row.jurisdictionalTopUp) : "—"} from {run.engine} on case {shortHash(run.caseHash)}.</div>
+                      <div>Approved inputs: {Object.entries(run.inputs.electionsOn).filter(([, v]) => v).map(([k]) => k).join(", ") || "GloBE Core defaults"} · data {run.inputs.dataVersion.slice(0, 12)}.</div>
+                      <div>Rule versions: {run.inputs.ruleVersions.map((v) => `${v.id}@${v.version}`).join(", ") || "pinned pack"}.</div>
+                      <div>Review history: {ck.length ? ck.map((c) => `${c.title} (${c.status})`).join("; ") : "not verified yet"}.</div>
+                      <div>Evidence: {ev.length ? ev.slice(0, 6).map((e) => e.title).join(" · ") : "run the scenario and verify to attach records"}.</div>
+                      <div>Same figures in normal mode: <Link href={`/etr?iso=${row?.iso ?? ""}`}>ETR</Link> · <Link href="/top-up">Top-up</Link> · <Link href="/allocation">Allocation</Link> · <Link href="/audit">Audit trail</Link>.</div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+            <div style={{ marginTop: 8, color: "var(--color-neutral-600)" }}>Every figure comes from GMT24-CALC (engine plus Election Engine overlay), never from an agent. Click a row to inspect calculation steps, approved inputs, rule versions and review history. Loss jurisdictions show no ETR (Art. 5.1.2).</div>
           </div>
         </section>
       )}
@@ -177,6 +200,36 @@ function Calculation({ m }: { m: MissionRecord }) {
       </section>
 
       <EvidencePanel m={m} supports="verify" title="Evidence behind the verification" compact />
+
+      <ImpactReplay m={m} />
+    </div>
+  );
+}
+
+function ImpactReplay({ m }: { m: MissionRecord }) {
+  const agi = useAgi();
+  const impact = impactAnalysis(m, agi.live);
+  const replay = replayInputs(m);
+  return (
+    <div className="agi-two">
+      <section className="panel">
+        <div className="panel-head"><h4>Automatic impact analysis</h4><span className={`tag ${impact.drifted ? "tag-warn" : "tag-ok"}`}>{impact.drifted ? "refresh required" : "in sync"}</span></div>
+        <div className="panel-body" style={{ fontSize: 12, display: "grid", gap: 8 }}>
+          <div>{impact.note}</div>
+          {impact.changes.length > 0 && <ul style={{ margin: 0, paddingLeft: 18 }}>{impact.changes.map((c) => <li key={c}>{c}</li>)}</ul>}
+          {impact.reopen.length > 0 && <div>Reopen: {impact.reopen.join(", ")} · specialists {impact.specialists.join(", ")}</div>}
+          {impact.drifted && <button className="btn btn-secondary" disabled={!!agi.busy} onClick={() => agi.recheck(m.id)}>Pin live case and reopen affected steps</button>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><h4>Mission replay</h4><span className="tag tag-outline">{replay.engine}</span></div>
+        <div className="panel-body" style={{ fontSize: 12, display: "grid", gap: 6 }}>
+          <div>Case {shortHash(replay.caseHash)} · FY {replay.fy} · data {replay.dataVersion.slice(0, 12)}</div>
+          <div>Elections on: {Object.entries(replay.electionsOn).filter(([, v]) => v).map(([k]) => k).join(", ") || "Core defaults"}</div>
+          <div>Rule versions: {replay.ruleVersions.map((v) => `${v.id}@${v.version}`).join(", ") || "pinned pack"}</div>
+          <div>{replay.note}</div>
+        </div>
+      </section>
     </div>
   );
 }

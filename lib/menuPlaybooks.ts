@@ -81,6 +81,16 @@ export const SIDEBAR_MENUS: SidebarMenu[] = [
   { group: "Intelligence", href: "/updates", label: "Latest update" },
   { group: "Intelligence", href: "/jurisdictions", label: "Jurisdiction rules" },
   { group: "Intelligence", href: "/settings", label: "Settings" },
+  { group: "AGI Mode", href: "/agi", label: "Mission Control" },
+  { group: "AGI Mode", href: "/agi/team", label: "AI Team Builder" },
+  { group: "AGI Mode", href: "/agi/data", label: "Data Readiness" },
+  { group: "AGI Mode", href: "/agi/options", label: "Elections & Scenarios" },
+  { group: "AGI Mode", href: "/agi/calculation", label: "Calculation Review" },
+  { group: "AGI Mode", href: "/agi/compliance", label: "Compliance Review" },
+  { group: "AGI Mode", href: "/agi/audit-file", label: "Audit Defence" },
+  { group: "AGI Mode", href: "/agi/reporting", label: "Reporting & Filing" },
+  { group: "AGI Mode", href: "/agi/approvals", label: "Approvals & Exceptions" },
+  { group: "AGI Mode", href: "/agi/connections", label: "Agent Connections" },
 ];
 
 const PRIMARY_HREF: Record<string, string> = {

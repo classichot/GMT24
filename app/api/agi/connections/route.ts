@@ -23,10 +23,10 @@ export async function GET(req: Request) {
     clients: Object.values(AGENT_CLIENTS).map((c) => ({
       ...c,
       recipe: c.id === "grok-bot"
-        ? [`In Grok Bot, add a connector with MCP URL ${base}/api/agi/mcp.`, "Set the Authorization header to `Bearer <gateway key>`.", "Paste the mission instructions into the bot's instruction field.", "Run the connection test below, then ask the bot to start the release-1 mission."]
+        ? [`In Grok Bot, add a connector with MCP URL ${base}/api/agi/mcp.`, "Set the Authorization header to `Bearer <gateway key>`.", "Paste the mission instructions into the bot's instruction field.", "Run the connection test below, then ask the bot to start a Pillar Two review mission."]
         : c.id === "claude-cowork"
           ? [`In Claude, open Settings › Connectors › Add custom connector and enter ${base}/api/agi/mcp as the remote MCP URL.`, "Choose header authentication and paste `Bearer <gateway key>`.", "In Cowork, attach the connector to the project and paste the workflow instructions.", "Run the connection test below; Claude then proposes and GMT24 records decisions."]
-          : [`In GPT Work, install the GMT24 plugin from ${base}/api/agi/plugin (it declares the MCP connection and instructions).`, "Authenticate with the gateway key when prompted.", "Confirm the tool list shows the 11 GMT24 tools.", "Run the connection test below; structured results and approval handoff are verified."],
+          : [`In GPT Work, install the GMT24 plugin from ${base}/api/agi/plugin (it declares the MCP connection and instructions).`, "Authenticate with the gateway key when prompted.", "Confirm the tool list shows the GMT24 catalogue (missions, calculations, team design, radar, replay).", "Run the connection test below; structured results and approval handoff are verified."],
     })),
   });
 }

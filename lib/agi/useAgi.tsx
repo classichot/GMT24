@@ -35,7 +35,7 @@ export type AgiApi = {
   busy: string | null;
   lastError: string | null;
   clearError: () => void;
-  createMission: (i: { objective?: string; jurisdictions?: string[]; objectives?: Partial<MissionObjectives> }) => MissionRecord | null;
+  createMission: (i: { objective?: string; jurisdictions?: string[]; objectives?: Partial<MissionObjectives>; workMode?: "single" | "team" | "swarm"; autonomy?: "analyse" | "draft" | "propose"; agentCap?: number }) => MissionRecord | null;
   run: (id: string, maxSteps?: number) => AdvanceResult | null;
   tool: <T = unknown>(name: ToolName, args: Record<string, unknown>) => ToolResult<T> | null;
   pause: (id: string) => void;

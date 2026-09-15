@@ -11,11 +11,15 @@ import { shortHash } from "@/lib/agi/case";
 import type { ReactNode } from "react";
 
 export const AGI_AREAS = [
-  { href: "/agi", label: "Mission Overview" },
-  { href: "/agi/options", label: "Options and Elections" },
+  { href: "/agi", label: "Mission Control" },
+  { href: "/agi/team", label: "AI Team Builder" },
+  { href: "/agi/data", label: "Data Readiness" },
+  { href: "/agi/options", label: "Elections & Scenarios" },
   { href: "/agi/calculation", label: "Calculation Review" },
   { href: "/agi/compliance", label: "Compliance Review" },
-  { href: "/agi/audit-file", label: "Audit File" },
+  { href: "/agi/audit-file", label: "Audit Defence" },
+  { href: "/agi/reporting", label: "Reporting & Filing" },
+  { href: "/agi/approvals", label: "Approvals & Exceptions" },
   { href: "/agi/connections", label: "Agent Connections" },
 ];
 
@@ -33,7 +37,7 @@ export function AgiFrame({ children }: { children: ReactNode }) {
       <div className="agi-band">
         <span className="agi-band-kicker"><Bot size={12} />AGI mode</span>
         <span className="agi-band-text">
-          Mission-execution layer above normal mode. Agents plan, compare, verify and assemble; GMT24 enforces who approves. Same engines, rule versions, permissions and evidence as normal mode — nothing here changes the case until a person applies an approved proposal.
+          Virtual Pillar Two department. You assign a mission; the Mission Director designs the team, coordinates specialists and checks completion. GMT24's versioned engine produces the official numbers. Binding elections, filing and payment stay with a person.
         </span>
         <span className="tag tag-outline" title="Case version the workspace shows right now">Live case {shortHash(agi.liveHash)}</span>
         <span className={`tag ${agi.syncState === "offline" ? "tag-hot" : "tag-neutral"}`} title="Gateway mirror: external assistants continue the same mission id">
@@ -77,7 +81,7 @@ export function AgiFrame({ children }: { children: ReactNode }) {
 export function NoMission() {
   return (
     <div className="callout">
-      No mission selected. Go to <Link href="/agi">Mission Overview</Link> to create the release-1 mission or select an existing one.
+      No mission selected. Go to <Link href="/agi">Mission Control</Link> to create a mission or select an existing one.
     </div>
   );
 }

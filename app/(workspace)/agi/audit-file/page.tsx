@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileText, Package, ShieldCheck } from "lucide-react";
+import { Download, FileText, Package, Search, ShieldCheck, Swords } from "lucide-react";
+import { auditChallenge, recoverEvidence } from "@/lib/agi/wow";
 import { NoMission } from "@/components/agi/AgiFrame";
 import { EvidencePanel } from "@/components/agi/Evidence";
 import { packToMarkdown } from "@/lib/agi/auditPack";
@@ -38,15 +39,19 @@ function AuditFile({ m }: { m: MissionRecord }) {
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, flex: 1 }}>Audit File</h2>
+        <h2 style={{ margin: 0, flex: 1 }}>Audit Defence</h2>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => agi.tool("audit_challenge", { missionId: m.id })}><Swords size={15} />AI audit challenge</button>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => agi.tool("recover_evidence", { missionId: m.id })}><Search size={15} />Missing evidence</button>
         <button className="btn btn-primary" disabled={busy || locked} onClick={() => agi.tool("build_audit_pack", { missionId: m.id })}><Package size={15} />{current ? "Rebuild package on this case version" : "Prepare for audit"}</button>
         {pack && <button className="btn btn-secondary" onClick={() => download(`GMT24-audit-package-${m.id}-v${pack.version}.md`, packToMarkdown(pack, m))}><Download size={15} />Download v{pack.version} (.md)</button>}
         {m.state === "ready-for-review" && <button className="btn btn-hot" disabled={busy || !gate.ok} onClick={() => agi.complete(m.id)} title={gate.reasons.join(" ")}><ShieldCheck size={15} />Approve completion</button>}
       </div>
 
       <div className="callout">
-        Audit readiness describes the file GMT24 assembled: executive summary, election register with rejected alternatives, calculation summary, verification checks, compliance findings, decisions, a hash-chained evidence index and the outstanding issues. It never predicts or guarantees an auditor's or tax authority's conclusion. Packages are versioned per case version; earlier approved packages stay in the record when the case changes.
+        The independent review agent challenges classifications, elections and traceability against a defined review scope. It does not predict tax-authority acceptance. Evidence is classed as verified, candidate, assumed or missing. Audit readiness describes the file GMT24 assembled — never an auditor's conclusion. Packages are versioned; earlier approved packages stay when the case changes.
       </div>
+
+      <ChallengeAndGaps m={m} />
 
       {packs.length > 0 && (
         <section className="panel">
@@ -119,6 +124,50 @@ function PackView({ p, m }: { p: AuditPack; m: MissionRecord }) {
           <table className="table">
             <thead><tr><th>#</th><th>Kind</th><th>Record</th><th>Hash</th><th>Refs</th></tr></thead>
             <tbody>{p.evidenceIndex.map((e, i) => <tr key={e.id}><td>{i + 1}</td><td><span className={`tag ${evidenceKindTag(e.kind)}`} style={{ fontSize: 10 }}>{EVIDENCE_KIND_LABEL[e.kind]}</span></td><td>{e.title}</td><td className="agi-mono">{e.hash}</td><td style={{ color: "var(--color-neutral-600)" }}>{e.refs.slice(0, 4).join(", ")}{e.refs.length > 4 ? ` +${e.refs.length - 4}` : ""}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ChallengeAndGaps({ m }: { m: MissionRecord }) {
+  const findings = auditChallenge(m);
+  const gaps = recoverEvidence(m);
+  return (
+    <div className="agi-two">
+      <section className="panel">
+        <div className="panel-head"><h4>AI audit challenge</h4><span className="tag tag-outline">{findings.filter((f) => f.status === "open").length} open</span></div>
+        <div className="panel-body" style={{ fontSize: 12 }}>
+          <table className="table">
+            <thead><tr><th>Question</th><th>Target</th><th>Status</th><th>Gap</th></tr></thead>
+            <tbody>
+              {findings.map((f) => (
+                <tr key={f.id}>
+                  <td>{f.question}</td>
+                  <td>{f.target}</td>
+                  <td><span className={`tag ${f.status === "answered" ? "tag-ok" : f.severity === "block" ? "tag-hot" : "tag-warn"}`} style={{ fontSize: 10 }}>{f.status} · {f.severity}</span></td>
+                  <td>{f.gap}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><h4>Evidence classification</h4></div>
+        <div className="panel-body" style={{ fontSize: 12 }}>
+          <table className="table">
+            <thead><tr><th>Class</th><th>Item</th><th>Request</th></tr></thead>
+            <tbody>
+              {gaps.map((g) => (
+                <tr key={g.id}>
+                  <td><span className={`tag ${g.klass === "verified" ? "tag-ok" : g.klass === "missing" ? "tag-hot" : "tag-warn"}`} style={{ fontSize: 10 }}>{g.klass}</span></td>
+                  <td>{g.title}<div style={{ color: "var(--color-neutral-600)" }}>{g.detail}</div></td>
+                  <td>{g.request ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </section>

@@ -16,6 +16,8 @@ import type { YearRecord } from "../yearLedger";
 import type { PackOverlay } from "../packAmendments";
 import type { ScenarioInput } from "../engine";
 import type { IngestStatus } from "../ingestSim";
+import type { AgentCard } from "./specialists";
+import type { DirectorPlan } from "./director";
 
 /* ------------------------------------------------------------------ */
 /* Clients and access                                                  */
@@ -462,6 +464,13 @@ export type MissionRecord = {
   verifiedAgainst?: string;
   completedAt?: string;
   completionNote?: string;
+  /** How the Mission Director runs this mission. Optional on records created before the department layer. */
+  workMode?: "single" | "team" | "swarm";
+  autonomy?: "analyse" | "draft" | "propose";
+  /** Soft cap on concurrent agent instances (swarm). Separate from autonomy. */
+  agentCap?: number;
+  plan?: DirectorPlan;
+  cards?: AgentCard[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -480,7 +489,13 @@ export type ToolName =
   | "request_approval"
   | "build_audit_pack"
   | "get_mission_status"
-  | "search_legal_corpus";
+  | "search_legal_corpus"
+  | "design_team"
+  | "audit_challenge"
+  | "recover_evidence"
+  | "impact_analysis"
+  | "regulatory_radar"
+  | "replay_mission";
 
 export type ToolResult<T = unknown> = {
   ok: boolean;

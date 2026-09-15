@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowRightLeft, Bot, Check, CircleStop, Pause, Play, RefreshCw, Rocket, ShieldCheck, X } from "lucide-react";
+import { Briefing, ModeTags } from "@/components/agi/DirectorPanel";
 import { NoMission, StateBadge } from "@/components/agi/AgiFrame";
+import { designTeam } from "@/lib/agi/director";
+import { AUTONOMY_LABEL, WORK_MODE_LABEL, type Autonomy, type WorkMode } from "@/lib/agi/specialists";
 import { EvidencePanel } from "@/components/agi/Evidence";
 import { ObjectiveSliders } from "@/components/agi/Objectives";
 import { describeCaseDiff, shortHash } from "@/lib/agi/case";
@@ -26,7 +29,7 @@ export default function MissionOverview() {
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, flex: 1 }}>Mission Overview</h2>
+        <h2 style={{ margin: 0, flex: 1 }}>Mission Control</h2>
         <button className="btn btn-primary" onClick={() => setBuilding(!building)}><Rocket size={15} />{building ? "Close builder" : "New mission"}</button>
         <Link href="/agi/connections" className="btn btn-secondary"><Bot size={15} />Connect an assistant</Link>
       </div>
@@ -46,14 +49,29 @@ function MissionBuilder({ onDone }: { onDone: () => void }) {
   const [objective, setObjective] = useState(RELEASE_OBJECTIVE);
   const [jur, setJur] = useState<string[]>(agi.live.jurisdictions);
   const [weights, setWeights] = useState<MissionObjectives>(DEFAULT_OBJECTIVES);
+  const [workMode, setWorkMode] = useState<WorkMode | "auto">("auto");
+  const [autonomy, setAutonomy] = useState<Autonomy>("propose");
+  const [agentCap, setAgentCap] = useState(6);
   const toggle = (iso: string) => setJur((j) => (j.includes(iso) ? j.filter((x) => x !== iso) : [...j, iso]));
+  const preview = useMemo(() => designTeam({ ...agi.live, jurisdictions: jur.length ? jur : agi.live.jurisdictions }, {
+    mode: workMode === "auto" ? undefined : workMode,
+    autonomy,
+    agentCap,
+    objectives: weights,
+  }), [agi.live, jur, workMode, autonomy, agentCap, weights]);
+  const create = () => agi.createMission({
+    objective, jurisdictions: jur, objectives: weights,
+    workMode: workMode === "auto" ? undefined : workMode,
+    autonomy,
+    agentCap,
+  });
   return (
     <section className="panel">
-      <div className="panel-head"><h4>Mission Builder · release 1 template</h4><span className="tag tag-outline">Case {shortHash(agi.liveHash)} · {agi.live.fy}</span></div>
+      <div className="panel-head"><h4>Build My Pillar Two Team</h4><span className="tag tag-outline">Case {shortHash(agi.liveHash)} · {agi.live.fy}</span></div>
       <div className="panel-body agi-two">
         <div style={{ display: "grid", gap: 14 }}>
           <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-            <strong>Objective</strong>
+            <strong>Mission</strong>
             <textarea className="input" rows={3} value={objective} onChange={(e) => setObjective(e.target.value)} />
           </label>
           <div style={{ fontSize: 12 }}>
@@ -64,23 +82,45 @@ function MissionBuilder({ onDone }: { onDone: () => void }) {
               ))}
             </div>
           </div>
-          <div style={{ fontSize: 12 }}>
-            <strong>Permitted actions</strong>
-            <div style={{ color: "var(--color-neutral-600)", marginTop: 4, lineHeight: 1.5 }}>Read · compare elections ({RELEASE_ELECTION_SET.map(labelElection).join(", ")}) · run scenarios · verify · review compliance · propose changes · build the package. Approving, completing and applying changes stay with a person.</div>
+          <div style={{ fontSize: 12, display: "grid", gap: 8 }}>
+            <strong>Work mode · autonomy · agent cap</strong>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["auto", "single", "team", "swarm"] as const).map((k) => (
+                <button key={k} type="button" className={`chip${workMode === k ? " active" : ""}`} onClick={() => setWorkMode(k)}>{k === "auto" ? "Director chooses" : WORK_MODE_LABEL[k].label}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(Object.keys(AUTONOMY_LABEL) as Autonomy[]).map((k) => (
+                <button key={k} type="button" className={`chip${autonomy === k ? " active" : ""}`} onClick={() => setAutonomy(k)}>{AUTONOMY_LABEL[k].label}</button>
+              ))}
+            </div>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              Agent cap
+              <input className="input" type="number" min={1} max={16} value={agentCap} onChange={(e) => setAgentCap(Math.min(16, Math.max(1, Number(e.target.value) || 1)))} style={{ width: 72 }} />
+              <span style={{ color: "var(--color-neutral-600)" }}>Concurrency, not accuracy. Separate from autonomy.</span>
+            </label>
           </div>
           <div style={{ fontSize: 12 }}>
-            <strong>Completion rules</strong>
-            <ul style={{ margin: "4px 0 0", paddingLeft: 18, color: "var(--color-neutral-600)", lineHeight: 1.5 }}>{RELEASE_COMPLETION.map((c) => <li key={c}>{c}</li>)}</ul>
+            <strong>Permitted actions</strong>
+            <div style={{ color: "var(--color-neutral-600)", marginTop: 4, lineHeight: 1.5 }}>Read · compare elections ({RELEASE_ELECTION_SET.map(labelElection).join(", ")}) · run scenarios · verify · review compliance · propose changes · build the package. Binding elections, filing and payment stay with a person.</div>
           </div>
         </div>
         <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
           <div style={{ fontSize: 12 }}><strong>Company objectives</strong><div style={{ color: "var(--color-neutral-600)" }}>Weights 0–5 the ranking of election alternatives reflects. Engine figures never change with them.</div></div>
           <ObjectiveSliders value={weights} onChange={setWeights} />
+          <div className="callout" style={{ fontSize: 12 }}>{preview.briefing}</div>
+          <div style={{ fontSize: 12 }}>
+            <strong>Director plan · {WORK_MODE_LABEL[preview.mode].label} · {preview.cards.length} specialists</strong>
+            <ul style={{ margin: "6px 0 0", paddingLeft: 18, color: "var(--color-neutral-600)", lineHeight: 1.5 }}>
+              {preview.cards.slice(0, 8).map((c) => <li key={c.id}>{c.title}</li>)}
+              {preview.cards.length > 8 && <li>+{preview.cards.length - 8} more</li>}
+            </ul>
+          </div>
           <div className="stack-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-primary" disabled={!jur.length || !!agi.busy} onClick={() => { const r = agi.createMission({ objective, jurisdictions: jur, objectives: weights }); if (r) onDone(); }}>
+            <button className="btn btn-primary" disabled={!jur.length || !!agi.busy} onClick={() => { const r = create(); if (r) onDone(); }}>
               <Rocket size={15} />Create mission
             </button>
-            <button className="btn btn-secondary" disabled={!jur.length || !!agi.busy} onClick={() => { const r = agi.createMission({ objective, jurisdictions: jur, objectives: weights }); if (r) { agi.run(r.id); onDone(); } }}>
+            <button className="btn btn-secondary" disabled={!jur.length || !!agi.busy} onClick={() => { const r = create(); if (r) { agi.run(r.id); onDone(); } }}>
               <Play size={15} />Create and run
             </button>
           </div>
@@ -128,6 +168,7 @@ function MissionCard({ m }: { m: MissionRecord }) {
             <div style={{ fontSize: 12, color: "var(--color-neutral-600)", marginTop: 4 }}>{m.id} · {m.case.snapshot.groupName} · {m.scope.fy} · {m.scope.jurisdictions.join(", ")} · created by {m.createdBy} {new Date(m.createdAt).toLocaleString("en-GB")}</div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <ModeTags m={m} />
             {canRun && <button className="btn btn-primary" disabled={busy} onClick={() => agi.run(m.id)}><Play size={14} />{m.state === "draft" ? "Start" : "Continue"}</button>}
             {["running", "waiting-info", "waiting-approval", "validation-failed"].includes(m.state) && <button className="btn btn-secondary" disabled={busy} onClick={() => agi.pause(m.id)}><Pause size={14} />Pause</button>}
             {m.state === "paused" && <button className="btn btn-primary" disabled={busy} onClick={() => { agi.resume(m.id); agi.run(m.id); }}><Play size={14} />Resume</button>}
@@ -142,6 +183,7 @@ function MissionCard({ m }: { m: MissionRecord }) {
             <button className="btn btn-hot" onClick={() => { agi.cancel(m.id, cancelReason); setShowCancel(false); }}>Confirm cancel</button>
           </div>
         )}
+        <div className="panel-body" style={{ paddingBottom: 0 }}><Briefing m={m} /></div>
         <div className="panel-body agi-three">
           <div>
             <ul className="agi-steps">
