@@ -153,6 +153,7 @@ const AGI_NAV = {
   group: "AGI Mode",
   items: [
     { href: "/agi", label: "Mission Control", icon: Bot },
+    { href: "/agi/missions", label: "Mission Catalog", icon: LayoutGrid },
     { href: "/agi/team", label: "AI Team Builder", icon: Users },
     { href: "/agi/data", label: "Data Readiness", icon: Database },
     { href: "/agi/options", label: "Elections & Scenarios", icon: SlidersHorizontal },
@@ -241,6 +242,7 @@ const TITLES: Record<string, [string, string]> = {
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
   "/agi": ["AGI Mode", "Mission Control"],
+  "/agi/missions": ["AGI Mode", "Mission Catalog"],
   "/agi/team": ["AGI Mode", "AI Team Builder"],
   "/agi/data": ["AGI Mode", "Data Readiness"],
   "/agi/options": ["AGI Mode", "Election Decision Studio"],
@@ -380,7 +382,9 @@ function Shell({ children }: { children: ReactNode }) {
     : bookForMenu(path);
   const [kicker, title] = path.startsWith("/playbook/") && book
     ? (["Playbook", book.title] as [string, string])
-    : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
+    : path.startsWith("/agi/missions/")
+      ? (["AGI Mode", "Mission card"] as [string, string])
+      : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
 
   return (
     <div className="shell">

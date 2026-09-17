@@ -82,6 +82,7 @@ export const SIDEBAR_MENUS: SidebarMenu[] = [
   { group: "Intelligence", href: "/jurisdictions", label: "Jurisdiction rules" },
   { group: "Intelligence", href: "/settings", label: "Settings" },
   { group: "AGI Mode", href: "/agi", label: "Mission Control" },
+  { group: "AGI Mode", href: "/agi/missions", label: "Mission Catalog" },
   { group: "AGI Mode", href: "/agi/team", label: "AI Team Builder" },
   { group: "AGI Mode", href: "/agi/data", label: "Data Readiness" },
   { group: "AGI Mode", href: "/agi/options", label: "Elections & Scenarios" },
