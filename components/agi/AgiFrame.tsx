@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 
 export const AGI_AREAS = [
   { href: "/agi", label: "Mission Control" },
+  { href: "/agi/missions", label: "Mission Catalog" },
   { href: "/agi/team", label: "AI Team Builder" },
   { href: "/agi/data", label: "Data Readiness" },
   { href: "/agi/options", label: "Elections & Scenarios" },
