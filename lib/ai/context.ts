@@ -10,11 +10,6 @@ import { ROLE_PERMISSIONS, APP_VERSION, type Lang, type OutstandingWork, type Sc
  * user meets on that screen.
  */
 export const SCREENS: ScreenMeta[] = [
-  { key: "missions", module: "AGI Missions", title: "Mission catalog", href: "/missions", purpose: "GMT24 AGI mode: missions organised around four outcomes — find the best options and elections, calculate accurately, complete compliance and filing, and maintain audit readiness. Users pick a Master Outcome Mission; the AGI orchestrates the specialist missions as a Single agent, Team or Swarm. Every mission records its rulebook, jurisdiction-law and GIR-schema versions.", fields: [
-    { term: "Master Outcome Mission", meaning: "The mission a user sees first. GMT24 runs the underlying specialist missions automatically." },
-    { term: "AGI mode", meaning: "Single (one agent), Team (a lead plus specialists) or Swarm (many agents in parallel across entities and jurisdictions)." },
-    { term: "Mission governance card", meaning: "Group, versions, evidence, assigned agents, approver and the Draft → Reviewed → Approved → Filed → Locked status recorded for every mission." },
-  ], actions: ["Open a master mission", "Filter specialist missions by outcome", "Open a mission governance card"] },
   { key: "overview", module: "Overview", title: "Global dashboard", href: "/overview", purpose: "Group jurisdictional top-up, ETR by jurisdiction and where collection lands. The headline is engine-posted; click any amount for the trail.", fields: [
     { term: "Jurisdictional top-up", meaning: "Art. 5.2.3: (15% − ETR) × Excess Profit + Additional Current Top-up Tax − QDMTT credit." },
     { term: "Low-ETR jurisdiction", meaning: "Jurisdictional ETR below the 15% Minimum Rate." },
