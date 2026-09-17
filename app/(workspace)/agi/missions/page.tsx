@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Rocket, Target, User, Users, Workflow } from "lucide-react";
+import { ArrowRight, Bot, Rocket, Target, User, Users, Workflow } from "lucide-react";
 import { WORK_MODE_LABEL, type WorkMode } from "@/lib/agi/specialists";
 import {
   CATEGORIES,
@@ -38,6 +38,7 @@ export default function MissionCatalog() {
   const [q, setQ] = useState("");
 
   const specialistCategories = CATEGORIES.filter((c) => !c.master);
+  const specialistCount = MISSIONS.length - MASTER_MISSIONS.length;
 
   const rows = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -51,38 +52,40 @@ export default function MissionCatalog() {
     <div style={{ display: "grid", gap: 20 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <h2 style={{ margin: 0, flex: 1 }}>Mission Catalog</h2>
-        <Link href="/agi" className="btn btn-primary"><Rocket size={15} />New mission in Mission Control</Link>
+        <Link href="/agi" className="btn btn-secondary"><Bot size={15} />Mission Control</Link>
+        <Link href="/agi" className="btn btn-primary"><Rocket size={15} />New mission</Link>
       </div>
 
-      <div className="callout" style={{ fontSize: 13 }}>
+      <div className="kpi-grid cols-6">
+        <div className="kpi"><div className="kpi-label">Missions</div><div className="kpi-val">{MISSIONS.length}</div><div className="kpi-sub">library total</div></div>
+        <div className="kpi"><div className="kpi-label">Master</div><div className="kpi-val">{MASTER_MISSIONS.length}</div><div className="kpi-sub">outcome missions</div></div>
+        <div className="kpi"><div className="kpi-label">Specialist</div><div className="kpi-val">{specialistCount}</div><div className="kpi-sub">orchestrated</div></div>
+        <div className="kpi"><div className="kpi-label">Outcomes</div><div className="kpi-val">{OUTCOMES.length}</div><div className="kpi-sub">every mission maps to one</div></div>
+        <div className="kpi"><div className="kpi-label">MVP set</div><div className="kpi-val">{MVP_MISSIONS.length}</div><div className="kpi-sub">strongest first release</div></div>
+        <div className="kpi"><div className="kpi-label">Wow</div><div className="kpi-val">{WOW_MISSIONS.length}</div><div className="kpi-sub">headline differentiators</div></div>
+      </div>
+
+      <div className="callout" style={{ fontSize: 12 }}>
         The catalog is the library the Mission Director draws on, organised around four outcomes. You pick a <strong>Master Outcome Mission</strong>; the department orchestrates the specialist missions automatically as a Single agent, a Team or a Cooperative Swarm. The versioned engine posts every Pillar Two number. Every mission is stamped with its rulebook, jurisdiction-law and GIR-schema versions.
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-          <span className="tag tag-neutral" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.rulebook}</span>
-          <span className="tag tag-neutral" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.localLaw}</span>
-          <span className="tag tag-neutral" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.girSchema}</span>
+          <span className="tag tag-outline" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.rulebook}</span>
+          <span className="tag tag-outline" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.localLaw}</span>
+          <span className="tag tag-outline" style={{ fontSize: 10 }}>{MISSION_GOVERNANCE.girSchema}</span>
         </div>
       </div>
 
-      <div className="kpi-grid cols-4">
-        <div className="kpi"><div className="kpi-label">Missions</div><div className="kpi-val">{MISSIONS.length}</div><div className="kpi-sub">{MASTER_MISSIONS.length} master · {MISSIONS.length - MASTER_MISSIONS.length} specialist</div></div>
-        <div className="kpi"><div className="kpi-label">Outcomes</div><div className="kpi-val">{OUTCOMES.length}</div><div className="kpi-sub">every mission maps to one</div></div>
-        <div className="kpi"><div className="kpi-label">MVP launch set</div><div className="kpi-val">{MVP_MISSIONS.length}</div><div className="kpi-sub">strongest first release</div></div>
-        <div className="kpi"><div className="kpi-label">Wow missions</div><div className="kpi-val">{WOW_MISSIONS.length}</div><div className="kpi-sub">headline differentiators</div></div>
-      </div>
-
       <section className="panel">
-        <div className="panel-head"><h4>The four outcomes</h4></div>
+        <div className="panel-head"><h4>The four outcomes</h4><span className="tag tag-outline">what missions deliver</span></div>
         <div className="panel-body agi-two">
           {OUTCOMES.map((o) => (
-            <div key={o.id} className="callout" style={{ fontSize: 12 }}>
+            <Link key={o.id} href={o.area} className="callout" style={{ fontSize: 12, textDecoration: "none", color: "inherit", display: "block" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <Target size={14} color="var(--color-accent)" />
                 <strong>{o.n}. {o.title}</strong>
                 <span className="tag tag-accent" style={{ fontSize: 10, marginLeft: "auto" }}>{outcomeCount(o.id)}</span>
               </div>
               {o.blurb}
-              <div style={{ marginTop: 6 }}><Link href={o.area} style={{ fontSize: 12 }}>Open {o.area} →</Link></div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -99,7 +102,7 @@ export default function MissionCatalog() {
         <div className="panel-body" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {MVP_MISSIONS.map((m) => (
             <Link key={m.id} href={`/agi/missions/${m.id}`} className="chip" style={{ fontSize: 12 }} title={m.title}>
-              <span style={{ color: "var(--color-neutral-600)", fontSize: 10 }}>{m.id}</span>&nbsp;{m.wow ?? m.title}
+              <span className="agi-mono" style={{ color: "var(--color-neutral-600)" }}>{m.id}</span>&nbsp;{m.wow ?? m.title}
             </Link>
           ))}
         </div>
@@ -128,7 +131,7 @@ export default function MissionCatalog() {
       <section className="panel">
         <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
           <h4>Specialist mission catalog</h4>
-          <span className="tag tag-outline">{rows.length} of {MISSIONS.length - MASTER_MISSIONS.length}</span>
+          <span className="tag tag-outline">{rows.length} of {specialistCount}</span>
         </div>
         <div style={{ padding: "0 16px 12px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button className={`chip${outcome === "all" ? " active" : ""}`} style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => setOutcome("all")}>All outcomes</button>
@@ -179,7 +182,7 @@ function MasterCard({ m }: { m: Mission }) {
   return (
     <Link href={`/agi/missions/${m.id}`} className="callout" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span className="agi-mono" style={{ color: "var(--color-neutral-600)", fontSize: 11 }}>{m.id}</span>
+        <span className="agi-mono" style={{ color: "var(--color-neutral-600)" }}>{m.id}</span>
         <strong style={{ flex: 1 }}>{m.title}</strong>
         {m.mvp && <span className="tag tag-ok" style={{ fontSize: 9 }}>MVP</span>}
       </div>
