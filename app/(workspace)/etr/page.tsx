@@ -3,10 +3,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { pct } from "@/lib/format";
+import { etrPct, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { FlowBar } from "@/components/FlowBar";
-import { BlendBadge } from "@/components/BlendBadge";
+import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
+import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
 import { MIN_RATE, pickCalc, etrHref } from "@/lib/engine";
@@ -54,7 +56,7 @@ const REFERENCES = [
 ];
 
 function Inner() {
-  const { ask } = useStore();
+  const { ask, electionsOn } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
   const iso = useSearchParams().get("iso");
@@ -81,12 +83,14 @@ function Inner() {
           <span className="mono">ETR = Covered Taxes ÷ GloBE income</span>
           {" · "}
           <span className="mono">Top-up % = max(0, {min} − ETR)</span>
+          <div style={{ marginTop: 8 }}><FxNote entities={sel.entities} iso={sel.iso} /></div>
+          <div style={{ marginTop: 4 }}><GaapNote entities={sel.entities} electionsOn={electionsOn} /></div>
         </div>
         <div className="stack-actions">
           <Link href="/covered-taxes" className="btn btn-secondary">Covered taxes</Link>
           <Link href="/deferred-tax" className="btn btn-secondary">Deferred tax</Link>
           <Link href="/rulebook" className="btn btn-secondary">Rulebook</Link>
-          <button className="btn btn-primary" onClick={() => ask(`Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?`)}>Ask GMT24</button>
+          <button className="btn btn-primary" onClick={() => ask(sel.etrComputed ? `Why is ${sel.name}'s ETR ${(sel.etr * 100).toFixed(1)}%?` : `Why does ${sel.name} have no ETR and no top-up this year?`)}>Ask GMT24</button>
         </div>
       </div>
 
@@ -257,7 +261,7 @@ function Inner() {
               <tbody>
                 {calcs.map((c) => (
                   <tr key={c.blendKey} className="clickable" onClick={() => router.push(etrHref(c))}>
-                    <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /></td>
+                    <td><span>{c.name}</span><BlendBadge blendKind={c.blendKind} /><EtrGroupsBadge calc={c} calcs={calcs} /></td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
                     <td className="num">
@@ -314,7 +318,7 @@ function Inner() {
                     <td className="num">{sel.coveredTaxRaw.toLocaleString("en-GB")}</td>
                     <td className="num">—</td>
                     <td className="num">{sel.coveredTax.toLocaleString("en-GB")}</td>
-                    <td className="num">{sel.globeIncome > 0 ? pct(sel.etr, 2) : "N/A (Loss)"}</td>
+                    <td className="num">{etrPct(sel, 2)}</td>
                     <td className="num">{sel.globeIncome > 0 ? pct(sel.topUpRate, 2) : "—"}</td>
                   </tr>
                   {(() => {

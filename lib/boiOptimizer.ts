@@ -1,6 +1,7 @@
 import { money } from "./format";
 import { type AuditNode, type JurCalc } from "./engine";
 import { botRate, sbieRatesForFyStart, THAI_PACK } from "./thailand";
+import { seedFacts } from "./seeds";
 
 export type BoiScenarioId = "keep" | "convert10" | "qrtc" | "none";
 
@@ -22,8 +23,8 @@ export type BoiCertificate = {
   note: string;
 };
 
-/** Project-level BOI register. Sum of promoted GloBE must equal the jurisdictional split used in the Core waterfall. */
-export const BOI_CERTS: BoiCertificate[] = [
+/** Project-level BOI register per demo group. Sum of promoted GloBE must equal the jurisdictional split used in the Core waterfall. */
+const AETHERION_CERTS: BoiCertificate[] = [
   {
     id: "TH-BOI",
     certNo: "60-1234-1-00-1-0",
@@ -59,6 +60,28 @@ export const BOI_CERTS: BoiCertificate[] = [
     note: "Separate BOI project accounts. Pillar Two still blends this income with all other Thai CEs — do not compute a project ETR.",
   },
 ];
+
+const THAICOAL_CERTS: BoiCertificate[] = [
+  {
+    id: "TC-BOI-SOLAR",
+    certNo: "62-0455-1-00-1-0",
+    name: "Solar farm & battery storage (Category 7.1)",
+    entityId: "TC-TH-NRG",
+    project: "Lopburi 120 MW solar farm + 30 MWh BESS — promoted generation",
+    start: "2019-01-01",
+    holidayEnd: "2026-12-31",
+    reducedEnd: "2031-12-31",
+    remainingFullExemptionYears: 1,
+    remainingReducedYears: 5,
+    remainingCapUsd: 62_000_000,
+    promotedGlobe: 30_000_000,
+    sbtishCandidate: true,
+    extractedFrom: "BOI_Certificate_TC031_solar.pdf",
+    note: "Years 1–8 at 0% CIT (year 8 ends 31 Dec 2026). Years 9–13 at 50% of the 20% rate. Blended with the UPE, the listed power POPE and the minerals CE in Thai QDMTT — the holiday is clawed back by Thailand, not by a foreign parent.",
+  },
+];
+
+export const BOI_CERTS = seedFacts<BoiCertificate>({ aetherion: AETHERION_CERTS, thaicoal: THAICOAL_CERTS });
 
 export const BOI_OPT = {
   id: "TH-BOI-OPT-2566",
@@ -404,7 +427,7 @@ export function optimizeBoi(th: JurCalc, opts?: { blend?: boolean; discountRate?
     headline,
     clawbackRatio,
     strandedUsd,
-    certificates: BOI_CERTS,
+    certificates: [...BOI_CERTS],
     blending,
     harbours,
     qrtc: { spend: BOI_OPT.qrtcQualifyingSpend, cash: qrtcCash, status: BOI_OPT.qrtcStatus, note: BOI_OPT.qrtcNote },

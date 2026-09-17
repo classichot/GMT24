@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  Bot,
   Building2,
   Check,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   Landmark,
   LayoutGrid,
   Link2,
+  ListChecks,
   LogOut,
   Map,
   Menu,
@@ -28,23 +30,28 @@ import {
   Sparkles,
   Timer,
   Upload,
+  Users,
   X,
 } from "lucide-react";
-import { ADVISOR_USER, INHOUSE_USER } from "@/lib/model";
+import { DATA, ADVISOR_USER } from "@/lib/model";
+import { SEEDS } from "@/lib/seeds";
 import { useStore } from "@/lib/store";
 import { ModeToggle } from "@/components/ModeToggle";
+import { AgiToggle } from "@/components/AgiToggle";
 import { Copilot } from "@/components/Copilot";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Amount } from "@/components/Amount";
 import { StartEngage } from "@/components/StartEngage";
+import { MenuGuide } from "@/components/MenuGuide";
+import { AiMenuBadge, AiReadyBadge } from "@/components/AiReadyBadge";
 import { AiProvider, useAi } from "@/components/AiProvider";
 import { useCalc } from "@/lib/useCalc";
 import { useXray } from "@/lib/useXray";
 import { changeAlert } from "@/lib/packAmendments";
-import { PLAYBOOKS, playbookByNavGroup } from "@/lib/playbooks";
+import { bookBySlug, bookForMenu } from "@/lib/menuPlaybooks";
 import { formatExpiry, hoursLeft, readInviteSession } from "@/lib/invite";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 const NAV = [
   { group: "Overview", items: [
@@ -65,8 +72,8 @@ const NAV = [
     { href: "/requests", label: "Data requests", icon: FileText },
   ]},
   { group: "Assurance", items: [
-    { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine },
-    { href: "/xray/confirm", label: "Confirmations", icon: ClipboardList },
+    { href: "/xray", label: "Pillar Two X-Ray", icon: ScanLine, ai: true },
+    { href: "/xray/confirm", label: "Confirmations", icon: ClipboardList, ai: true },
   ]},
   { group: "Pillar Two", items: [
     { href: "/scope", label: "Scope", icon: Scale },
@@ -117,23 +124,47 @@ const NAV = [
     { href: "/host", label: "Host desk", icon: Link2, inviteHide: true },
   ]},
   { group: "AI Co-Pilot", items: [
-    { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare },
-    { href: "/quickscan", label: "Quick Scan", icon: ScanLine },
-    { href: "/trainer", label: "App Trainer", icon: BookOpen },
-    { href: "/reviewer", label: "Calculation Reviewer", icon: Check },
-    { href: "/strategy", label: "Strategy Simulator", icon: Sparkles },
-    { href: "/rehearsal", label: "Audit Rehearsal", icon: Shield },
-    { href: "/regwatch", label: "Regulatory Watch", icon: Globe },
-    { href: "/briefing", label: "CFO Briefing", icon: FileText },
+    { href: "/copilot", label: "Co-Pilot hub", icon: MessageSquare, ai: true },
+    { href: "/quickscan", label: "Quick Scan", icon: ScanLine, ai: true },
+    { href: "/trainer", label: "App Trainer", icon: BookOpen, ai: true },
+    { href: "/reviewer", label: "Calculation Reviewer", icon: Check, ai: true },
+    { href: "/strategy", label: "Strategy Simulator", icon: Sparkles, ai: true },
+    { href: "/rehearsal", label: "Audit Rehearsal", icon: Shield, ai: true },
+    { href: "/regwatch", label: "Regulatory Watch", icon: Globe, ai: true },
+    { href: "/briefing", label: "CFO Briefing", icon: FileText, ai: true },
     { href: "/tasks", label: "Tasks", icon: ClipboardList },
-    { href: "/feedback", label: "Feedback", icon: MessageSquare },
+    { href: "/feedback", label: "Feedback", icon: MessageSquare, ai: true },
   ]},
   { group: "Intelligence", items: [
     { href: "/rulebook", label: "OECD rulebook", icon: BookOpen },
+    { href: "/legal", label: "Legal corpus", icon: Landmark },
+    { href: "/publications", label: "OECD publications", icon: FileText },
+    { href: "/updates", label: "Latest update", icon: History },
     { href: "/jurisdictions", label: "Jurisdiction rules", icon: Globe },
     { href: "/settings", label: "Settings", icon: Settings },
   ]},
 ];
+
+/**
+ * AGI mode is a separate layer: its menu only exists while the toggle is on,
+ * and none of the normal-mode groups above change either way.
+ */
+const AGI_NAV = {
+  group: "AGI Mode",
+  items: [
+    { href: "/agi", label: "Mission Control", icon: Bot },
+    { href: "/agi/missions", label: "Mission Catalog", icon: LayoutGrid },
+    { href: "/agi/team", label: "AI Team Builder", icon: Users },
+    { href: "/agi/data", label: "Data Readiness", icon: Database },
+    { href: "/agi/options", label: "Elections & Scenarios", icon: SlidersHorizontal },
+    { href: "/agi/calculation", label: "Calculation Review", icon: ListChecks },
+    { href: "/agi/compliance", label: "Compliance Review", icon: Scale },
+    { href: "/agi/audit-file", label: "Audit Defence", icon: Shield },
+    { href: "/agi/reporting", label: "Reporting & Filing", icon: FileText },
+    { href: "/agi/approvals", label: "Approvals & Exceptions", icon: ClipboardList },
+    { href: "/agi/connections", label: "Agent Connections", icon: Link2 },
+  ],
+};
 
 const TABS = [
   { href: "/overview", label: "Home", icon: LayoutGrid },
@@ -205,13 +236,28 @@ const TITLES: Record<string, [string, string]> = {
   "/tasks": ["AI Co-Pilot", "Tasks"],
   "/feedback": ["AI Co-Pilot", "Feedback"],
   "/rulebook": ["Killer feature", "GMT24 Global Rulebook"],
+  "/legal": ["Intelligence", "Legal corpus"],
+  "/publications": ["Intelligence", "OECD publications"],
+  "/updates": ["Intelligence", "Latest update — regulation vs GMT24 build"],
   "/jurisdictions": ["Intelligence", "Jurisdiction packs"],
   "/settings": ["Workspace", "Settings"],
+  "/agi": ["AGI Mode", "Mission Control"],
+  "/agi/missions": ["AGI Mode", "Mission Catalog"],
+  "/agi/team": ["AGI Mode", "AI Team Builder"],
+  "/agi/data": ["AGI Mode", "Data Readiness"],
+  "/agi/options": ["AGI Mode", "Election Decision Studio"],
+  "/agi/calculation": ["AGI Mode", "Calculation Review"],
+  "/agi/compliance": ["AGI Mode", "Compliance Review"],
+  "/agi/audit-file": ["AGI Mode", "Audit Defence"],
+  "/agi/reporting": ["AGI Mode", "Reporting & Filing"],
+  "/agi/approvals": ["AGI Mode", "Approvals & Exceptions"],
+  "/agi/connections": ["AGI Mode", "Agent Connections"],
 };
 
 function isActive(path: string, href: string) {
   if (href === "/thailand") return path === "/thailand";
   if (href === "/xray") return path === "/xray";
+  if (href === "/agi") return path === "/agi";
   return path === href || path.startsWith(href + "/");
 }
 
@@ -223,36 +269,132 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+const DEMO_GROUPS = Object.values(SEEDS).map((s) => s.group);
+
+const NAV_W_KEY = "gmt24_nav_w";
+export const NAV_W_DEFAULT = 248;
+export const NAV_W_MIN = 200;
+export const NAV_W_MAX = 440;
+export const NAV_W_STEP = 16;
+
+export function clampNavWidth(n: unknown) {
+  const v = typeof n === "number" ? n : Number(n);
+  if (!Number.isFinite(v)) return NAV_W_DEFAULT;
+  return Math.min(NAV_W_MAX, Math.max(NAV_W_MIN, Math.round(v)));
+}
+
+/** Sidebar width the user last dragged to. Persisted per browser; drag the right edge, arrow keys nudge, double-click resets. */
+function useNavWidth() {
+  const [width, setWidth] = useState(NAV_W_DEFAULT);
+  const [dragging, setDragging] = useState(false);
+  const live = useRef(NAV_W_DEFAULT);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NAV_W_KEY);
+      if (stored) {
+        const w = clampNavWidth(stored);
+        live.current = w;
+        setWidth(w);
+      }
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const commit = useCallback((w: number) => {
+    const v = clampNavWidth(w);
+    live.current = v;
+    setWidth(v);
+    try {
+      if (v === NAV_W_DEFAULT) localStorage.removeItem(NAV_W_KEY);
+      else localStorage.setItem(NAV_W_KEY, String(v));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const onPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const startX = e.clientX;
+    const startW = live.current;
+    handle.setPointerCapture(e.pointerId);
+    setDragging(true);
+    const move = (ev: globalThis.PointerEvent) => {
+      const v = clampNavWidth(startW + (ev.clientX - startX));
+      live.current = v;
+      setWidth(v);
+    };
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      setDragging(false);
+      commit(live.current);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  }, [commit]);
+
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); commit(live.current - NAV_W_STEP); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); commit(live.current + NAV_W_STEP); }
+    else if (e.key === "Home") { e.preventDefault(); commit(NAV_W_MIN); }
+    else if (e.key === "End") { e.preventDefault(); commit(NAV_W_MAX); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commit(NAV_W_DEFAULT); }
+  }, [commit]);
+
+  const reset = useCallback(() => commit(NAV_W_DEFAULT), [commit]);
+
+  return { width, dragging, onPointerDown, onKeyDown, reset };
+}
+
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { logout, toast, navOpen, setNavOpen, mode, group, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
-  const ai = useAi();
-  const user = mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const { model } = useAi();
+  const llmLive = model.configured && model.reachable;
+  const { logout, toast, navOpen, setNavOpen, mode, agiMode, group, setGroupId, flash, setCopilotOpen, copilotOpen, activeFy, packChanges } = useStore();
+  const user = mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const { t } = useCalc();
   const { stop } = useXray();
   const packAlert = changeAlert(packChanges);
   const [invite, setInvite] = useState<ReturnType<typeof readInviteSession>>(null);
   const inviteHours = invite ? hoursLeft(invite.exp) : 0;
+  const nav = useNavWidth();
+  // Menu guide: `href` null = explain the current screen; a value = a menu picked from the sidebar.
+  const [guide, setGuide] = useState<{ open: boolean; href: string | null }>({ open: false, href: null });
+  const openGuide = useCallback((href: string | null) => {
+    setGuide((g) => (g.open && (g.href ?? path) === (href ?? path) ? { open: false, href: null } : { open: true, href }));
+    setNavOpen(false);
+  }, [path, setNavOpen]);
 
   useEffect(() => { setNavOpen(false); }, [path, setNavOpen]);
+  // Once you arrive on a screen, the guide follows the screen you are on.
+  useEffect(() => { setGuide((g) => (g.href ? { ...g, href: null } : g)); }, [path]);
   useEffect(() => { setInvite(readInviteSession()); }, [path]);
 
   const book = path.startsWith("/playbook/")
-    ? PLAYBOOKS.find((p) => path === `/playbook/${p.slug}`)
-    : null;
-  const [kicker, title] = book
+    ? bookBySlug(path.slice("/playbook/".length))
+    : bookForMenu(path);
+  const [kicker, title] = path.startsWith("/playbook/") && book
     ? (["Playbook", book.title] as [string, string])
-    : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
+    : path.startsWith("/agi/missions/")
+      ? (["AGI Mode", "Mission card"] as [string, string])
+      : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
 
   return (
     <div className="shell">
       <div className={`sidebar-backdrop${navOpen ? " open" : ""}`} onClick={() => setNavOpen(false)} />
-      <aside className={`sidebar${navOpen ? " open" : ""}`}>
+      <aside className={`sidebar${navOpen ? " open" : ""}${nav.dragging ? " resizing" : ""}`} style={{ width: nav.width }}>
         <div style={{ padding: "18px 16px 14px", borderBottom: "2px solid var(--color-divider)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <div>
-            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 32, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               GMT24<span style={{ width: 14, height: 14, background: "var(--color-accent)", display: "block" }} />
+              <AiReadyBadge compact />
             </div>
             <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 4 }}>Global Minimum Tax OS</div>
           </div>
@@ -263,6 +405,28 @@ function Shell({ children }: { children: ReactNode }) {
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 13 }}>{group.name}</div>
           <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 2 }}>{group.fy} · <Amount n={t.topUp} audit={t.audit} compact /> top-up</div>
         </Link>
+        {mode === "inhouse" && !invite && DEMO_GROUPS.length > 1 && (
+          <label className="group-switch" title="Open another demo group">
+            <span>Demo group</span>
+            <select
+              className="input"
+              value={DEMO_GROUPS.some((g) => g.id === group.id) ? group.id : ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id || id === group.id) return;
+                setGroupId(id);
+                setNavOpen(false);
+                flash(`${SEEDS[id].group.name} open`);
+                router.push("/overview");
+              }}
+            >
+              {!DEMO_GROUPS.some((g) => g.id === group.id) && <option value="">{group.name}</option>}
+              {DEMO_GROUPS.map((g) => (
+                <option key={g.id} value={g.id}>{g.name} · {g.upeIso} UPE</option>
+              ))}
+            </select>
+          </label>
+        )}
         {mode === "advisor" && !invite && (
           <div className="sidebar-start">
             <div className="sidebar-start-kicker">Start here</div>
@@ -270,32 +434,69 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
         <nav style={{ flex: 1, overflow: "auto", padding: "10px 8px" }}>
-          {NAV.map((g) => {
+          {agiMode && !invite && (
+            <div className="nav-agi-layer">
+              <div className="nav-group agi"><Bot size={12} />{AGI_NAV.group}<span className="nav-num" style={{ marginLeft: "auto" }}>ON</span></div>
+              <div className="nav-agi-note">Mission-execution layer. Agents prepare; people approve. Normal mode below is unchanged.</div>
+              {AGI_NAV.items.map((item, ii) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.href} className="nav-row">
+                    <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                      <span className="nav-num">A.{ii + 1}</span>
+                      <Icon size={15} />
+                      <span className="nav-label">{item.label}</span>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {NAV.flatMap((g) => {
             const items = g.items.filter((i) => {
               if ("advisor" in i && i.advisor && mode !== "advisor") return false;
               if ("inviteHide" in i && i.inviteHide && invite) return false;
               return true;
             });
-            if (!items.length) return null;
-            const book = playbookByNavGroup(g.group);
+            return items.length ? [{ g, items }] : [];
+          }).map(({ g, items }, gi) => {
+            const n = gi + 1;
             return (
               <div key={g.group}>
-                <div className="nav-group">{g.group}</div>
-                {items.map((item) => {
+                <div className="nav-group"><span className="nav-num">{n}</span>{g.group}</div>
+                {items.map((item, ii) => {
                   const Icon = item.icon;
+                  const pb = bookForMenu(item.href);
+                  const pbHref = pb ? `/playbook/${pb.slug}` : "/playbook/overview";
                   return (
-                    <Link key={`${g.group}:${item.href}`} href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
-                      <Icon size={15} />
-                      {item.label}
-                    </Link>
+                    <div key={`${g.group}:${item.href}`} className="nav-row">
+                      <Link href={item.href} onClick={() => setNavOpen(false)} className={`nav-btn${isActive(path, item.href) ? " active" : ""}`}>
+                        <span className="nav-num">{n}.{ii + 1}</span>
+                        <Icon size={15} />
+                        <span className="nav-label">{item.label}</span>
+                        {"ai" in item && item.ai ? <AiMenuBadge live={llmLive} /> : null}
+                      </Link>
+                      <Link
+                        href={pbHref}
+                        onClick={() => setNavOpen(false)}
+                        className={`nav-pb${path === pbHref ? " on" : ""}`}
+                        title={`${item.label} playbook`}
+                        aria-label={`${item.label} playbook`}
+                      >
+                        PB
+                      </Link>
+                      <button
+                        type="button"
+                        className={`nav-help${guide.open && (guide.href ?? path) === item.href ? " on" : ""}`}
+                        title={`What is ${item.label} for?`}
+                        aria-label={`What is ${item.label} for?`}
+                        onClick={() => openGuide(item.href)}
+                      >
+                        <HelpCircle size={13} />
+                      </button>
+                    </div>
                   );
                 })}
-                {book && (
-                  <Link href={`/playbook/${book.slug}`} onClick={() => setNavOpen(false)} className={`nav-btn${path === `/playbook/${book.slug}` ? " active" : ""}`}>
-                    <ClipboardList size={15} />
-                    Playbook
-                  </Link>
-                )}
               </div>
             );
           })}
@@ -315,6 +516,20 @@ function Shell({ children }: { children: ReactNode }) {
             </button>
           </div>
         </div>
+        <div
+          className="sidebar-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize menu"
+          aria-valuemin={NAV_W_MIN}
+          aria-valuemax={NAV_W_MAX}
+          aria-valuenow={nav.width}
+          title="Drag to resize the menu · double-click to reset"
+          tabIndex={0}
+          onPointerDown={nav.onPointerDown}
+          onKeyDown={nav.onKeyDown}
+          onDoubleClick={nav.reset}
+        />
       </aside>
 
       <div className="shell-main">
@@ -322,27 +537,51 @@ function Shell({ children }: { children: ReactNode }) {
           <button className="icon-btn menu-btn" onClick={() => setNavOpen(true)} aria-label="Open menu"><Menu size={20} /></button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-accent)" }}>{kicker}</div>
-            <h3 style={{ margin: "2px 0 0" }}>{title}</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <h3 style={{ margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</h3>
+              {book && (
+                <Link
+                  href={`/playbook/${book.slug}`}
+                  className={`title-help${path === `/playbook/${book.slug}` ? " on" : ""}`}
+                  title={`${book.menu} playbook`}
+                >
+                  PB
+                  <span className="header-hide-sm">Playbook</span>
+                </Link>
+              )}
+              <button
+                type="button"
+                className={`title-help${guide.open && !guide.href ? " on" : ""}`}
+                title="What is this menu for?"
+                aria-label="What is this menu for?"
+                aria-expanded={guide.open && !guide.href}
+                onClick={() => openGuide(null)}
+              >
+                <HelpCircle size={15} />
+                <span className="header-hide-sm">What is this menu?</span>
+              </button>
+            </div>
           </div>
           <span className={`tag ${mode === "advisor" ? "tag-outline" : "tag-accent"} header-hide-sm`}>{mode === "advisor" ? "Advisor" : "In-house"}</span>
           <span className="tag tag-outline header-hide-sm">{activeFy}</span>
+          {agiMode && path.startsWith("/agi") && <span className="tag tag-accent header-hide-sm"><Bot size={11} style={{ marginRight: 4 }} />AGI layer</span>}
           {mode === "advisor" && !invite && (
             <span className="header-hide-sm">
               <StartEngage />
             </span>
           )}
           <ModeToggle compact />
+          {!invite && <AgiToggle compact />}
           {!invite && (
             <Link href="/host" className="btn btn-ghost header-hide-sm"><Link2 size={16} />Desk</Link>
           )}
-          <button className="btn btn-ghost header-hide-sm" title="Explain what this menu is built for" onClick={() => { setCopilotOpen(true); ai.explainMenu(); }}><HelpCircle size={16} />Explain menu</button>
           <button className="btn btn-secondary header-hide-sm" onClick={() => setCopilotOpen(!copilotOpen)}><MessageSquare size={16} />Ask GMT24</button>
           <Link href="/gir" className="btn btn-primary header-hide-sm"><FileText size={16} />GIR pack</Link>
         </header>
         {invite && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "8px 16px", borderBottom: "2px solid var(--color-divider)", background: "var(--color-surface)", fontSize: 12, fontWeight: 700, flexWrap: "wrap" }}>
             <Timer size={13} />
-            Demo review link · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
+            Demo review link · {group.name} · until {formatExpiry(invite.exp)} · ~{Math.max(1, Math.ceil(inviteHours / 24))}d left
             <Link href="/review-guide" className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>Review guide</Link>
           </div>
         )}
@@ -366,6 +605,7 @@ function Shell({ children }: { children: ReactNode }) {
             <span className="tag tag-outline" style={{ fontSize: 10 }}>Open X-Ray</span>
           </Link>
         )}
+        {guide.open && <MenuGuide href={guide.href} onClose={() => setGuide({ open: false, href: null })} />}
         <div className="workspace">
           <main className="page-main">{children}</main>
           <Copilot />
@@ -373,11 +613,12 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="bottom-nav no-print">
-        {TABS.map((t) => {
+        {TABS.map((t, i) => {
           const Icon = t.icon;
           return (
             <Link key={t.href} href={t.href} className={isActive(path, t.href) ? "active" : ""}>
               <Icon size={18} />
+              <span className="nav-num">{i + 1}</span>
               {t.label}
             </Link>
           );

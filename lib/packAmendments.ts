@@ -1,4 +1,4 @@
-import { JURISDICTION_PACKS } from "./model";
+import { DATA, type JurisdictionPack } from "./model";
 import type { OecdPackRow, OecdRefresh, OecdSource } from "./oecdCentralRecord";
 
 /**
@@ -18,7 +18,7 @@ import type { OecdPackRow, OecdRefresh, OecdSource } from "./oecdCentralRecord";
  * reducing anyone's tax.
  */
 
-export type JurisdictionPack = (typeof JURISDICTION_PACKS)[number];
+export type { JurisdictionPack };
 
 export type PackField = "iir" | "qdmtt" | "qdmttSH" | "utpr" | "qualified";
 
@@ -72,15 +72,15 @@ export function overlayFrom(amendments: PackAmendment[]): PackOverlay {
 }
 
 export function effectivePack(iso: string, overlay?: PackOverlay): JurisdictionPack | undefined {
-  const base = JURISDICTION_PACKS.find((p) => p.iso === iso);
+  const base = DATA.packs.find((p) => p.iso === iso);
   if (!base) return undefined;
   const patch = overlay?.[iso];
   return patch ? { ...base, ...patch } : base;
 }
 
 export function effectivePacks(overlay?: PackOverlay): JurisdictionPack[] {
-  if (!overlay || !Object.keys(overlay).length) return JURISDICTION_PACKS;
-  return JURISDICTION_PACKS.map((p) => (overlay[p.iso] ? { ...p, ...overlay[p.iso] } : p));
+  if (!overlay || !Object.keys(overlay).length) return DATA.packs;
+  return DATA.packs.map((p) => (overlay[p.iso] ? { ...p, ...overlay[p.iso] } : p));
 }
 
 /** True where an accepted amendment currently moves this jurisdiction. */

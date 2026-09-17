@@ -6,7 +6,7 @@ import { Amount } from "@/components/Amount";
 import { ElectionBar } from "@/components/ElectionBar";
 import { useCalc } from "@/lib/useCalc";
 import { useStore } from "@/lib/store";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import { OECD_ELEC_URLS } from "@/lib/elections";
 import { optimizeGlobe, scoreWorking, type OptScenario } from "@/lib/electionEngine";
 
@@ -182,7 +182,7 @@ export default function OptimizePage() {
                       <td>{r.name}</td>
                       <td className="num mono">{eur(r.globe, true)}</td>
                       <td className="num mono">{eur(r.covered, true)}</td>
-                      <td>{pct(r.etr, 1)}</td>
+                      <td>{etrPct({ etr: r.etr, globeIncome: r.globe }, 1)}</td>
                       <td className="num mono">{eur(r.sbie, true)}</td>
                       <td className="num mono">{eur(r.topUp, true)}</td>
                       <td style={{ fontSize: 12 }}>{r.harbour ? "Harbour deemed zero" : r.note}</td>

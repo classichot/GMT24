@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { useAi } from "@/components/AiProvider";
 import { propose } from "@/lib/ai/actions";
 import { readiness } from "@/lib/ai/rehearsal";
+import { RehearsalAnswer } from "@/components/RehearsalAnswer";
 
 export default function RehearsalPage() {
   const ai = useAi();
@@ -16,7 +17,21 @@ export default function RehearsalPage() {
   const overall = areas.length ? Math.round(areas.reduce((s, a) => s + a.score, 0) / areas.length) : 0;
   const pkg = () => {
     const md = [`# Audit rehearsal — ${ai.ctx.groupName} · ${ai.ctx.fy}`, `${ai.ctx.calcVersion} · prepared ${new Date().toISOString().slice(0, 10)} · internal readiness assessment, not a prediction of RD acceptance`, ""];
-    for (const q of qs) { md.push(`## ${q.area}${q.iso ? ` · ${q.iso}` : ""} — ${q.strength}`, `**Q.** ${q.question}`, "", `**Model answer.** ${q.answer}`, "", `Evidence: ${q.evidence.join("; ") || "none on file"}`, q.gaps.length ? `Gaps: ${q.gaps.join("; ")}` : "No gaps identified.", ""); }
+    for (const q of qs) {
+      md.push(`## ${q.area}${q.iso ? ` · ${q.iso}` : ""} — ${q.strength}`, `**Q.** ${q.question}`, "", `**Answer from the record.** ${q.answer}`, "", `Evidence: ${q.evidence.join("; ") || "none on file"}`, q.gaps.length ? `Gaps: ${q.gaps.join("; ")}` : "No gaps identified.", "");
+      const attempts = ai.state.rehearsalAttempts[q.id] ?? [];
+      if (attempts.length) {
+        md.push("### Rehearsed exchange");
+        attempts.forEach((a, i) => {
+          md.push(`**Round ${i + 1} — auditor:** ${a.asked}`, `**${a.by}:** ${a.answer}`, `**Evaluation (${a.evaluation.verdict}, ${a.evaluation.model}):** ${a.evaluation.summary}`);
+          if (a.evaluation.contradictions.length) md.push(`Contradictions: ${a.evaluation.contradictions.map((c) => `${c.claim}${c.record ? ` (record: ${c.record})` : ""}`).join("; ")}`);
+          if (a.evaluation.unsupported.length) md.push(`Unsupported: ${a.evaluation.unsupported.join("; ")}`);
+          if (a.evaluation.supportNeeded.length) md.push(`Support requested: ${a.evaluation.supportNeeded.join("; ")}`);
+          if (a.evaluation.draft) md.push("", "Drafted response:", "", a.evaluation.draft);
+          md.push("");
+        });
+      }
+    }
     ai.run(propose("download", { name: `GMT24-audit-rehearsal-${ai.ctx.fy}.md`, body: md.join("\n") }, ai.ctx));
   };
 
@@ -46,7 +61,7 @@ export default function RehearsalPage() {
               <button className="nav-btn" style={{ padding: "12px 16px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12 }} onClick={() => setOpen(open === q.id ? null : q.id)}>
                 <span className={`tag ${q.strength === "strong" ? "tag-ok" : q.strength === "partial" ? "tag-warn" : "tag-hot"}`} style={{ fontSize: 10 }}>{q.strength}</span>
                 <span style={{ fontWeight: 700 }}>{q.question}</span>
-                <span className="text-muted" style={{ fontSize: 11 }}>{q.area}{q.iso ? ` · ${q.iso}` : ""}</span>
+                <span className="text-muted" style={{ fontSize: 11 }}>{(ai.state.rehearsalAttempts[q.id]?.length ?? 0) > 0 ? `${ai.state.rehearsalAttempts[q.id].length} rehearsed · ` : ""}{q.area}{q.iso ? ` · ${q.iso}` : ""}</span>
               </button>
               {open === q.id && (
                 <div style={{ padding: "0 16px 14px 16px", fontSize: 13, display: "grid", gap: 8, background: "var(--color-surface)" }}>
@@ -57,6 +72,7 @@ export default function RehearsalPage() {
                       {q.gaps.length > 0 && <button className="btn btn-secondary" style={{ fontSize: 11, marginTop: 6 }} onClick={() => ai.run(propose("create-task", { title: `Rehearsal gap · ${q.question.slice(0, 60)}`, detail: q.gaps.join("; "), owner: "Preparer", severity: q.strength === "weak" ? "block" : "warn", href: "/rehearsal", source: "rehearsal" }, ai.ctx))}>Create remediation task</button>}
                     </div>
                   </div>
+                  <RehearsalAnswer q={q} />
                 </div>
               )}
             </div>

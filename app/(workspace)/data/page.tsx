@@ -1,12 +1,34 @@
 "use client";
 
-import { FILES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
-import { INGEST_QUEUE, SAMPLE_DOWNLOADS, classifyDroppedName } from "@/lib/ingestSim";
+import { ingestQueue, sampleDownloads, classifyDroppedName } from "@/lib/ingestSim";
+import { reviewDataset, type SlotStatus } from "@/lib/datasetGuideline";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { StartEngage } from "@/components/StartEngage";
+
+const STATUS_TAG: Record<SlotStatus, string> = {
+  posted: "tag-ok",
+  queued: "tag-accent",
+  incomplete: "tag-warn",
+  missing: "tag-hot",
+};
+
+const STATUS_LABEL: Record<SlotStatus, string> = {
+  posted: "Posted",
+  queued: "Queued",
+  incomplete: "Incomplete",
+  missing: "Missing",
+};
+
+const FILTERS: { id: "all" | "required" | "missing" | "incomplete"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "required", label: "Required to calculate" },
+  { id: "missing", label: "Missing" },
+  { id: "incomplete", label: "Incomplete" },
+];
 
 export default function DataHubPage() {
   const {
@@ -18,13 +40,27 @@ export default function DataHubPage() {
     loadDemoPack,
     resetIngest,
     noteFileDrop,
+    queuedDrops,
+    ask,
   } = useStore();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const onboarding = Boolean(group.custom);
   const packReady = ingestStatus === "ready";
   const packRunning = ingestStatus === "running";
+
+  const R = useMemo(
+    () => reviewDataset(packReady ? DATA.files : null, queuedDrops, DATA.issues),
+    [packReady, queuedDrops],
+  );
+  const rows = R.items.filter((i) => {
+    if (filter === "required") return i.slot.need === "required";
+    if (filter === "missing") return i.status === "missing" || i.status === "queued";
+    if (filter === "incomplete") return i.status === "incomplete";
+    return true;
+  });
 
   const onFiles = useCallback(
     (list: FileList | null) => {
@@ -34,8 +70,8 @@ export default function DataHubPage() {
       const kinds = names.map(classifyDroppedName);
       flash(
         names.length === 1
-          ? `${names[0]} queued (${kinds[0]}). Load the full demo pack to post all ${FILES.length} sources.`
-          : `${names.length} files queued. Load the full demo pack to classify and map the teaching snapshot.`,
+          ? `${names[0]} queued as ${kinds[0]}. The dataset guideline updates completion.`
+          : `${names.length} files queued. Dataset guideline scores them against the required close-pack list.`,
       );
     },
     [flash, noteFileDrop],
@@ -45,7 +81,7 @@ export default function DataHubPage() {
     <div>
       {!packReady && !packRunning && (
         <div className="callout" style={{ marginBottom: 16 }}>
-          <strong>Reviewer path:</strong> download sample CSVs below or load the Aetherion FY2026 close pack. The engine waits for mapped source data.{" "}
+          <strong>Reviewer path:</strong> download sample CSVs below or load the {DATA.demo.packName}. The engine waits for mapped source data.{" "}
           <Link href="/review-guide">Open review guide →</Link>
         </div>
       )}
@@ -55,6 +91,106 @@ export default function DataHubPage() {
           {mode === "advisor" && <Link href="/onboard">Back to New engagement</Link>}
         </div>
       )}
+
+      <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <strong>Dataset guideline.</strong> {R.suggestion}
+        </div>
+        <div className="stack-actions">
+          <button className="btn btn-primary" type="button" onClick={() => ask("What documents are missing from the close pack, and how complete is the dataset for the GloBE calculation?")}>
+            Ask GMT24
+          </button>
+          <Link href="/requests" className="btn btn-secondary">Gap Hunter</Link>
+          <Link href="/playbook/data" className="btn btn-secondary">Playbook</Link>
+        </div>
+      </div>
+
+      <div className="kpi-grid cols-4" style={{ marginBottom: 20 }}>
+        <div className="kpi">
+          <div className="kpi-label">Dataset completion</div>
+          <div className="kpi-val">{R.completion}%</div>
+          <div className="kpi-sub">{R.headline}</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Required to calculate</div>
+          <div className="kpi-val" style={{ fontSize: 22 }}>{R.required.posted + R.required.incomplete}/{R.required.total}</div>
+          <div className="kpi-sub">
+            {R.required.missing} missing · {R.required.incomplete} incomplete{R.required.queued ? ` · ${R.required.queued} queued` : ""}
+          </div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Recommended overlays</div>
+          <div className="kpi-val" style={{ fontSize: 22 }}>{R.recommended.posted + R.recommended.incomplete}/{R.recommended.total}</div>
+          <div className="kpi-sub">{R.recommended.missing} still open · harbours, incentives, PE, FX</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Can calculate</div>
+          <div className="kpi-val" style={{ fontSize: 22 }}>{R.canCalculate ? "Yes" : "Not yet"}</div>
+          <div className="kpi-sub">{R.canCalculate ? "Required sources are on file. Approve mappings before lock." : "Add the missing required sources first."}</div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          <h4>Close-pack checklist</h4>
+          <div className="stack-actions">
+            {FILTERS.map((f) => (
+              <button key={f.id} type="button" className={`btn ${filter === f.id ? "btn-primary" : "btn-ghost"}`} onClick={() => setFilter(f.id)}>{f.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Need</th>
+                <th>Needed for</th>
+                <th>Pin</th>
+                <th>Status</th>
+                <th>On file / AI note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((i) => (
+                <tr key={i.slot.id} className="clickable" onClick={() => router.push(i.slot.href)}>
+                  <td>
+                    <strong>{i.slot.title}</strong>
+                    <div className="text-muted" style={{ fontSize: 11 }}>{i.slot.kind}</div>
+                  </td>
+                  <td>
+                    <span className={`tag ${i.slot.need === "required" ? "tag-accent" : "tag-outline"}`}>
+                      {i.slot.need === "required" ? "Required" : "Recommended"}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12, maxWidth: 320 }}>{i.slot.why}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{i.slot.oecd}</td>
+                  <td><span className={`tag ${STATUS_TAG[i.status]}`}>{STATUS_LABEL[i.status]}</span></td>
+                  <td style={{ fontSize: 12 }}>
+                    {i.files.length > 0 && <div style={{ marginBottom: 4 }}>{i.files.join(" · ")}</div>}
+                    <span className="text-muted">{i.note}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {R.nextDrops.length > 0 && (
+          <div className="panel-body" style={{ borderTop: "1px solid var(--color-divider)" }}>
+            <div className="stat-label" style={{ marginBottom: 8 }}>AI next drops</div>
+            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+              {R.nextDrops.map((d) => (
+                <li key={d.title} style={{ marginBottom: 6 }}>
+                  <strong>{d.title}</strong>
+                  <span className={`tag ${d.need === "required" ? "tag-hot" : "tag-outline"}`} style={{ marginLeft: 8, fontSize: 10 }}>{d.need}</span>
+                  <div className="text-muted" style={{ marginTop: 2 }}>{d.why}</div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+
       <div
         className={`dropzone${drag ? " on" : ""}`}
         style={{ marginBottom: 20 }}
@@ -79,7 +215,7 @@ export default function DataHubPage() {
           {packRunning ? "Classifying close pack…" : "Drop XLSX, CSV or PDF"}
         </div>
         <p className="text-muted" style={{ margin: "8px auto 0", maxWidth: "54ch" }}>
-          Trial balance, consolidation, tax provision, CbCR, tax return, fixed-asset register, payroll, deferred tax, legal entity list, TP report, BOI certificates, prior GIR.
+          Match the checklist above: trial balance, consolidation, tax provision, CbCR, payroll, fixed-asset register, certificates, prior GIR.
         </p>
         {packRunning && ingestProgress && (
           <div style={{ marginTop: 16, maxWidth: 480, marginInline: "auto" }}>
@@ -102,7 +238,7 @@ export default function DataHubPage() {
       <div className="stack-actions" style={{ marginBottom: 16 }}>
         {!packReady && !packRunning && (
           <button type="button" className="btn btn-primary" onClick={() => loadDemoPack()}>
-            Load Aetherion FY2026 close pack ({INGEST_QUEUE.length} files)
+            Load {DATA.demo.packName} ({ingestQueue().length} files)
           </button>
         )}
         {packReady && (
@@ -130,7 +266,7 @@ export default function DataHubPage() {
             <table className="table">
               <thead><tr><th>File</th><th>Kind</th><th>Note</th><th></th></tr></thead>
               <tbody>
-                {SAMPLE_DOWNLOADS.map((f) => (
+                {sampleDownloads().map((f) => (
                   <tr key={f.href}>
                     <td>{f.name}</td>
                     <td>{f.kind}</td>
@@ -147,14 +283,16 @@ export default function DataHubPage() {
       <div className="panel">
         <div className="panel-head">
           <h4>Ingested sources</h4>
-          <span className="tag tag-accent">{packReady ? `${FILES.length} files` : packRunning ? "Ingesting…" : "0 files"}</span>
+          <span className="tag tag-accent">{packReady ? `${DATA.files.length} files` : packRunning ? "Ingesting…" : `${queuedDrops.length} queued`}</span>
         </div>
         {!packReady ? (
           <div className="panel-body">
             <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
               {packRunning
                 ? "Classification in progress. Mapping opens when the pack scores."
-                : "Empty pack. Required: legal entity list, consolidation, trial balance, tax provision, CbCR — or load the demo close pack."}
+                : queuedDrops.length
+                  ? `Queued: ${queuedDrops.join(", ")}. Required still missing are listed on the dataset guideline.`
+                  : "Empty pack. The dataset guideline lists the eight required sources. Load the demo close pack or drop files above."}
             </p>
           </div>
         ) : (
@@ -162,7 +300,7 @@ export default function DataHubPage() {
             <table className="table">
               <thead><tr><th>File</th><th>Kind</th><th>Entity</th><th>Rows</th><th>Uploaded</th><th>By</th><th>Status</th></tr></thead>
               <tbody>
-                {FILES.map((f) => (
+                {DATA.files.map((f) => (
                   <tr key={f.id} className="clickable" onClick={() => router.push("/mapping")}>
                     <td>{f.name}</td>
                     <td>{f.kind}</td>

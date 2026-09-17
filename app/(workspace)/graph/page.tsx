@@ -2,24 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { etrHref } from "@/lib/engine";
-import { classFor } from "@/lib/entityClass";
+import { classFor, ownershipChain } from "@/lib/entityClass";
 import { useCalc } from "@/lib/useCalc";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 
 export default function GraphPage() {
   const { calcs } = useCalc();
   const byId = Object.fromEntries(calcs.flatMap((c) => c.entities.map((e) => [e.id, c])));
   const router = useRouter();
-  const [sel, setSel] = useState("TH-CE");
-  const selected = ENTITIES.find((e) => e.id === sel)!;
-  const jc = byId[sel];
+  const [sel, setSel] = useState(() => DATA.focusEntityId);
+  const selected = DATA.entities.find((e) => e.id === sel) ?? DATA.entities[0];
+  const jc = byId[selected.id];
 
   const edges = useMemo(
-    () => ENTITIES.filter((e) => e.parentId).map((e) => {
-      const p = ENTITIES.find((x) => x.id === e.parentId)!;
+    () => DATA.entities.filter((e) => e.parentId).map((e) => {
+      const p = DATA.entities.find((x) => x.id === e.parentId)!;
       return { e, p };
     }),
     [],
@@ -47,7 +47,7 @@ export default function GraphPage() {
               </g>
             );
           })}
-          {ENTITIES.map((e) => {
+          {DATA.entities.map((e) => {
             const c = byId[e.id];
             const hot = (c?.jurisdictionalTopUp ?? 0) > 0;
             return (
@@ -60,7 +60,7 @@ export default function GraphPage() {
                   height="44"
                 />
                 <text x={e.graph.x} y={e.graph.y - 4} textAnchor="middle" fontSize="11" fontFamily="Archivo" fontWeight="800" fill="var(--color-text)">{e.iso} · {classFor(e.id).tag}</text>
-                <text x={e.graph.x} y={e.graph.y + 12} textAnchor="middle" fontSize="10" fontFamily="Archivo" fill="var(--color-neutral-700)">{pct(c?.etr ?? 0, 0)} ETR</text>
+                <text x={e.graph.x} y={e.graph.y + 12} textAnchor="middle" fontSize="10" fontFamily="Archivo" fill="var(--color-neutral-700)">{c ? (c.etrComputed ? `${etrPct(c, 0)} ETR` : "loss · no ETR") : "— ETR"}</text>
               </g>
             );
           })}
@@ -70,7 +70,16 @@ export default function GraphPage() {
         <div className="panel-head">
           <div>
             <h4 style={{ margin: 0 }}>{selected.name}</h4>
-            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {classFor(selected.id).tag} · UPE {classFor(selected.id).upeOwnership}% · direct {selected.ownership}%</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>{selected.code} · {selected.jurisdiction} · {classFor(selected.id).tag} · UPE {classFor(selected.id).upeOwnership}% (effective) · direct {selected.ownership}%</div>
+            <div className="mono" style={{ fontSize: 12, marginTop: 4 }}>
+              {ownershipChain(selected.id).map((lv, i, arr) => (
+                <span key={lv.id}>
+                  {i > 0 && <span className="text-muted"> ─{lv.direct}%→ </span>}
+                  <span style={lv.id === selected.id ? { fontWeight: 700 } : undefined}>{lv.code}</span>
+                  {i === arr.length - 1 && i > 0 && <span className="text-muted"> = {lv.cumulative}% look-through</span>}
+                </span>
+              ))}
+            </div>
           </div>
           <button className="btn btn-primary" onClick={() => router.push(jc ? etrHref(jc) : `/etr?iso=${selected.iso}`)}>Open {jc?.name ?? selected.jurisdiction} calculation</button>
         </div>
@@ -79,7 +88,7 @@ export default function GraphPage() {
             <div className="kpi"><div className="kpi-label">Revenue</div><div className="kpi-val" style={{ fontSize: 22 }}>{eur(jc.revenue, true)}</div></div>
             <div className="kpi"><div className="kpi-label">GloBE</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.globeIncome} audit={jc.trace.globe} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Covered tax</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.coveredTax} audit={jc.trace.covered} compact /></div></div>
-            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} audit={jc.trace.etr} compact /></div></div>
+            <div className="kpi"><div className="kpi-label">ETR</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.etr} label={etrPct(jc, 2)} audit={jc.trace.etr} compact /></div></div>
             <div className="kpi"><div className="kpi-label">Safe harbour</div><div className="kpi-val" style={{ fontSize: 18 }}>{jc.sh.outcome}{jc.sh.barred ? " · barred" : ""}</div></div>
             <div className="kpi"><div className="kpi-label">Top-up</div><div className="kpi-val" style={{ fontSize: 22 }}><Amount n={jc.jurisdictionalTopUp} audit={jc.audit} compact /></div></div>
           </div>

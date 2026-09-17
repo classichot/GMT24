@@ -70,7 +70,8 @@ export type UploadExtract = {
   pages: number;
 };
 
-export type ScanOptions = { period?: string; registryId?: string; upload?: UploadExtract; now?: string };
+export type DiscoveredSource = { resolved: ResolvedEntity; note: string; source: { kind: SourceDoc["kind"]; url: string | null; title: string; language: SourceDoc["language"] }; discovery: NonNullable<ScanResult["discovery"]> };
+export type ScanOptions = { period?: string; registryId?: string; upload?: UploadExtract; now?: string; /** Company resolved from real public sources (not the registry). */ discovered?: DiscoveredSource };
 
 export function periodsFor(registryId: string | null): string[] {
   const c = registryId ? corpusFor(registryId) : undefined;
@@ -92,7 +93,7 @@ function toEntity(e: CorpusEntity, period: string, docId: string, basis: Basis =
 
 export function buildScan(query: string, opts: ScanOptions = {}): ScanResult {
   const now = opts.now ?? new Date().toISOString();
-  const res = opts.registryId ? { resolved: resolvedFromRegistry(REGISTRY.find((r) => r.id === opts.registryId)!, "selected"), alternatives: [], ambiguous: false, note: "Selected by user." } : resolveEntity(query);
+  const res: Resolution = opts.discovered ? { resolved: opts.discovered.resolved, alternatives: [], ambiguous: false, note: opts.discovered.note } : opts.registryId ? { resolved: resolvedFromRegistry(REGISTRY.find((r) => r.id === opts.registryId)!, "selected"), alternatives: [], ambiguous: false, note: "Selected by user." } : resolveEntity(query);
   const stages: Stage[] = STAGE_ORDER.map((id) => ({ id, label: STAGE_LABEL[id], status: "pending" }));
   const set = (id: StageId, status: Stage["status"], note?: string) => { const s = stages.find((x) => x.id === id)!; s.status = status; s.note = note; };
   const result: ScanResult = {
@@ -117,7 +118,8 @@ export function buildScan(query: string, opts: ScanOptions = {}): ScanResult {
   const cp = corpus?.periods.find((p) => p.period === period);
   const docs: SourceDoc[] = [];
   if (cp) docs.push(...cp.docs.map((d) => toDoc(d, now)));
-  if (opts.upload) docs.push({ id: `upload-${opts.upload.attachmentId}`, title: opts.upload.name, kind: "upload", period: opts.upload.period, issuer: res.resolved?.name ?? query, url: null, retrievedAt: now, accessible: true, pages: opts.upload.pages, language: "en", attachmentId: opts.upload.attachmentId });
+  if (opts.upload) docs.push({ id: `upload-${opts.upload.attachmentId}`, title: opts.discovered?.source.title ?? opts.upload.name, kind: opts.discovered?.source.kind ?? "upload", period: opts.upload.period, issuer: res.resolved?.name ?? query, url: opts.discovered?.source.url ?? null, retrievedAt: now, accessible: true, pages: opts.upload.pages, language: opts.discovered?.source.language ?? "en", attachmentId: opts.upload.attachmentId });
+  if (opts.discovered) result.discovery = opts.discovered.discovery;
   result.sources = docs;
   const inaccessible = docs.filter((d) => !d.accessible);
   if (!docs.length) { set("sources", "failed", "No official disclosures found. Upload the annual report or audited statements."); }
@@ -155,6 +157,7 @@ export function buildScan(query: string, opts: ScanOptions = {}): ScanResult {
   // Stages 6–7 — exposure and questions (re-derivable).
   const jd = [...(cp?.jurisdictionData ?? []), ...(opts.upload?.jurisdictionData ?? [])];
   const da = cp?.disclosedAmounts ?? [];
+  if (opts.upload?.jurisdictionData.length) result.extraJurisdictionData = opts.upload.jurisdictionData;
   const assessed = assess({ ...result, notes: result.notes }, { jurisdictionData: jd, disclosedAmounts: da });
   assessed.completedAt = new Date().toISOString();
   return assessed;
@@ -381,7 +384,7 @@ export function assess(r: ScanResult, extra?: AssessExtra): ScanResult {
 /** Re-run exposure after an answer or correction. Jurisdiction data is re-read from the corpus for the same period. */
 export function reassess(r: ScanResult): ScanResult {
   const cp = r.resolved ? corpusFor(r.resolved.registryId)?.periods.find((p) => p.period === r.period) : undefined;
-  return assess(r, { jurisdictionData: cp?.jurisdictionData ?? [], disclosedAmounts: cp?.disclosedAmounts ?? [] });
+  return assess(r, { jurisdictionData: [...(cp?.jurisdictionData ?? []), ...(r.extraJurisdictionData ?? [])], disclosedAmounts: cp?.disclosedAmounts ?? [] });
 }
 
 export type ScanDiff = {

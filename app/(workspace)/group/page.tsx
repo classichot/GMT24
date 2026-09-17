@@ -1,6 +1,6 @@
 "use client";
 
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { scopeTest } from "@/lib/engine";
 import { classifyAll } from "@/lib/entityClass";
 import { useStore } from "@/lib/store";
@@ -14,7 +14,7 @@ export default function GroupPage() {
   const scope = scopeTest(groupId);
   const { calcs } = useCalc();
   const classes = classifyAll();
-  const cls = (t: string) => ENTITIES.filter((e) => e.type === t).length;
+  const cls = (t: string) => DATA.entities.filter((e) => e.type === t).length;
   const popeN = classes.filter((c) => c.pope).length;
   const moceN = classes.filter((c) => c.moce).length;
   const population = populationReconciliation();
@@ -51,7 +51,7 @@ export default function GroupPage() {
           ["CE", cls("CE")],
           ["MOCE", moceN],
           ["POPE", popeN],
-          ["Graph nodes", ENTITIES.length],
+          ["Graph nodes", DATA.entities.length],
         ].map(([k, v]) => (
           <div className="kpi" key={String(k)}><div className="kpi-label">{k}</div><div className="kpi-val">{v}</div></div>
         ))}

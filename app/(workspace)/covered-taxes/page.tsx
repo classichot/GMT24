@@ -3,13 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ENTITIES, FINANCIALS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { entityCalc, MIN_RATE, traceCoveredEntity, traceDeferredEntity } from "@/lib/engine";
 import { deferredTaxAdjustment } from "@/lib/deferredTax";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
 import { useStore } from "@/lib/store";
 import { useCalc } from "@/lib/useCalc";
+import { FxNote } from "@/components/FxNote";
+import { GaapNote } from "@/components/GaapNote";
+import { ArticleLocators } from "@/components/ArticleLocators";
 
 const METHOD = [
   {
@@ -69,7 +72,7 @@ export default function CoveredTaxesPage() {
   const { ask, approvedMaps, electionsOn, activeFy } = useStore();
   const { calcs } = useCalc();
   const router = useRouter();
-  const [id, setId] = useState("TH-CE");
+  const [id, setId] = useState(() => DATA.focusEntityId);
   const row = entityCalc(id, { approvedMaps, electionsOn, fy: activeFy });
   const jur = calcs.find((c) => c.entities.some((e) => e.id === id));
   if (!row) return null;
@@ -92,6 +95,8 @@ export default function CoveredTaxesPage() {
         </div>
       </div>
 
+      <ArticleLocators calcs={calcs} />
+
       <div className="grid-2" style={{ marginBottom: 20 }}>
         {METHOD.map((m) => (
           <div key={m.n} className="panel">
@@ -110,14 +115,16 @@ export default function CoveredTaxesPage() {
       </div>
 
       <select className="input" style={{ maxWidth: 420, marginBottom: 16 }} value={id} onChange={(e) => setId(e.target.value)}>
-        {ENTITIES.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        {DATA.entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
 
       <div className="grid-split">
         <div className="panel">
-          <div className="panel-head">
+          <div className="panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
             <h4>{row.entity.code} bridge</h4>
             <Link href="/rulebook" className="tag tag-accent">OECD-GloBE-15 v2026.1</Link>
+            <div style={{ flexBasis: "100%" }}><FxNote entities={[row.entity]} iso={row.entity.iso} compact /></div>
+            <div style={{ flexBasis: "100%" }}><GaapNote entities={[row.entity]} electionsOn={electionsOn} compact /></div>
           </div>
           <div className="panel-body waterfall">
             <div className="wf-row">
@@ -247,8 +254,8 @@ export default function CoveredTaxesPage() {
               </tr>
             </thead>
             <tbody>
-              {FINANCIALS.map((fin) => {
-                const e = ENTITIES.find((x) => x.id === fin.entityId)!;
+              {DATA.financials.map((fin) => {
+                const e = DATA.entities.find((x) => x.id === fin.entityId)!;
                 const deferred = deferredTaxAdjustment(fin.entityId) ?? fin.deferredTax;
                 const entityRow = entityCalc(fin.entityId, { approvedMaps, electionsOn, fy: activeFy });
                 const covered = entityRow?.covered ?? 0;

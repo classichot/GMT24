@@ -1,7 +1,7 @@
 import type { JurCalc } from "../engine";
 import { eligibilityEngine, splitSwitch } from "../electionEngine";
 import { eur, pct } from "../format";
-import { ACCOUNTS, ADJUSTMENTS, ENTITIES, ISSUES } from "../model";
+import { DATA } from "../model";
 import { findingStatus, type XrayFinding, type XrayState } from "../xray";
 import { movementVsBaseline, movementVsPrior, type CalcInputs } from "./calc";
 import { propose } from "./actions";
@@ -43,15 +43,15 @@ export type ReviewInput = {
 export function reviewCalculation(i: ReviewInput): ReviewFinding[] {
   const out: ReviewFinding[] = [];
   const { calcs } = i;
-  const ents = ENTITIES.filter((e) => calcs.some((c) => c.entities.some((x) => x.id === e.id)) || e.id.startsWith(i.groupId.slice(0, 3)));
+  const ents = DATA.entities.filter((e) => calcs.some((c) => c.entities.some((x) => x.id === e.id)) || e.id.startsWith(i.groupId.slice(0, 3)));
 
   // 1. Mapping completeness.
-  const pending = ACCOUNTS.filter((a) => !a.approved && !i.approvedMaps[a.account]);
+  const pending = DATA.accounts.filter((a) => !a.approved && !i.approvedMaps[a.account]);
   for (const a of pending) {
     out.push({ id: `map-${a.account}`, kind: "validation", area: "mapping", severity: a.confidence < 70 ? "block" : "warn", title: `Mapping ${a.account} ${a.name} not approved`, checked: "Every posted account has an approved GloBE category.", expected: "Approved (≥ 80% confidence or reviewer-approved)", actual: `${a.confidence}% confidence · ${a.globe}${a.adjustment ? ` → ${a.adjustment}` : ""} · ${eur(a.amount)} posted at default`, question: `Is ${a.name} correctly a ${a.globe}${a.adjustment ? ` with ${a.adjustment}` : ""}?`, owner: "Preparer", href: "/mapping", entityId: a.entityId });
   }
   const dupMaps = new Map<string, Set<string>>();
-  for (const a of ACCOUNTS) {
+  for (const a of DATA.accounts) {
     const k = a.name.toLowerCase();
     dupMaps.set(k, new Set([...(dupMaps.get(k) ?? []), a.globe]));
   }
@@ -60,7 +60,7 @@ export function reviewCalculation(i: ReviewInput): ReviewFinding[] {
   // 2. Reconciliation — population and entity-to-jurisdiction sums.
   for (const c of calcs) {
     const fanilSum = c.entities.length ? c.fanil : 0;
-    const adj = ADJUSTMENTS.filter((a) => c.entities.some((e) => e.id === a.entityId)).reduce((s, a) => s + a.amount, 0);
+    const adj = DATA.adjustments.filter((a) => c.entities.some((e) => e.id === a.entityId)).reduce((s, a) => s + a.amount, 0);
     const bridge = Math.abs(fanilSum + adj - c.globeIncome);
     if (fanilSum && bridge > Math.max(50_000, Math.abs(c.globeIncome) * 0.02)) {
       out.push({ id: `recon-${c.blendKey}`, kind: "suspected", area: "reconciliation", severity: "warn", title: `${c.name}: FANIL + listed adjustments ≠ GloBE income`, checked: "FANIL plus recorded Art. 3.2 adjustments bridges to GloBE income.", expected: eur(fanilSum + adj), actual: `${eur(c.globeIncome)} (gap ${eur(bridge)})`, question: "Which engine-level adjustment (mapping override, election, scenario) explains the residual? Open the trace.", owner: "Reviewer", href: `/etr?iso=${c.iso}`, iso: c.iso });
@@ -71,11 +71,11 @@ export function reviewCalculation(i: ReviewInput): ReviewFinding[] {
   for (const e of missingEnts) out.push({ id: `pop-${e.id}`, kind: "validation", area: "reconciliation", severity: "block", title: `${e.code} not in any jurisdiction calculation`, checked: "Every non-excluded constituent entity is in a jurisdictional blend.", expected: "Present", actual: "Absent", question: `Is ${e.name} an excluded entity, or did the blend key drop it?`, owner: "Preparer", href: "/entities", entityId: e.id, iso: e.iso });
 
   // 3. Treatment consistency — adjustments without reviewer, ENTE, negative covered.
-  for (const a of ADJUSTMENTS.filter((x) => !x.reviewer)) out.push({ id: `adj-${a.id}`, kind: "validation", area: "evidence", severity: "warn", title: `${a.id} ${a.category} unsigned`, checked: "Each Art. 3.2 adjustment has a reviewer.", expected: "Reviewer recorded", actual: `${eur(a.amount)} · preparer ${a.preparer} · no reviewer`, question: `Does ${a.sourceDoc} support ${a.reason}?`, owner: "Reviewer", href: "/globe-income", entityId: a.entityId });
+  for (const a of DATA.adjustments.filter((x) => !x.reviewer)) out.push({ id: `adj-${a.id}`, kind: "validation", area: "evidence", severity: "warn", title: `${a.id} ${a.category} unsigned`, checked: "Each Art. 3.2 adjustment has a reviewer.", expected: "Reviewer recorded", actual: `${eur(a.amount)} · preparer ${a.preparer} · no reviewer`, question: `Does ${a.sourceDoc} support ${a.reason}?`, owner: "Reviewer", href: "/globe-income", entityId: a.entityId });
   for (const c of calcs) {
     if (c.coveredTax < 0 && c.globeIncome > 0 && !c.enteOriginated) out.push({ id: `ente-missing-${c.blendKey}`, kind: "validation", area: "treatment", severity: "block", title: `${c.name}: negative covered taxes with profit but no ENTE`, checked: "Art. 5.2.1 Excess Negative Tax Expense procedure applies when Adjusted Covered Taxes < 0 and GloBE income > 0.", expected: "ENTE originated; Top-up % capped at 15%", actual: `Covered ${eur(c.coveredTax)} · Top-up % ${pct(c.topUpRate, 2)}`, question: "Why did the engine not apply the ENTE administrative procedure?", owner: "Reviewer", href: `/etr?iso=${c.iso}`, iso: c.iso });
     if (c.topUpRate > 0.15001) out.push({ id: `rate-cap-${c.blendKey}`, kind: "validation", area: "treatment", severity: "block", title: `${c.name}: Top-up % above 15%`, checked: "Top-up Tax Percentage cannot exceed the 15% minimum rate.", expected: "≤ 15.00%", actual: pct(c.topUpRate, 2), question: "Negative ETR without ENTE cap — check covered tax sign and the ENTE branch.", owner: "Reviewer", href: `/etr?iso=${c.iso}`, iso: c.iso });
-    if (c.completeness < 90) out.push({ id: `compl-${c.blendKey}`, kind: "suspected", area: "evidence", severity: c.completeness < 75 ? "block" : "warn", title: `${c.name}: data completeness ${c.completeness}%`, checked: "Estimated inputs in the jurisdiction.", expected: "≥ 90%", actual: `${c.completeness}% · top-up ${eur(c.jurisdictionalTopUp)} rests partly on estimates`, question: `Which inputs are estimated and who owns the source? (${ISSUES.filter((x) => x.jurisdiction === c.name).map((x) => x.id).join(", ") || "see Data quality"})`, owner: "Preparer", href: "/quality", iso: c.iso });
+    if (c.completeness < 90) out.push({ id: `compl-${c.blendKey}`, kind: "suspected", area: "evidence", severity: c.completeness < 75 ? "block" : "warn", title: `${c.name}: data completeness ${c.completeness}%`, checked: "Estimated inputs in the jurisdiction.", expected: "≥ 90%", actual: `${c.completeness}% · top-up ${eur(c.jurisdictionalTopUp)} rests partly on estimates`, question: `Which inputs are estimated and who owns the source? (${DATA.issues.filter((x) => x.jurisdiction === c.name).map((x) => x.id).join(", ") || "see Data quality"})`, owner: "Preparer", href: "/quality", iso: c.iso });
     if (c.exposure === "Top-up" && c.sh.outcome === "Not tested") out.push({ id: `sh-untested-${c.blendKey}`, kind: "suspected", area: "treatment", severity: "info", title: `${c.name}: safe harbours not tested`, checked: "Safe-harbour navigator ran for jurisdictions with a top-up.", expected: "Tested", actual: `Not tested · top-up ${eur(c.jurisdictionalTopUp)}`, question: "Is CbCR data available to test the transitional safe harbour?", owner: "Tax manager", href: "/safe-harbour", iso: c.iso });
   }
 

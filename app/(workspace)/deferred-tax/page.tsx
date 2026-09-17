@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ENTITIES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { MIN_RATE, calcForIso, traceDtPosition, traceDeferredIso } from "@/lib/engine";
 import { eur, pct } from "@/lib/format";
 import { Amount } from "@/components/Amount";
@@ -383,7 +383,7 @@ function Inner() {
             </thead>
             <tbody>
               {dtas.slice(0, 12).map((t) => {
-                const e = ENTITIES.find((x) => x.id === t.entityId);
+                const e = DATA.entities.find((x) => x.id === t.entityId);
                 return (
                   <tr key={t.id} className="clickable" onClick={() => { setSelected(t.id); setFilter("dta"); }}>
                     <td>
@@ -667,7 +667,7 @@ function Inner() {
             </thead>
             <tbody>
               {rows.slice(0, 80).map((p) => {
-                const e = ENTITIES.find((x) => x.id === p.entityId);
+                const e = DATA.entities.find((x) => x.id === p.entityId);
                 const st = statusAt(p, asOf);
                 const [tag, label] = STATUS_TAG[st];
                 return (
@@ -747,7 +747,7 @@ function Inner() {
 function PositionCard({ p, asOf }: { p: DtView; asOf: number }) {
   const st = statusAt(p, asOf);
   const [tag, label] = STATUS_TAG[st];
-  const e = ENTITIES.find((x) => x.id === p.entityId);
+  const e = DATA.entities.find((x) => x.id === p.entityId);
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>

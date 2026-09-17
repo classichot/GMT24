@@ -87,7 +87,7 @@ const BASE: GapItem[] = [
     rdCite: "DG Notification No. 1",
     kind: "overlay",
     core: "FANIL taken from UPE IFRS consolidation. No Thai whitelist check.",
-    pack: "Accounting Standard Validator. Aetherion: IFRS UPE + TFRS Thai CEs — accepted. Material tests below threshold.",
+    pack: "Accounting Standard Validator. UPE consolidation standard checked against the Notification No. 1 whitelist; Thai CEs on TFRS — accepted. Material tests below threshold.",
     action: "Keep the UPE consolidation-policy memo in the evidence locker.",
     href: "/thailand/scope",
     play: "01",
@@ -102,7 +102,7 @@ const BASE: GapItem[] = [
     rd: "Must be interpreted in line with GloBE. Detailed adjustment list is delegated to a further instrument.",
     rdCite: "Decree s 31 (pending)",
     kind: "pending",
-    core: "Art. 3.2 deltas posted for TH001 (excluded dividends, net tax, FX hold).",
+    core: "Art. 3.2 deltas posted for the Thai CEs (excluded dividends, net tax, FX hold).",
     pack: "Inherits Core. Does not invent s 31 adjustments.",
     action: "Document that Thai GloBE income currently follows OECD 3.2. Re-run when s 31 is published.",
     href: "/globe-income",
@@ -296,6 +296,9 @@ const BASE: GapItem[] = [
   },
 ];
 
+/** Stable ids of the gap register, for cross-references from the legal corpus. */
+export const GAP_IDS: string[] = BASE.map((g) => g.id);
+
 export const GAP_PLAY = [
   { n: "01", title: "Separate the tests", body: "Open the source pin before anyone copies a GloBE number onto a Thai form. Scope, FX and situs each have an OECD article and a Thai instrument. Lock BOT rates and PE category first.", href: "/thailand/scope", hrefLabel: "Scope memo" },
   { n: "02", title: "Reconcile the numbers that diverge", body: "Thai SBIE (Notification No. 4) vs OECD SBIE. Covered-tax questionnaire vs Art. 4. FANIL stays on OECD 3.2 until s 31 exists — do not let the LLM fill the gap. Track back through the RD mapping PDF.", href: "/thailand/sbie", hrefLabel: "Thai SBIE" },
@@ -335,9 +338,16 @@ export function reviewOecdRdGap(th: JurCalc) {
       };
     }
     if (g.id === "G-ORDER") {
+      const usd = (n: number) => n.toLocaleString("en-GB");
+      const iirBit = L.thaiIir > 0
+        ? `Thai IIR on foreign blends ${usd(L.thaiIir)}${L.thaiIirRows.length ? ` (${L.thaiIirRows.map((r) => r.name).join(", ")})` : ""}`
+        : "Thai IIR $0";
       return {
         ...g,
-        finding: `Core jurisdictional top-up ${th.jurisdictionalTopUp.toLocaleString("en-GB")} = Thai QDMTT payable ${L.payable.toLocaleString("en-GB")}. Foreign QDMTT $0 · IIR $0 · residual UTPR $0.`,
+        core: L.thaiIir > 0
+          ? "Thailand QDMTT collects the Thai jurisdictional top-up. Residual UTPR $0 on Thai profits after QDMTT. Thai IIR adds residual from foreign blends."
+          : "Thailand QDMTT collects the jurisdictional top-up. Residual IIR/UTPR $0 on Thai profits.",
+        finding: `Thai QDMTT ${usd(L.thaiQdmtt)} equals Core jurisdictional top-up ${usd(th.jurisdictionalTopUp)}. Foreign QDMTT ${usd(L.foreignQdmtt)} · IIR already imposed ${usd(L.iirAlready)} · residual UTPR collectible ${usd(L.thaiUtprCollect)}. ${iirBit}. Thai amount payable ${usd(L.payable)}.`,
       };
     }
     if (g.id === "G-ETR") {
@@ -376,6 +386,8 @@ export function reviewOecdRdGap(th: JurCalc) {
     oecdScope: "IN SCOPE",
     thaiScope: scope.status,
     payable: L.payable,
+    thaiQdmtt: L.thaiQdmtt,
+    thaiIir: L.thaiIir,
     topUp: th.jurisdictionalTopUp,
     fileReady: false,
     headline: `${count("diverge")} diverge · ${count("pending")} pending RD instruments · ${count("calc-gap")} Core data gaps`,

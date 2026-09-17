@@ -2,7 +2,7 @@ import type { JurCalc } from "../engine";
 import { isosIn } from "./i18n";
 import { applyPackage, eligibilityEngine, flagsFromOn, optimizeGlobe, switchKey, type SbieMode } from "../electionEngine";
 import { ELECTIONS, electionById } from "../elections";
-import { eur, money, pct } from "../format";
+import { etrPct, eur, money } from "../format";
 import { runEngine, type CalcInputs } from "./calc";
 import { propose } from "./actions";
 import { ruleVersion } from "./knowledge";
@@ -79,7 +79,7 @@ export function runScenario(spec: ScenarioSpec, inputs: CalcInputs, working: Jur
   const rows: ScenarioJurRow[] = rowsS.map((r) => {
     const b = rowsB.find((x) => (x.blendKey ?? x.iso) === (r.blendKey ?? r.iso));
     const c = calcs.find((x) => x.blendKey === (r.blendKey ?? r.iso));
-    return { iso: r.iso, name: r.name, blendKey: r.blendKey ?? r.iso, baseTopUp: b?.topUp ?? 0, topUp: r.topUp, baseEtr: b?.etr ?? 0, etr: r.etr, payer: c?.collection.payer ?? "" };
+    return { iso: r.iso, name: r.name, blendKey: r.blendKey ?? r.iso, baseTopUp: b?.topUp ?? 0, topUp: r.topUp, baseEtr: b?.etr ?? 0, etr: r.etr, baseGlobe: b?.globe ?? 0, globe: r.globe, payer: c?.collection.payer ?? "" };
   });
   const baseTopUp = money(rowsB.reduce((a, r) => a + r.topUp, 0));
   const topUp = money(rowsS.reduce((a, r) => a + r.topUp, 0));
@@ -145,7 +145,7 @@ export function strategyReply(sc: SavedScenario, ctx: WorkContext, unparsed: str
   sections.push({ kind: "conclusion", text: `${sc.title}: group top-up ${eur(sc.baseTopUp)} → ${eur(sc.topUp)} (${delta <= 0 ? "−" : "+"}${eur(Math.abs(delta))}) on ${sc.calcVersion}. ${moved.length ? `${moved.length} jurisdiction${moved.length === 1 ? "" : "s"} move.` : "No jurisdiction moves — the lever does not touch this group's figures."}` });
   sections.push({ kind: "list", title: "Explicit assumptions", items: sc.assumptions });
   if (unparsed.length) sections.push({ kind: "warning", text: unparsed.join(" ") });
-  if (moved.length) sections.push({ kind: "table", title: "Jurisdiction comparison", head: ["Jurisdiction", "Top-up now", "Scenario", "ETR now → scenario", "Collected by"], rows: moved.slice(0, 8).map((r) => [r.name, eur(r.baseTopUp), eur(r.topUp), `${pct(r.baseEtr, 2)} → ${pct(r.etr, 2)}`, r.payer]) });
+  if (moved.length) sections.push({ kind: "table", title: "Jurisdiction comparison", head: ["Jurisdiction", "Top-up now", "Scenario", "ETR now → scenario", "Collected by"], rows: moved.slice(0, 8).map((r) => [r.name, eur(r.baseTopUp), eur(r.topUp), `${etrPct({ etr: r.baseEtr, globeIncome: r.baseGlobe ?? 1 }, 2)} → ${etrPct({ etr: r.etr, globeIncome: r.globe ?? 1 }, 2)}`, r.payer]) });
   if (sc.eligibility.length) sections.push({ kind: "facts", title: "Eligibility screen", items: sc.eligibility.map((e) => `${e.key}: ${e.status} — ${e.reason}`) });
   sections.push({ kind: "table", title: "Multi-year view (flat extrapolation)", head: ["Year", "Current package", "Scenario", "Note"], rows: sc.multiYear.map((m) => [m.fy, eur(m.base), eur(m.scenario), m.note]) });
   if (sc.sensitivity.length) sections.push({ kind: "table", title: "Sensitivity", head: ["Case", "Group top-up", "vs scenario"], rows: sc.sensitivity.map((s) => [s.label, eur(s.topUp), `${s.delta >= 0 ? "+" : "−"}${eur(Math.abs(s.delta))}`]) });

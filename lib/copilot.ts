@@ -1,11 +1,15 @@
-import { ACCOUNTS, ENTITIES, INCENTIVES, ISSUES, RULES } from "./model";
+import { DATA, RULES } from "./model";
 import { calculateGroup, calcForIso, entityCalc, type JurCalc } from "./engine";
 import { shippingPost } from "./shipping";
-import { eur, pct, thb } from "./format";
+import { etrPct, eur, pct, thb } from "./format";
 import { reviewOecdRdGap } from "./thaiGap";
+import { reviewDataset } from "./datasetGuideline";
+import { thaiLiability } from "./thailand";
 import { optimizeBoi } from "./boiOptimizer";
 import { optimizeGlobe } from "./electionEngine";
 import { WORKED_SBC_THB } from "./elections";
+import { activeSeedId } from "./seeds";
+import { citeLegal, fyStartDate, searchPassages } from "./legal";
 
 export type CopilotMsg = {
   role: "user" | "assistant";
@@ -17,7 +21,143 @@ function th() {
   return calcForIso("TH")!;
 }
 
-const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
+/** ThaiCoal answers: a Thai UPE, so Thai IIR is live and the Thai blend is UPE + listed POPE + BOI solar CE + logistics CE. */
+const THAICOAL_CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
+  {
+    match: /thailand pack|jurisdiction pack|thai liability|who pays the thai|thai qdmtt|residual utpr|thai iir/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      const L = thaiLiability(j, calculateGroup());
+      const iirLine = L.thaiIirRows.length
+        ? L.thaiIirRows.map((r) => `${r.name} ${eur(r.popeIir + r.upeIir)}${r.popeIir ? ` (POPE IIR ${eur(r.popeIir)} at ThaiCoal Power PCL)` : ""}`).join("; ")
+        : "none";
+      return {
+        role: "assistant",
+        text: `ThaiCoal is a Thai UPE, so Thailand collects twice.\n\n1. Thai QDMTT on the Thai blend (UPE + ThaiCoal Power PCL + NextGen Energy + Minerals & Logistics): ${eur(L.thaiQdmtt)}. Driver is the BOI solar holiday at NextGen Energy.\n2. Thai IIR on low-taxed foreign blends where no local QDMTT collects first: ${eur(L.thaiIir)} — ${iirLine}. ThaiCoal Power PCL is a POPE (22% outside), so the IIR on its Chinese power CE is applied at the POPE × Inclusion Ratio before the UPE takes the residual. Singapore and the Vietnamese JV are low-taxed too, but their own QDMTTs collect first, so Thailand gets nothing on them.\n\nThai amount ultimately payable ${eur(L.payable)}. Designated Thai taxpayer: ${L.designatedLabel} (draft election; joint and several remains). Indonesia and Australia are not in the IIR line — Indonesia is above 15% and Australia has a net GloBE loss.\n\nOpen the Thai Liability Dashboard.`,
+        cites: [
+          { label: "Thai liability dashboard", href: "/thailand/liability" },
+          { label: "TH-PACK-2567 v2567.2", href: "/thailand" },
+          { label: "OECD-POPE-214", href: "/rulebook" },
+        ],
+      };
+    },
+  },
+  {
+    match: /\bmoce\b|minority-owned|pope|partially-owned parent|inclusion ratio|entity test/i,
+    seed: "thaicoal",
+    answer: () => {
+      const list = calculateGroup();
+      const special = list.filter((c) => c.blendKind !== "main" && c.jurisdictionalTopUp > 0);
+      return {
+        role: "assistant",
+        text: `Entity test is computed from the ownership chain (OECD-MOCE-513 / OECD-POPE-214 / OECD-IR-222 / OECD-JV-64 v2026.1).\n\nPOPE — Art. 2.1.4: a non-UPE Parent where outsiders hold more than 20%. This snapshot has three: ThaiCoal Power PCL (78% group-owned, listed on the SET), PT ThaiCoal Indo Tbk (65%, listed on the IDX), and ThaiCoal Energy US Corp. (75% UPE-owned). IIR applies at the POPE first × Inclusion Ratio; the UPE takes the residual. Indonesia is above 15% so the Indo POPE has nothing to collect. The US POPE sits in a Side-by-Side jurisdiction with no IIR — any residual would skip to the Thai UPE, but US ETR is above 15%. ThaiCoal Power PCL collects Thai IIR on China (Singapore QDMTT collects first on the renewables platform).\n\nMOCE — Art. 5.1.3: UPE Ownership Interests ≤ 30%. No CE fails this test — the lowest look-through is PT ThaiCoal Kalimantan Mining at 64.35%. ThaiCoal-Lao Lignite Power (40% direct, 31.2% UPE look-through, equity-accounted) is not a CE at all.\n\nJV — Art. 6.4: ThaiCoal-Trang Wind Power (50/50, equity-accounted) is a separate Vietnamese JV Group ETR.\n\nSpecial blends with top-up: ${special.map((c) => `${c.name} (${c.collection.payer})`).join("; ") || "none on this snapshot"}. Open the entity register.`,
+        cites: [
+          { label: "Entity test", href: "/entities" },
+          { label: "OECD-POPE-214", href: "/rulebook" },
+          { label: "OECD-JV-64", href: "/rulebook" },
+          { label: "Allocation", href: "/allocation" },
+        ],
+      };
+    },
+  },
+  {
+    match: /thailand.*etr|etr.*thailand|10\./i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `Thailand’s jurisdictional ETR is ${pct(j.etr, 2)}.\n\nCovered taxes ${eur(j.coveredTax)} ÷ GloBE income ${eur(j.globeIncome)}.\n\nThe blend is four Thai entities: ThaiCoal PCL (UPE, coal trading and mining at 20% CIT), ThaiCoal Power PCL (POPE, 20%), ThaiCoal NextGen Energy (BOI solar holiday at 0% CIT to 31 Dec 2026) and Minerals & Logistics (20%). The shortfall against 15% is the holiday income at NextGen Energy, plus excluded dividends of $186M at the UPE and $88M at the POPE under Art. 3.2.1(b), which pull GloBE income down without any Covered Tax attached.\n\nCalculation snapshot GMT24-CALC 2026.2 · rule OECD-GloBE-15 v2026.1.`,
+        cites: [
+          { label: "OECD-GloBE-15 v2026.1", href: "/rulebook" },
+          { label: "TC001 Trial Balance FY2026.xlsx", href: "/data" },
+          { label: "BOI_Certificate_TC031_solar.pdf", href: "/incentives" },
+        ],
+      };
+    },
+  },
+  {
+    match: /safe harbour|safe harbor|qualify|de minimis|mongolia/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      const mn = calcForIso("MN");
+      const us = calcForIso("US");
+      return {
+        role: "assistant",
+        text: `Thailand does not qualify for the Transitional CbCR Safe Harbour in FY2026.\n\n${j.sh.navigator}\n\nMongolia (ThaiCoal Mongolia LLC) ${mn ? `passes the de minimis test — revenue below €10M and profit below €1M — ${mn.sh.navigator}` : "is the de minimis candidate"}. Elect SH_TCSH on the GIR; the prior-year deferred-tax opening balances are still a blocker for the full calculation.\n\nUnited States ${us ? `is treated under Side-by-Side: ${us.sh.navigator}` : "is under Side-by-Side"}.\n\nSBTISH is under review for the BOI solar holiday at NextGen Energy — the solar CapEx is qualifying substance expenditure but the trace must be signed before the harbour is elected.\n\nRule versions: OECD-TCSH-2026 v2026.2 · OECD-SBTISH v2026.2 · TH-QDMTT-2025 v2025.1.`,
+        cites: [{ label: "OECD-TCSH-2026 v2026.2", href: "/safe-harbours" }, { label: "Side-by-Side", href: "/harbours-2026" }, { label: "TH-QDMTT-2025", href: "/rulebook" }],
+      };
+    },
+  },
+  {
+    match: /boi|holiday|expire|solar/i,
+    seed: "thaicoal",
+    answer: () => {
+      const j = th();
+      return {
+        role: "assistant",
+        text: `The BOI Category 7.1 promotion at ThaiCoal NextGen Energy (Lopburi solar and battery storage) runs 0% CIT to 31 Dec 2026, then a 50% reduction (10%) to 2031.\n\nToday the holiday income lands in the Thai blend at 0% and Thai QDMTT collects ${eur(j.jurisdictionalTopUp)} on the whole Thai jurisdiction — so the group pays most of the incentive back to the Revenue Department rather than keeping it.\n\nFrom FY2027 the 10% step-down lifts the Thai ETR but still leaves it below 15% unless the SBTISH trace is signed. The BOI Optimizer ranks keep-holiday vs 10% conversion vs QRTC (not bookable yet) vs 20% baseline on a 10-year NPV.\n\nOpen the BOI Optimizer.`,
+        cites: [{ label: "BOI Optimizer", href: "/thailand/boi" }, { label: "TC-BOI-SOLAR certificate", href: "/incentives" }, { label: "Playbook", href: "/playbook/boi-optimizer" }],
+      };
+    },
+  },
+  {
+    match: /adjustment|810020|dividend/i,
+    seed: "thaicoal",
+    answer: () => ({
+      role: "assistant",
+      text: `Excluded dividends are the largest GloBE adjustment in this group.\n\n• ThaiCoal PCL (TC001): −$186.0M — dividends from PT ThaiCoal Indo Tbk, ThaiCoal Singapore and ThaiCoal Power PCL, ownership ≥ 10%, Art. 3.2.1(b).\n• ThaiCoal Power PCL (TC010): −$88.0M — dividends from the Japan and China power CEs and the Lao associate (the associate sits outside the GloBE perimeter, the dividend is still excluded).\n• ThaiCoal Renewables Asia (TC041): −$12.3M — Asian solar portfolio dividends.\n\nAll three are account 810020, rule OECD-DIV-EXCL v2026.1, preparer local tax, reviewer K. Suksawat. Because Thai dividend income carries no Covered Tax, stripping it raises the Thai ETR rather than lowering it.\n\nThese are canonical GloBE adjustments, not an LLM estimate.`,
+      cites: [{ label: "OECD-DIV-EXCL v2026.1" }, { label: "GloBE income", href: "/globe-income" }],
+    }),
+  },
+  {
+    match: /australia|globe loss|loss.making|no etr/i,
+    seed: "thaicoal",
+    answer: () => {
+      const au = calcForIso("AU");
+      return {
+        role: "assistant",
+        text: `ThaiCoal Australia Pty Ltd is loss-making in FY2026.\n\nNet GloBE Loss ${au ? eur(au.globeIncome) : "(see snapshot)"}: under Art. 5.1.2 no ETR is computed for a jurisdiction with no Net GloBE Income, so there is no top-up and Australia does not appear on the Thai IIR line. The Australian tax-loss DTA is recast from 30% to 15% (Art. 4.4.1) and carried for later years.\n\nThe open blocker is the payroll split by mine site — the SBIE payroll file only covers the Mandalong site.\n\nOpen the Australian blend in Jurisdictions.`,
+        cites: [{ label: "Jurisdictions", href: "/jurisdictions" }, { label: "Deferred tax", href: "/deferred-tax" }, { label: "OECD-DT-441", href: "/rulebook" }],
+      };
+    },
+  },
+  {
+    match: /singapore|global trader|gtp|trading hub/i,
+    seed: "thaicoal",
+    answer: () => {
+      const sg = calcForIso("SG");
+      return {
+        role: "assistant",
+        text: `Singapore is the second-largest top-up in this group${sg ? `: ETR ${pct(sg.etr, 2)}, top-up ${eur(sg.jurisdictionalTopUp)}` : ""}.\n\nThaiCoal Singapore Pte. Ltd. trades coal under the Global Trader Programme at 10% (standard 17%), and ThaiCoal Renewables Asia holds the Asian solar portfolio. Singapore's Domestic Top-up Tax is in force from 2025, so the Singapore QDMTT collects the whole amount first and the Thai IIR residual on Singapore is $0 — Thailand only sees the ThaiCoal Power PCL POPE IIR on China.\n\nOpen the Singapore blend for the collection waterfall.`,
+        cites: [{ label: "Jurisdictions", href: "/jurisdictions" }, { label: "Allocation", href: "/allocation" }],
+      };
+    },
+  },
+];
+
+/** `seed` pins a scripted answer whose narrative quotes one demo group's facts; other groups fall through to the live snapshot answer. */
+const CANNED: { match: RegExp; seed?: string; answer: (q: string) => CopilotMsg }[] = [
+  ...THAICOAL_CANNED,
+  {
+    match: /dataset guideline|missing (document|source|file)|close pack complete|document completion|what (files|documents) (are |do i |should i )?(missing|needed|add|upload|drop)|how complete is the dataset/i,
+    answer: () => {
+      const R = reviewDataset(DATA.files, [], DATA.issues);
+      const missing = R.items.filter((i) => i.status === "missing" || i.status === "queued");
+      const incomplete = R.items.filter((i) => i.status === "incomplete");
+      return {
+        role: "assistant",
+        text: `Dataset guideline for the posted ${DATA.group.name} ${DATA.group.fy} close pack.\n\nCompletion ${R.completion}% · ${R.headline}.\nRequired to calculate: ${R.required.posted} posted, ${R.required.incomplete} incomplete, ${R.required.missing} missing (of ${R.required.total}).\nRecommended overlays: ${R.recommended.posted} posted, ${R.recommended.missing} open (of ${R.recommended.total}).\n\n${R.suggestion}\n\n${incomplete.length ? `Incomplete on file:\n${incomplete.map((i) => `• ${i.slot.title} — ${i.note}`).join("\n")}\n\n` : ""}${missing.length ? `Still to add:\n${missing.map((i) => `• ${i.slot.title} (${i.slot.need}) — ${i.slot.why}`).join("\n")}\n\n` : ""}The LLM does not invent a missing payroll month or an opening DTA. Open Data Hub for the checklist, or Data requests to draft the owner note.`,
+        cites: [
+          { label: "Data Hub · dataset guideline", href: "/data" },
+          { label: "Data requests", href: "/requests" },
+          { label: "Data quality", href: "/quality" },
+        ],
+      };
+    },
+  },
   {
     match: /evidence history|immutable (log|chronicle)|who (changed|approved|commented)|chronicle|evidence locker/i,
     answer: () => ({
@@ -47,7 +187,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
     match: /host desk|\bbhd\b|demo (invite|link)|review link|mint (a )?link/i,
     answer: () => ({
       role: "assistant",
-      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, set days (1–30, default 3), Generate, then send only that URL.\n\nThe expiry is signed into /review/{token}, so a recipient on another device can open Aetherion until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
+      text: "Host desk mints a time-limited GMT24 demo URL. Open /host, pick the demo door (In-house · Aetherion Group, In-house · ThaiCoal PCL, or Advisor firm), set days (1–45, default 3), Generate, then send only that URL.\n\nThe expiry and the demo group are signed into /review/{token}, so a recipient on another device opens that group until the clock runs out. After that the same URL shows Access ended.\n\nThe host key unlocks Advisor on this browser. It is never shown on public login. To kill every live link at once, bump INVITE_EPOCH and redeploy.",
       cites: [
         { label: "Host desk", href: "/host" },
         { label: "Approvals", href: "/approvals" },
@@ -56,6 +196,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /optimize (my )?globe|scenario optimizer|election package|lowest (fy|5-year|compliance)|pillar two scenario/i,
+    seed: "aetherion",
     answer: () => {
       const O = optimizeGlobe(calculateGroup());
       const rec = O.recs[4].scenario;
@@ -74,6 +215,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /3\.2\.2|stock.?comp|stock.?option|equity compensation|sbc election/i,
+    seed: "aetherion",
     answer: () => {
       const O = optimizeGlobe(calculateGroup());
       const W = WORKED_SBC_THB;
@@ -109,7 +251,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
       const R = reviewOecdRdGap(th());
       return {
         role: "assistant",
-        text: `OECD Model Rules + GMT24 GloBE Core are not the Thai RD Pillar Two file.\n\nThis snapshot: ${R.headline}.\nScope: OECD ${R.oecdScope} (USD 750m) vs Thai BOT ${R.thaiScope}.\nSBIE delta (Thai − OECD) ${eur(R.sbieDelta)}.\nTop-up ${eur(R.topUp)} is collected as Thai QDMTT ${eur(R.payable)} — collection is aligned; SBIE, FX and situs are not.\n\nGround of analysis: if OECD and RD conflict, cite the Thai instrument (Decree / DG notification). If they do not, cite the 2026 Commentary. Pending RD instruments (ss 31, 33, 53–57) are documented exceptions — see RD news 5/2026. Do not invent those rules in the copilot.\n\nOpen the OECD vs RD gap review. Every topic has a source trail (OECD article → RD instrument → GMT24 rule).`,
+        text: `OECD Model Rules + GMT24 GloBE Core are not the Thai RD Pillar Two file.\n\nThis snapshot: ${R.headline}.\nScope: OECD ${R.oecdScope} (USD 750m) vs Thai BOT ${R.thaiScope}.\nSBIE delta (Thai − OECD) ${eur(R.sbieDelta)}.\n${R.thaiIir > 0 ? `Thai QDMTT ${eur(R.thaiQdmtt)} on the Thai blend plus Thai IIR ${eur(R.thaiIir)} on foreign blends = payable ${eur(R.payable)}.` : `Top-up ${eur(R.topUp)} is collected as Thai QDMTT ${eur(R.payable)}.`} Collection of the Thai amount follows Art. 2; SBIE, FX and situs do not.\n\nGround of analysis: if OECD and RD conflict, cite the Thai instrument (Decree / DG notification). If they do not, cite the 2026 Commentary. Pending RD instruments (ss 31, 33, 53–57) are documented exceptions — see RD news 5/2026. Do not invent those rules in the copilot.\n\nOpen the OECD vs RD gap review. Every topic has a source trail (OECD article → RD instrument → GMT24 rule).`,
         cites: [
           { label: "OECD vs RD gap", href: "/thailand/gap" },
           { label: "RD GloBE mapping PDF", href: "https://www.rd.go.th/fileadmin/user_upload/porsor/topuptaxreference_170269.pdf" },
@@ -122,6 +264,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thailand pack|jurisdiction pack|thai liability|who pays the thai|thai qdmtt|residual utpr/i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -156,6 +299,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thai (return|filing|section 57|section 54)|when is the thai/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Thai Filing Command Centre clocks (Emergency Decree):\n\n• s 54 UPE / GIR-filer notification — 15 months from FY end → 31 Mar 2028 for FY2026\n• ss 55–56 local GIR or exchange exemption — 15 months → 31 Mar 2028\n• s 57 Thai return and payment — 15 months → 31 Mar 2028\n• s 58 first in-scope year (FY2025) — 18 months → 30 Jun 2027 (filed in this demo)\n\nCAA/exchange with Japan is under review before relying on a local GIR exemption. Electronic form schema is not in the pack. Do not market GMT24 as fully ready for Thai filing.\n\nThai tax ID for TH001 (demo): 0107558000121.`,
@@ -164,6 +308,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /rayong pe|situs|dual.resid|notification no\.?\s*3/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Rayong is a fixed-place / manufacturing PE of Aetherion (Thailand) Ltd., located in Thailand, blended in the Thai QDMTT. Notification No. 3 four PE categories were reviewed; treaty tie-breaker is not required.\n\nTH001 itself is a Thai CE (TFRS, UPE look-through 100%, not dual-resident, not an Excluded Entity). Entity test: not MOCE (UPE ownership 100% > 30%), not POPE.\nNo Notification No. 7 excluded entity in Thailand.\n\nEach classification stores result, period, facts, evidence, Thai provision, OECD interpretation and reviewer. Open Entity situs or the group entity test.`,
@@ -172,6 +317,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /\bmoce\b|minority-owned|pope|partially-owned parent|inclusion ratio|entity test/i,
+    seed: "aetherion",
     answer: () => {
       const list = calculateGroup();
       const special = list.filter((c) => c.blendKind !== "main" && c.jurisdictionalTopUp > 0);
@@ -215,6 +361,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /thailand.*etr|etr.*thailand|11\.|10\./i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -230,6 +377,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /safe harbour|safe harbor|qualify/i,
+    seed: "aetherion",
     answer: () => {
       const j = th();
       return {
@@ -252,6 +400,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /ente|excess negative tax|30% top.?up|top.?up (tax )?(percentage|%) (exceeds|above|over)|max(imum)? rate under pillar|why.{0,60}30%|hong kong.{0,40}(top.?up|etr|negative)|negative (covered )?tax.{0,40}30/i,
+    seed: "aetherion",
     answer: () => {
       const hk = calcForIso("HK");
       return {
@@ -263,6 +412,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /4\.1\.5|additional current|acttt|negative tax expense/i,
+    seed: "aetherion",
     answer: () => {
       const lu = calcForIso("LU");
       return {
@@ -292,8 +442,9 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /boi|holiday|expire/i,
+    seed: "aetherion",
     answer: () => {
-      const inc = INCENTIVES.find((i) => i.id === "TH-BOI")!;
+      const inc = DATA.incentives.find((i) => i.id === "TH-BOI")!;
       return {
         role: "assistant",
         text: `The Thai BOI certificates run as a portfolio, not a single 0% promise.\n\nElectronics manufacturing (TH-BOI): ${inc.start} → ${inc.end}: ${inc.rate}.\nAutomation annex (TH-BOI-AUTO) is a separate project account, blended in the same Thai ETR.\n\nIf the holiday expires, current tax rises toward 20% CIT and Thai top-up falls. That is one of four optimizer scenarios — not a reason to drop BOI without an NPV.\n\nAnnouncement 1/2566 (convert to 10%) is not automatically cheaper: 10% is still below 15%. QRTC is not enacted; do not book it.\n\nSource: ${inc.extractedFrom} · rule TH-BOI-OPT-2566 v2567.2.`,
@@ -303,6 +454,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /singapore.*missing|missing.*singapore|data.*sg/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Singapore data gaps:\n\n1. CbCR revenue $88.0M vs consolidation $86.4M ($1.6M). Likely the 50% JV is in CbCR but equity-accounted in consolidation.\n2. DEI incentive agreement conditions (headcount / spending) are extracted but not tied to SBIE payroll.\n3. Mapping for HoldCo dividend accounts is approved; JV TB is only 72% complete.\n\nGMT24 cannot finish a lock-quality Singapore harbour file until the CbCR bridge is signed off. A data request to L. Tan is ready in Data Requests.`,
@@ -311,6 +463,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /germany|yoy|increase/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `Germany has no FY2026 top-up (ETR 25%+). There is no year-on-year top-up increase.\n\nIf you are looking at covered taxes, Germany current tax rose with higher FANIL. The AI Reviewer has not flagged an unexplained movement versus FY2025 GIR.\n\nRule OECD-GloBE-15 v2026.1 · source: DE001 tax provision / prior GIR FY2025.xml.`,
@@ -319,6 +472,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /shipp|3\.4|international shipping|qaisi|tonnage|marine/i,
+    seed: "aetherion",
     answer: () => {
       const sg = shippingPost("SG-SHIP");
       const hk = shippingPost("HK-CE");
@@ -336,6 +490,7 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
   {
     match: /adjustment|810020|dividend/i,
+    seed: "aetherion",
     answer: () => ({
       role: "assistant",
       text: `TH001 excluded dividends $1.84M (account 810020) are subtracted from FANIL under GloBE Model Rules Art. 3.2.1(b) — ownership ≥ 10%, intra-group dividend from MY-CE.\n\nOriginal amount $1.84M · adjustment −$1.84M · preparer N. Chai · reviewer M. Sato · source TH001 Trial Balance FY2026.xlsx · rule OECD-DIV-EXCL v2026.1.\n\nThis is a canonical GloBE adjustment, not an LLM estimate.`,
@@ -368,8 +523,24 @@ const CANNED: { match: RegExp; answer: (q: string) => CopilotMsg }[] = [
   },
 ];
 
+/** Adds the legal passages that ground the answer, so every Co-Pilot reply resolves to the same corpus as the rulebook and the AGI compliance review. */
+function withLegalCites(q: string, msg: CopilotMsg): CopilotMsg {
+  const hits = searchPassages(q, { asOf: fyStartDate("FY2026"), limit: 2 });
+  if (!hits.length) return msg;
+  const have = new Set((msg.cites ?? []).map((c) => c.href ?? c.label));
+  const extra = hits
+    .map((h) => { const c = citeLegal(h.passage); return { label: `${c.label}${h.current ? "" : " (not in force for FY2026)"}`, href: c.href }; })
+    .filter((c) => !have.has(c.href));
+  return extra.length ? { ...msg, cites: [...(msg.cites ?? []), ...extra] } : msg;
+}
+
 export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
-  const hit = CANNED.find((c) => c.match.test(q));
+  return withLegalCites(q, answerCore(q, calcs));
+}
+
+function answerCore(q: string, calcs?: JurCalc[]): CopilotMsg {
+  const seed = activeSeedId();
+  const hit = CANNED.find((c) => (!c.seed || c.seed === seed) && c.match.test(q));
   if (hit) return hit.answer(q);
   const list = calcs ?? calculateGroup();
   // ISO codes only count as whole words in upper case — "the" must not select Thailand, "in" must not select India.
@@ -377,14 +548,14 @@ export function answerCopilot(q: string, calcs?: JurCalc[]): CopilotMsg {
   if (named) {
     return {
       role: "assistant",
-      text: `${named.name} (${named.iso}) — FY2026 snapshot.\n\nGloBE income ${eur(named.globeIncome)} · Covered taxes ${eur(named.coveredTax)} · ETR ${pct(named.etr, 2)} · SBIE ${eur(named.sbie)} · Top-up ${eur(named.jurisdictionalTopUp)}.\nCollection: ${named.collection.payer}.\n\n${named.sh.navigator}\n\nData completeness ${named.completeness}%. Engine GMT24-CALC 2026.2.`,
+      text: `${named.name} (${named.iso}) — FY2026 snapshot.\n\nGloBE income ${eur(named.globeIncome)} · Covered taxes ${eur(named.coveredTax)} · ETR ${etrPct(named, 2)}${named.etrComputed ? "" : " (Art. 5.1.2 Net GloBE Loss — no ETR; top-up only via Art. 4.1.5 ACTTT)"} · SBIE ${eur(named.sbie)} · Top-up ${eur(named.jurisdictionalTopUp)}.\nCollection: ${named.collection.payer}.\n\n${named.sh.navigator}\n\nData completeness ${named.completeness}%. Engine GMT24-CALC 2026.2.`,
       cites: [{ label: named.pack?.qualified ?? "Rulebook 2026.2" }],
     };
   }
-  const gaps = ISSUES.filter((i) => i.severity === "block");
+  const gaps = DATA.issues.filter((i) => i.severity === "block");
   return {
     role: "assistant",
-    text: `I can only answer from the GMT24 calculation snapshot and the approved rulebook.\n\nGroup top-up is ${eur(list.reduce((a, c) => a + c.jurisdictionalTopUp, 0))} across ${list.filter((c) => c.jurisdictionalTopUp > 0).length} jurisdictions.\n\nOpen blockers: ${gaps.map((g) => g.title).join("; ") || "none"}.\n\nTry: “Why is Thailand’s ETR 10.8%?”, “Can Thailand qualify for a safe harbour?”, “What happens if the BOI tax holiday expires?”, “Which data is missing from Singapore?”`,
+    text: `I can only answer from the GMT24 calculation snapshot and the approved rulebook.\n\nGroup top-up is ${eur(list.reduce((a, c) => a + c.jurisdictionalTopUp, 0))} across ${list.filter((c) => c.jurisdictionalTopUp > 0).length} jurisdictions.\n\nOpen blockers: ${gaps.map((g) => g.title).join("; ") || "none"}.\n\nTry: “Why is Thailand’s ETR below 15%?”, “Can Thailand qualify for a safe harbour?”, “What happens if the BOI tax holiday expires?”, “Which data is missing from Singapore?”`,
     cites: [{ label: "GMT24-CALC 2026.2" }],
   };
 }
@@ -401,6 +572,7 @@ export const SUGGESTIONS = [
   "Can Thailand qualify for a safe harbour?",
   "What happens if the BOI tax holiday expires?",
   "Explain the TH001 dividend adjustment.",
+  "What documents are missing from the close pack?",
   "Which data is missing from Singapore?",
   "How does the entity test treat MOCE and POPE?",
   "Where is Additional Current Top-up Tax?",
@@ -411,8 +583,8 @@ export const SUGGESTIONS = [
 ];
 
 export function mappingHint(account: string) {
-  const row = ACCOUNTS.find((a) => a.account === account);
+  const row = DATA.accounts.find((a) => a.account === account);
   if (!row) return null;
-  const e = ENTITIES.find((x) => x.id === row.entityId);
+  const e = DATA.entities.find((x) => x.id === row.entityId);
   return `${row.account} ${row.name} → ${row.financial} → ${row.globe}${row.adjustment ? ` → ${row.adjustment}` : ""}${row.sbie ? ` → ${row.sbie}` : ""} · confidence ${row.confidence}% · ${e?.name}`;
 }

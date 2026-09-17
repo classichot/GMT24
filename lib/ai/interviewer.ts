@@ -108,6 +108,18 @@ export function interviewReply(i: InterviewInput): Reply {
     sections.push({ kind: "warning", text: "Extracted values are proposals. Material facts still need an accountable person to confirm and a reviewer to sign." });
   }
 
+  // Facts the model proposed from documents read against this finding (registry, status proposed/confirmed).
+  const docFacts = i.facts.filter((x) => x.source === "document" && x.findingId === f.id);
+  if (docFacts.length) {
+    sections.push({ kind: "facts", title: "Proposed from documents (model-read; confirmation required)", items: docFacts.slice(0, 6).map((x) => `${x.statement} → ${x.value || "—"} · ${x.status}${x.confirmedBy ? ` by ${x.confirmedBy}` : ""} · ${x.evidence[0] ?? ""}`) });
+    for (const x of docFacts.filter((d) => d.status === "proposed").slice(0, 2)) actions.push(propose("confirm-fact", { id: x.id }, ctx, { label: `Confirm: ${x.statement.slice(0, 50)}` }));
+    if (nextQ && !r?.answers[nextQ.id]) {
+      const match = docFacts.find((d) => d.questionId === nextQ.id && nextQ.options.some((o) => o.label === d.value || o.value === d.value));
+      const opt = match ? nextQ.options.find((o) => o.label === match.value || o.value === match.value) : undefined;
+      if (match && opt) actions.push(propose("answer-xray", { findingId: f.id, questionId: nextQ.id, value: opt.value, label: `${opt.label} (document: ${match.evidence[0]?.split(":")[0] ?? "attached"})` }, ctx));
+    }
+  }
+
   // Missing evidence guidance.
   if (missing.length && nextQ) sections.push({ kind: "gaps", title: "Evidence to attach after answering", items: missing.map((m) => `${m}`) });
   sections.push({ kind: "next", items: [

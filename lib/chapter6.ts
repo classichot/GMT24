@@ -1,5 +1,6 @@
 import { money } from "./format";
-import { ENTITIES, FINANCIALS } from "./model";
+import { DATA } from "./model";
+import { seedFacts } from "./seeds";
 
 export type Chapter6EventKind = "join" | "leave" | "reorg" | "transfer-6.3.4";
 
@@ -28,9 +29,9 @@ export type Chapter6Line = Chapter6Event & {
 
 /**
  * Art. 6.1–6.3 group changes — joining / leaving, GloBE reorganisation, Art. 6.3.4 FV/tax-basis alignment.
- * Seeded FY2026 events for Aetherion; engine posts GloBE gain/loss when elected.
+ * Seeded FY2026 events per demo group; engine posts GloBE gain/loss when elected.
  */
-export const CHAPTER6_EVENTS: Chapter6Event[] = [
+const AETHERION_EVENTS: Chapter6Event[] = [
   {
     id: "C6-JOIN-MY",
     kind: "join",
@@ -96,6 +97,59 @@ export const CHAPTER6_EVENTS: Chapter6Event[] = [
     note: "Default keeps historical GloBE CV. Electing Art. 6.3.4 recognises FV / tax-basis adjustment.",
   },
 ];
+
+const THAICOAL_EVENTS: Chapter6Event[] = [
+  {
+    id: "C6-REORG-TC-SG",
+    kind: "reorg",
+    date: "2026-03-01",
+    entityId: "TC-SG-REN",
+    counterpartyId: "TC-TH-PWR",
+    iso: "SG",
+    label: "Renewables HoldCo moved under ThaiCoal Power PCL (share-for-share)",
+    booksProceeds: 0,
+    globeCarrying: 18_000_000,
+    taxBasis: 18_000_000,
+    elected634: false,
+    spread5y: false,
+    evidence: "Reorg_board_minute_TC_2026-02.pdf",
+    note: "Art. 6.3 GloBE reorganisation — consideration is shares of the acquiring parent; historical carrying value continues. The POPE perimeter widens: TC-SG-REN is now under the listed power subsidiary.",
+  },
+  {
+    id: "C6-634-TC-TH",
+    kind: "transfer-6.3.4",
+    date: "2026-02-01",
+    entityId: "TC-TH-NRG",
+    counterpartyId: "TC-UPE",
+    iso: "TH",
+    label: "Solar-farm land and grid connection contributed by the UPE — FV vs tax-basis alignment",
+    booksProceeds: 9_600_000,
+    globeCarrying: 6_100_000,
+    taxBasis: 6_100_000,
+    elected634: false,
+    spread5y: false,
+    evidence: "Intra_group_transfer_register_TC.xlsx · land appraisal 2026-01",
+    note: "Default keeps the UPE's historical GloBE CV in the BOI CE. Electing Art. 6.3.4 recognises the FV step-up as a GloBE gain in the UPE and lifts the BOI CE's asset base.",
+  },
+  {
+    id: "C6-LEAVE-TC-MN",
+    kind: "leave",
+    date: "2027-02-15",
+    entityId: "TC-MN-MINE",
+    counterpartyId: null,
+    iso: "MN",
+    label: "Mongolian explorer signed for disposal (SPA Nov 2026, completion Feb 2027)",
+    booksProceeds: 4_100_000,
+    globeCarrying: 3_400_000,
+    taxBasis: 3_400_000,
+    elected634: false,
+    spread5y: false,
+    evidence: "SPA_ThaiCoal_Mongolia_2026-11.pdf",
+    note: "Signed, not completed. The CE is still in the group at 31 Dec 2026 — Art. 6.2 applies in the year it actually leaves. Logged so the de minimis election is not lost sight of.",
+  },
+];
+
+export const CHAPTER6_EVENTS = seedFacts<Chapter6Event>({ aetherion: AETHERION_EVENTS, thaicoal: THAICOAL_EVENTS });
 
 export function chapter6Line(event: Chapter6Event, opts?: { elect634?: boolean; spread?: boolean }): Chapter6Line {
   const elect = opts?.elect634 ?? event.elected634;
@@ -176,5 +230,5 @@ export function entityInGroup(entityId: string, asOf = "2026-12-31") {
   if (leave && leave.date <= asOf) return false;
   const join = CHAPTER6_EVENTS.find((e) => e.kind === "join" && e.entityId === entityId);
   if (join && join.date > asOf) return false;
-  return Boolean(ENTITIES.find((e) => e.id === entityId) || FINANCIALS.find((f) => f.entityId === entityId));
+  return Boolean(DATA.entities.find((e) => e.id === entityId) || DATA.financials.find((f) => f.entityId === entityId));
 }

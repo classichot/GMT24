@@ -1,4 +1,5 @@
-import { ADJUSTMENTS, ACTIVITY, FILES, ISSUES, type ProductMode } from "./model";
+import { DATA, type ProductMode } from "./model";
+import { isSeededGroup } from "./seeds";
 import { calculateGroup } from "./engine";
 import { electionById } from "./elections";
 import { splitSwitch } from "./electionEngine";
@@ -211,8 +212,8 @@ export function seedLedger(groupId: string, immutable = true): HistoryLedger {
     href: "/evidence-history",
     ref: "ledger",
   });
-  if (groupId === "aetherion" || groupId === "meridian" || groupId === "helios") {
-    FILES.forEach((f, i) => {
+  if (isSeededGroup(groupId) || groupId === "meridian" || groupId === "helios") {
+    DATA.files.forEach((f, i) => {
       led = appendEvent(led, {
         id: `seed-doc-${f.id}`,
         seed: true,
@@ -228,7 +229,7 @@ export function seedLedger(groupId: string, immutable = true): HistoryLedger {
       });
       void i;
     });
-    ADJUSTMENTS.forEach((a) => {
+    DATA.adjustments.forEach((a) => {
       led = appendEvent(led, {
         id: `seed-adj-${a.id}`,
         seed: true,
@@ -244,7 +245,7 @@ export function seedLedger(groupId: string, immutable = true): HistoryLedger {
         ref: a.id,
       });
     });
-    ISSUES.forEach((iss, i) => {
+    DATA.issues.forEach((iss, i) => {
       led = appendEvent(led, {
         id: `seed-issue-${iss.id}`,
         seed: true,
@@ -259,7 +260,7 @@ export function seedLedger(groupId: string, immutable = true): HistoryLedger {
         ref: iss.id,
       });
     });
-    [...ACTIVITY].reverse().forEach((a, i) => {
+    [...DATA.activity].reverse().forEach((a, i) => {
       led = appendEvent(led, {
         id: `seed-act-${i}`,
         seed: true,

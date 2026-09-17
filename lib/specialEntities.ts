@@ -1,4 +1,4 @@
-import { ENTITIES, FINANCIALS, type Entity } from "./model";
+import { DATA, type Entity } from "./model";
 import { money } from "./format";
 import { classFor, lookThroughToUpe, ownershipOf } from "./entityClass";
 
@@ -25,16 +25,16 @@ export type SpecialCharge = {
 };
 
 export function investmentEntities(): Entity[] {
-  return ENTITIES.filter((e) => e.type === "Investment");
+  return DATA.entities.filter((e) => e.type === "Investment");
 }
 
 export function transparentEntities(): Entity[] {
-  return ENTITIES.filter((e) => e.type === "Tax-transparent");
+  return DATA.entities.filter((e) => e.type === "Tax-transparent");
 }
 
 /** Intermediate Parent that owns LTCEs but outsiders ≤ 20% (not a POPE). */
 export function intermediateParents(): Entity[] {
-  return ENTITIES.filter((e) => {
+  return DATA.entities.filter((e) => {
     const cls = classFor(e.id);
     if (cls.upe || cls.pope || cls.excluded || cls.jv) return false;
     if (!cls.parentEntity) return false;
@@ -48,9 +48,9 @@ export function specialCharges(opts?: { elect75?: boolean; elect76?: boolean }):
   const elect76 = opts?.elect76 ?? false;
 
   for (const ie of investmentEntities()) {
-    const f = FINANCIALS.find((x) => x.entityId === ie.id);
+    const f = DATA.financials.find((x) => x.entityId === ie.id);
     if (!f) continue;
-    const owner = ENTITIES.find((e) => e.id === ie.parentId);
+    const owner = DATA.entities.find((e) => e.id === ie.parentId);
     if (elect75 && owner) {
       const share = ie.ownership / 100;
       out.push({
@@ -98,8 +98,8 @@ export function specialCharges(opts?: { elect75?: boolean; elect76?: boolean }):
   }
 
   for (const te of transparentEntities()) {
-    const f = FINANCIALS.find((x) => x.entityId === te.id);
-    const owner = ENTITIES.find((e) => e.id === te.parentId);
+    const f = DATA.financials.find((x) => x.entityId === te.id);
+    const owner = DATA.entities.find((e) => e.id === te.parentId);
     if (!f || !owner) continue;
     out.push({
       id: `tt-${te.id}`,
@@ -117,7 +117,7 @@ export function specialCharges(opts?: { elect75?: boolean; elect76?: boolean }):
   }
 
   for (const ipe of intermediateParents()) {
-    const children = ENTITIES.filter((e) => e.parentId === ipe.id && e.type !== "Excluded");
+    const children = DATA.entities.filter((e) => e.parentId === ipe.id && e.type !== "Excluded");
     for (const child of children) {
       const ratio = ownershipOf(ipe.id, child.id);
       if (ratio <= 0) continue;

@@ -11,9 +11,15 @@ export type Playbook = {
   menu: string;
   /** Sidebar group this playbook belongs to. Extra walkthroughs omit it. */
   navGroup?: string;
+  /** Primary sidebar menu this book belongs to. Per-menu books always set it. */
+  href?: string;
   title: string;
   summary: string;
   owner: string;
+  /** Why this menu exists — the legal / product reason, shown as THE LAW. */
+  law?: string;
+  aiSuggests?: string;
+  youDecide?: string;
   steps: PlayStep[];
 };
 
@@ -39,7 +45,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Lock the UPE, ownership graph and constituent-entity list before any GloBE blending.",
     owner: "Group Tax / legal entity control",
     steps: [
-      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: Aetherion is the working group.", href: "/clients", hrefLabel: "Clients" },
+      { n: "01", title: "Confirm the tenant", body: "Advisor mode: pick the client first. In-house: the demo group you signed in to (Aetherion or ThaiCoal) is the working group.", href: "/clients", hrefLabel: "Clients" },
       { n: "02", title: "Run the $750m test", body: "Scope must be IN SCOPE (or documented REVIEW) before mapping starts.", href: "/group", hrefLabel: "Group structure" },
       { n: "03", title: "Walk entities into ETR", body: "Run the entity test (MOCE ≤ 30% UPE ownership; POPE if outsiders hold > 20% of a non-UPE Parent). Open an entity row to land on that blend’s ETR — not a mixed country rate.", href: "/entities", hrefLabel: "Entities" },
     ],
@@ -52,7 +58,7 @@ export const PLAYBOOKS: Playbook[] = [
     summary: "Ingest → map → validate → request gaps. The LLM never posts a GloBE number.",
     owner: "Local tax / data steward",
     steps: [
-      { n: "01", title: "Ingest source files", body: "Trial balance, provision, CbCR, payroll, FAR, BOI certificates. Dropzone opens mapping in this prototype.", href: "/data", hrefLabel: "Data Hub" },
+      { n: "01", title: "Ingest the close-pack list", body: "Data Hub’s dataset guideline lists the eight required sources (entity list, consolidation, TB, provision, deferred tax, CbCR, payroll, FAR) plus recommended overlays. Completion is scored from posted and queued files; Ask GMT24 names what is still missing.", href: "/data", hrefLabel: "Data Hub" },
       { n: "02", title: "Approve and post mapping", body: "Account → financial → GloBE rule → computed posting. Approval writes the Art. 3.2 / 3.5 delta, reruns the ETR and is sealed in Evidence history. Hold anything under 80% confidence.", href: "/mapping", hrefLabel: "Account mapping" },
       { n: "03", title: "Clear blockers", body: "Readiness must move before lock. Gap Hunter drafts the request; do not invent deferred tax or payroll.", href: "/quality", hrefLabel: "Data quality" },
     ],
@@ -121,7 +127,7 @@ export const PLAYBOOKS: Playbook[] = [
       { n: "02", title: "Trace every number", body: "Open the audit trail from any amount. Rule IDs go to the rulebook; source files go to Data Hub.", href: "/audit", hrefLabel: "Audit trail" },
       { n: "03", title: "Read the chronicle", body: "Evidence history keeps documents, mapping/election changes, engine snapshots, user actions and comments in time order. Each row hashes the last. Immutability is on by default; turn it off in Settings if you need to purge a working log.", href: "/evidence-history", hrefLabel: "Evidence history" },
       { n: "04", title: "Approve the snapshot", body: "Return or approve. Approval is remembered on the filing matrix.", href: "/approvals", hrefLabel: "Approvals" },
-      { n: "05", title: "Mint a host desk link", body: "7L only. Generate a signed demo URL with 1–30 day life. Recipients open /review/{token} on another device until expiry. Do not put the host key on public login.", href: "/host", hrefLabel: "Host desk" },
+      { n: "05", title: "Mint a host desk link", body: "7L only. Generate a signed demo URL with 1–45 day life. Recipients open /review/{token} on another device until expiry. Do not put the host key on public login.", href: "/host", hrefLabel: "Host desk" },
     ],
   },
   {
@@ -132,7 +138,7 @@ export const PLAYBOOKS: Playbook[] = [
     owner: "External reviewer / QA",
     steps: [
       { n: "01", title: "Start on the review guide", body: "Open the checklist. Progress tracks ingest, mapping, calculation anchors, trace logic and GIR preflight.", href: "/review-guide", hrefLabel: "Review guide" },
-      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load all 19 Aetherion FY2026 sources in one click.", href: "/data", hrefLabel: "Data Hub" },
+      { n: "02", title: "Ingest or load the pack", body: "Download sample CSVs and drop on Data Hub, or load the full FY2026 demo pack for the open group in one click.", href: "/data", hrefLabel: "Data Hub" },
       { n: "03", title: "Approve the FX mapping", body: "Account 830010 is held at 62% confidence. Approve it to post the Art. 3.2 delta and rerun ETR.", href: "/mapping", hrefLabel: "Mapping" },
       { n: "04", title: "Verify anchors", body: "Group top-up ~$19.1M after Hong Kong ENTE. Thailand ETR ~11.02%. Ireland largest top-up ~$12.6M. Click amounts for audit trail.", href: "/overview", hrefLabel: "Dashboard" },
       { n: "05", title: "Trace collection & GIR", body: "UTPR Art. 2.6 keys on Allocation. Art. 4.3 on Covered taxes. Preflight GIR on Compliance.", href: "/allocation", hrefLabel: "Allocation" },

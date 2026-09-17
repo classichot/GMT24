@@ -202,10 +202,26 @@ export function ScanView(p: ScanViewProps) {
                 <FileText size={14} style={{ marginTop: 2, color: s.accessible ? "var(--color-accent)" : "var(--color-hot)" }} />
                 <div>
                   <strong>{s.title}</strong> <span className="text-muted">· {s.kind} · {s.period}{s.pages ? ` · ${s.pages} pp` : ""} · {s.language}</span>
-                  <div className="text-muted">{s.accessible ? `retrieved ${s.retrievedAt.slice(0, 16).replace("T", " ")}` : `inaccessible — ${s.inaccessibleReason}`}{s.url ? <> · <a href={s.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.preventDefault()} title="Demonstration URL">{s.url}</a></> : null}</div>
+                  <div className="text-muted">{s.accessible ? `retrieved ${s.retrievedAt.slice(0, 16).replace("T", " ")}` : `inaccessible — ${s.inaccessibleReason}`}{s.url ? <> · {scan.discovery ? <a href={s.url} target="_blank" rel="noreferrer" title="Open the source document">{s.url}</a> : <a href={s.url} onClick={(ev) => ev.preventDefault()} title="Demonstration corpus — URL is illustrative">{s.url}</a>}</> : null}</div>
                 </div>
               </div>
             ))}
+            {scan.discovery && (
+              <div style={{ borderTop: "1px solid var(--color-divider)", paddingTop: 8, display: "grid", gap: 4 }}>
+                <div className="reply-label">How this scan was produced</div>
+                <div>Sources found via <strong>{scan.discovery.provider === "upload" ? "your upload" : scan.discovery.provider === "url" ? "the URL you gave" : `${scan.discovery.provider} web search`}</strong>{scan.discovery.hits > 0 ? ` (${scan.discovery.hits} results reviewed)` : ""} on {scan.discovery.searchedAt.slice(0, 16).replace("T", " ")}.</div>
+                <div>Findings read by <strong>{scan.discovery.extractionModel}</strong>; <strong>{scan.discovery.quotesVerified}/{scan.discovery.quotesChecked}</strong> cited passages were found verbatim on the page they cite.{scan.discovery.quotesChecked > 0 && scan.discovery.quotesVerified < scan.discovery.quotesChecked ? " Unverified passages are kept but must be checked against the document before use." : ""}</div>
+                {scan.discovery.unverified.length > 0 && (
+                  <details style={{ fontSize: 12 }}>
+                    <summary style={{ cursor: "pointer" }}>{scan.discovery.unverified.length} unverified passage{scan.discovery.unverified.length === 1 ? "" : "s"}</summary>
+                    <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>{scan.discovery.unverified.map((u, i) => <li key={i}><span className="tag tag-warn" style={{ fontSize: 9, marginRight: 6 }}>{u.kind}</span>p.{u.page}: “{u.quote}”</li>)}</ul>
+                  </details>
+                )}
+                {scan.discovery.fxNote && <div className="text-muted">{scan.discovery.fxNote}</div>}
+                <div className="text-muted" style={{ fontSize: 11 }}>Extracted findings are labelled <em>disclosed</em> (found in the document), <em>inferred</em> (derived by the scan) or <em>user-confirmed</em>. Nothing here is a tax calculation; amounts shown are the company&apos;s own disclosures.</div>
+              </div>
+            )}
+            {!scan.discovery && <div className="text-muted" style={{ fontSize: 11 }}>Demonstration corpus: sources are illustrative. Run a company-name or upload scan for real provenance.</div>}
             <div className="text-muted" style={{ fontSize: 11 }}>Retrieval dates and page references are recorded so a reviewer can verify every passage against the original. Uploaded documents are read as evidence only.</div>
           </div>
         </div>

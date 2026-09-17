@@ -27,7 +27,7 @@ const KIND_TAG: Record<BoiScenarioId, string> = {
 };
 
 export default function ThaiBoiPage() {
-  const { ask } = useStore();
+  const { ask, group } = useStore();
   const { calcs } = useCalc();
   const th = calcs.find((c) => c.iso === "TH");
   const [blend, setBlend] = useState(true);
@@ -248,7 +248,7 @@ export default function ThaiBoiPage() {
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head">
-          <h4>Worked illustration · not the Aetherion file</h4>
+          <h4>Worked illustration · not the {group.name} file</h4>
           <span className="tag tag-outline">{W.unit}</span>
         </div>
         <div className="table-wrap">
@@ -277,7 +277,7 @@ export default function ThaiBoiPage() {
           <div className="wf-row total"><span>Advertised saving / clawback / remaining</span><span>{W.advertised.toLocaleString("en-GB")} / {W.topUp.toLocaleString("en-GB")} / {W.remaining.toLocaleString("en-GB")}</span></div>
         </div>
         <p className="text-muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-          {W.note} At locked BOT USD/THB {W.usdThb}: remaining benefit about {eur(W.usd.remaining)}. Illustration only — Aetherion numbers are in the scenario table.
+          {W.note} At locked BOT USD/THB {W.usdThb}: remaining benefit about {eur(W.usd.remaining)}. Illustration only — {group.name} numbers are in the scenario table.
         </p>
       </div>
 

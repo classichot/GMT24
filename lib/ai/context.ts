@@ -1,4 +1,4 @@
-import { ACCOUNTS, ADJUSTMENTS, ADVISOR_USER, ENTITIES, INHOUSE_USER, ISSUES, type ProductMode } from "../model";
+import { DATA, ADVISOR_USER, type ProductMode } from "../model";
 import { playbookBySlug } from "../playbooks";
 import type { PackAmendment, PackChangeRecord } from "../packAmendments";
 import type { HardStop } from "../xray";
@@ -44,14 +44,18 @@ export const SCREENS: ScreenMeta[] = [
   { key: "archive", module: "Compliance", title: "Filing archive", href: "/archive", purpose: "Filed packs, exported XML and notifications kept with the year lock.", fields: [], actions: [] },
   { key: "review-guide", module: "Review", title: "Review guide", href: "/review-guide", purpose: "External-reviewer walkthrough: ingest, mapping, calculation anchors, audit trail and GIR preflight.", fields: [], actions: [] },
   { key: "evidence", module: "Review", title: "Evidence", href: "/evidence", purpose: "Evidence locker for the documents attached to mappings, X-Ray findings and adjustments.", fields: [], actions: ["Attach"] },
-  { key: "host", module: "Review", title: "Host desk", href: "/host", purpose: "7L-only desk that mints a signed /review/{token} URL. Expiry is 1–30 days (default 3). The host PIN never appears on the public login page.", fields: [{ term: "Review link", meaning: "Works on another device until it expires. It is a demo invite, not a filing submission." }], actions: ["Mint link"] },
+  { key: "host", module: "Review", title: "Host desk", href: "/host", purpose: "7L-only desk that mints a signed /review/{token} URL. Expiry is 1–45 days (default 3). The host PIN never appears on the public login page.", fields: [{ term: "Review link", meaning: "Works on another device until it expires. It is a demo invite, not a filing submission." }], actions: ["Mint link"] },
   { key: "onboard", module: "Group", title: "New engagement", href: "/onboard", purpose: "Advisor-mode wizard to create a client workspace from a name or a Quick Scan.", fields: [], actions: ["Create engagement"] },
   { key: "rulebook", module: "Intelligence", title: "OECD rulebook", href: "/rulebook", purpose: "Effective-dated OECD Model Rules, Commentary and Administrative Guidance used by the engine. Clicking a rule id on an audit trail lands here.", fields: [{ term: "Rule version", meaning: "The pack version that posted the amount — not the latest PDF on the OECD site." }], actions: [] },
+  { key: "legal", module: "Intelligence", title: "Legal corpus", href: "/legal", purpose: "Passage-level legal text behind the rule pack: OECD Model Rules, Commentary and Administrative Guidance separate from Thai and other domestic instruments, each passage effective-dated and keyed to rule, election, instrument and gap ids. The Co-Pilot, the AGI compliance review and the audit pack cite these passage ids.", fields: [{ term: "Paraphrase", meaning: "GMT24 wording of the provision — confirm against the linked source before relying on it." }, { term: "In force", meaning: "Whether the passage applies on the as-of date; superseded or not-yet-issued texts are shown but flagged." }], actions: ["Search by article, section or topic", "Filter by rule, election or instrument", "Open the source"] },
+  { key: "publications", module: "Intelligence", title: "OECD publications", href: "/publications", purpose: "Register of the official OECD / Inclusive Framework documents GMT24 keeps on file, recorded by publication date: the GloBE Model Rules (Dec 2021), the Consolidated Commentary (May 2026) and the GloBE Information Return (Sep 2026). Each entry has the stored PDF, the DOI, the approval date and the legal-corpus source built from it.", fields: [{ term: "Published", meaning: "OECD publication date of the PDF on file; the approval date is when the Inclusive Framework agreed the text." }, { term: "Supersedes", meaning: "Earlier edition this one replaces; the corpus marks the earlier source superseded." }], actions: ["Open the PDF", "Follow the DOI", "Open the corpus passages built from the document"] },
+  { key: "updates", module: "Intelligence", title: "Latest update", href: "/updates", purpose: "Dated register of what the OECD and each country changed for Pillar Two — GIR September 2026 template, XML schema revision, Commentary 2026, Side-by-Side package, Thai Decree and Notifications, Japan / Ireland / US law — matched to what GMT24 built for it (implemented, partly, monitoring) and the screens that carry the change. Below it, a per-country table of the latest regulation on file against the jurisdiction pack, the engine rules, the GIR rule codes and the corpus. The user tracks a change here, then opens the module.", fields: [{ term: "Implemented / Partly / Monitoring", meaning: "How far GMT24 covers the change; Partly and Monitoring entries list the open point and what the regulator still has to publish." }, { term: "Applies to FYs from", meaning: "The regulatory effective date — e.g. the September 2026 GIR governs Fiscal Years commencing on or after 31 Dec 2025 (§36.1)." }, { term: "GIR rules", meaning: "Applicable-rules codes the jurisdiction pack produces: GIR201 IIR, GIR203 UTPR, GIR204 QDMTT, GIR206 Qualified SbS Regime, GIR207 Qualified UPE Regime, GIR205 none." }], actions: ["Filter by authority or status", "Open the source (PDF, DOI, corpus)", "Open the module that carries the change", "Open jurisdiction packs for pending amendments"] },
   { key: "settings", module: "Workspace", title: "Settings", href: "/settings", purpose: "Operating mode, theme, evidence-history immutability and workspace preferences.", fields: [{ term: "Immutability", meaning: "When on, evidence-history rows cannot be deleted; turning it off is itself logged." }], actions: [] },
-  { key: "data", module: "Data", title: "Data Hub", href: "/data", purpose: "Ingest the close pack. Classification runs before mapping; the engine does not calculate until mappings are approved.", fields: [
+  { key: "data", module: "Data", title: "Data Hub", href: "/data", purpose: "Ingest the close pack against the dataset guideline. Classification runs before mapping; the engine does not calculate until mappings are approved.", fields: [
     { term: "Close pack", meaning: "Entity list, trial balances, consolidation, tax provision, CbCR, payroll, fixed assets, certificates, prior GIR." },
+    { term: "Dataset guideline", meaning: "The required and recommended documents for a GloBE calculation. Completion is scored from posted and queued files; incomplete means a file is on hand but a quality issue is still open." },
     { term: "Classified", meaning: "The classifier has typed the file (TB, CbCR, payroll…) and queued it for mapping." },
-  ], actions: ["Load demo pack", "Drop files", "Reset ingest"] },
+  ], actions: ["Load demo pack", "Drop files", "Ask what is missing", "Reset ingest"] },
   { key: "mapping", module: "Data", title: "Account mapping", href: "/mapping", purpose: "Account → financial category → GloBE rule → posting. Anything under 80% confidence is held for a reviewer.", fields: [
     { term: "Confidence", meaning: "Classifier certainty for the GloBE category. Below 80% requires human approval before lock." },
     { term: "Adjustment", meaning: "The Art. 3.2 delta the mapping will post to GloBE Income." },
@@ -81,7 +85,7 @@ export const SCREENS: ScreenMeta[] = [
   { key: "approvals", module: "Review", title: "Approvals", href: "/approvals", purpose: "Preparer / reviewer gates and the snapshot lock. Blocked while X-Ray has unresolved material items.", fields: [{ term: "Snapshot", meaning: "The calculation version being signed — not the GIR XML." }], actions: ["Approve snapshot", "Return to preparer"] },
   { key: "jurisdictions", module: "Intelligence", title: "Jurisdiction packs", href: "/jurisdictions", purpose: "OECD Central Record scan → AI proposals → reviewer decision → administrator review of the change record.", fields: [], actions: ["Scan OECD Record", "Accept / reject amendment", "Administrator review"] },
   { key: "copilot", module: "AI Co-Pilot", title: "Co-Pilot hub", href: "/copilot", purpose: "Eleven connected features on one context, one fact registry and one audit log.", fields: [], actions: [] },
-  { key: "trainer", module: "AI Co-Pilot", title: "App Trainer", href: "/trainer", purpose: "Role-specific onboarding, walkthroughs, error diagnosis and next-step guidance.", fields: [], actions: [] },
+  { key: "trainer", module: "AI Co-Pilot", title: "App Trainer", href: "/trainer", purpose: "Role-specific onboarding, walkthroughs, error diagnosis and next-step guidance.", fields: [{ term: "Menu guide", meaning: "The ? next to the page title (or beside any sidebar item) opens an inline card under the title: what the menu is for, terms on the screen, what you can do here and the playbook steps." }], actions: ["Open the menu guide from the page title", "Ask GMT24 about this menu from the guide"] },
   { key: "reviewer", module: "AI Co-Pilot", title: "Calculation Reviewer", href: "/reviewer", purpose: "Deterministic checks and suspected issues with a resolution workflow.", fields: [], actions: ["Assign", "Resolve", "Dismiss with reason", "Reopen"] },
   { key: "strategy", module: "AI Co-Pilot", title: "Strategy Simulator", href: "/strategy", purpose: "Natural-language scenarios run through the engine without touching the approved calculation.", fields: [], actions: ["Save scenario", "Adopt through review"] },
   { key: "rehearsal", module: "AI Co-Pilot", title: "Audit Rehearsal", href: "/rehearsal", purpose: "Internal readiness assessment — not a prediction of RD acceptance.", fields: [], actions: ["Create remediation task", "Download package"] },
@@ -94,21 +98,34 @@ export const SCREENS: ScreenMeta[] = [
   { key: "thailand-boi", module: "Thailand", title: "BOI Optimizer", href: "/thailand/boi", purpose: "Keep holiday vs convert to 10% vs QRTC vs 20% baseline on a 10-year NPV.", fields: [], actions: [] },
   { key: "evidence-history", module: "Review", title: "Evidence history", href: "/evidence-history", purpose: "Hash-chained chronicle: docs, changes, calcs, actions, comments.", fields: [], actions: [] },
   { key: "audit", module: "Review", title: "Audit trail", href: "/audit", purpose: "Amount → rule → entity → account → source file.", fields: [], actions: ["Explain this number"] },
+  { key: "agi", module: "AGI Mode", title: "Mission Control", href: "/agi", purpose: "Assign a Pillar Two mission. The Mission Director designs the team, tracks progress and blockers, and requires human sign-off before completion.", fields: [{ term: "Work mode", meaning: "Single Bot, Team Bot or Cooperative Swarm — how agents cooperate. Separate from autonomy." }, { term: "Autonomy", meaning: "Analyse, draft or propose. Binding elections, filing and payment stay with a person." }], actions: ["Create mission", "Start / continue", "Pause", "Approve completion"] },
+  { key: "agi-missions", module: "AGI Mode", title: "Mission Catalog", href: "/agi/missions", purpose: "The library of AGI missions organised around four outcomes — find the best options and elections, calculate accurately, complete compliance and filing, and maintain audit readiness. Master Outcome Missions are what users see first; the Mission Director orchestrates the specialist missions as a Single agent, Team or Cooperative Swarm. Every mission records its rulebook, jurisdiction-law and GIR-schema versions.", fields: [{ term: "Master Outcome Mission", meaning: "The mission a user sees first; the department runs the underlying specialist missions automatically." }, { term: "Mission governance card", meaning: "Group, versions, evidence, assigned agents, approver and the Draft → Reviewed → Approved → Filed → Locked status recorded for every mission." }], actions: ["Open a master mission", "Filter specialist missions by outcome", "Open a mission governance card"] },
+  { key: "agi-team", module: "AGI Mode", title: "AI Team Builder", href: "/agi/team", purpose: "Inspect Agent Cards composed from the approved specialist catalogue. Rebuild the team when the mission or mode changes.", fields: [{ term: "Agent Card", meaning: "Role, scope, objective, tools, inputs, output, reviewer, budget and stop conditions." }], actions: ["Rebuild team", "Change mode or autonomy"] },
+  { key: "agi-data", module: "AGI Mode", title: "Data Readiness", href: "/agi/data", purpose: "Required datasets, exception queue and missing-evidence recovery. Missing items stay unresolved.", fields: [{ term: "Evidence class", meaning: "Verified, candidate, assumption or missing — unsupported conclusions cannot become final." }], actions: ["Check datasets", "Recover evidence"] },
+  { key: "agi-options", module: "AGI Mode", title: "Election Decision Studio", href: "/agi/options", purpose: "Compare eligible election packages on the approved objectives, including compliance and defensibility. Engine restatements never change with the weights.", fields: [{ term: "Recommended package", meaning: "Highest-scoring bookable option. Rejected alternatives stay visible with reasons." }], actions: ["Assess combinations", "Request approval"] },
+  { key: "agi-calc", module: "AGI Mode", title: "Calculation Review", href: "/agi/calculation", purpose: "Run and verify the mission package. Click a number for inputs, rule versions, checks and evidence. Replay uses the pinned snapshot.", fields: [{ term: "Case hash", meaning: "The pinned version the run was computed from. A live-case change does not rewrite it." }], actions: ["Run package", "Verify", "Replay", "Impact analysis"] },
+  { key: "agi-compliance", module: "AGI Mode", title: "Compliance Review", href: "/agi/compliance", purpose: "OECD and domestic requirements with effective dates, plus a regulatory-change radar. Updates stay in review until approved.", fields: [], actions: ["Review compliance", "Open radar"] },
+  { key: "agi-audit", module: "AGI Mode", title: "Audit Defence", href: "/agi/audit-file", purpose: "Independent challenge, evidence classification and the versioned audit package. Does not predict tax-authority acceptance.", fields: [], actions: ["Challenge", "Build package", "Download"] },
+  { key: "agi-reporting", module: "AGI Mode", title: "Reporting & Filing", href: "/agi/reporting", purpose: "GIR, domestic returns and payment tracked as three streams. Agents draft; they cannot file or pay.", fields: [{ term: "GIR", meaning: "OECD information return (September 2026). Not a domestic tax return." }], actions: ["Open GIR", "Open filing matrix"] },
+  { key: "agi-approvals", module: "AGI Mode", title: "Approvals & Exceptions", href: "/agi/approvals", purpose: "One queue: decisions, blockers, disagreements and missing evidence. Agent majority voting is not tax correctness.", fields: [], actions: ["Approve", "Reject"] },
+  { key: "agi-connections", module: "AGI Mode", title: "Agent Connections", href: "/agi/connections", purpose: "Scoped gateway keys, MCP and plugin access for Grok Bot, Claude Cowork and GPT Work. Documents retrieved are evidence, not new permissions.", fields: [], actions: ["Issue key", "Test connection"] },
 ];
 
 export function screenFor(path: string): ScreenMeta | null {
   const clean = path.split("?")[0].replace(/\/$/, "") || "/";
   if (clean.startsWith("/playbook/")) {
-    const book = playbookBySlug(clean.slice("/playbook/".length));
-    if (book) {
+    const slug = clean.slice("/playbook/".length);
+    const book = playbookBySlug(slug);
+    const screen = SCREENS.find((s) => s.key === slug);
+    if (book || screen) {
       return {
-        key: `playbook-${book.slug}`,
-        module: book.navGroup ?? "Playbook",
-        title: book.title,
+        key: `playbook-${slug}`,
+        module: book?.navGroup ?? screen?.module ?? "Playbook",
+        title: book?.title ?? `${screen!.title} playbook`,
         href: clean,
-        purpose: book.summary,
+        purpose: book?.summary ?? screen!.purpose,
         fields: [],
-        actions: book.steps.map((s) => s.title),
+        actions: book?.steps.map((s) => s.title) ?? screen!.actions,
       };
     }
   }
@@ -148,21 +165,21 @@ export type ContextInput = {
  */
 export function buildContext(i: ContextInput): WorkContext {
   const role = i.role ?? defaultRole(i.mode);
-  const user = i.mode === "advisor" ? ADVISOR_USER : INHOUSE_USER;
+  const user = i.mode === "advisor" ? ADVISOR_USER : DATA.inhouseUser;
   const screen = screenFor(i.path);
   const iso = i.search?.get("iso") ?? null;
   const entityId = i.search?.get("entity") ?? null;
   const blendKey = i.search?.get("blend") ?? null;
-  const ent = entityId ? ENTITIES.find((e) => e.id === entityId) : null;
-  const jur = ent?.jurisdiction ?? (iso ? ENTITIES.find((e) => e.iso === iso)?.jurisdiction ?? iso : null);
-  const mapsPending = ACCOUNTS.filter((a) => !a.approved && !i.approvedMaps[a.account]).map((a) => a.account);
-  const adjUnsigned = ADJUSTMENTS.filter((a) => !a.reviewer).map((a) => a.id);
+  const ent = entityId ? DATA.entities.find((e) => e.id === entityId) : null;
+  const jur = ent?.jurisdiction ?? (iso ? DATA.entities.find((e) => e.iso === iso)?.jurisdiction ?? iso : null);
+  const mapsPending = DATA.accounts.filter((a) => !a.approved && !i.approvedMaps[a.account]).map((a) => a.account);
+  const adjUnsigned = DATA.adjustments.filter((a) => !a.reviewer).map((a) => a.id);
   const outstanding: OutstandingWork = {
     xrayOpen: i.stop.open,
     xrayMaterial: i.stop.reasons.length,
     xrayExposure: i.stop.exposure,
-    issuesBlock: ISSUES.filter((x) => x.severity === "block").length,
-    issuesWarn: ISSUES.filter((x) => x.severity === "warn").length,
+    issuesBlock: DATA.issues.filter((x) => x.severity === "block").length,
+    issuesWarn: DATA.issues.filter((x) => x.severity === "warn").length,
     mapsPending,
     adjUnsigned,
     packPending: i.packAmendments.filter((a) => a.status === "proposed" && !a.guard).length,

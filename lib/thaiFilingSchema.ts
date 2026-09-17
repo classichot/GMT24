@@ -1,4 +1,5 @@
-import { THAI_PACK } from "./thailand";
+import { THAI_PACK, thaiFacts } from "./thailand";
+import { DATA } from "./model";
 import type { JurCalc } from "./engine";
 
 /**
@@ -37,6 +38,7 @@ export type ThaiSchemaReadiness = {
 };
 
 export function thaiSchemaReadiness(th?: JurCalc | null): ThaiSchemaReadiness {
+  const designee = DATA.entities.find((e) => e.id === thaiFacts().liability.designatedId);
   const payable = th ? Math.round(th.jurisdictionalTopUp) : null;
   const fields: ThaiFilingField[] = [
     {
@@ -44,10 +46,10 @@ export function thaiSchemaReadiness(th?: JurCalc | null): ThaiSchemaReadiness {
       section: "admin",
       family: "Identity",
       label: "Thai tax identification number",
-      source: "Entity situs · TH001",
+      source: `Entity situs · ${designee?.code ?? "Thai filer"}`,
       href: "/thailand/entities",
       status: "ready",
-      value: "0107558000121",
+      value: thaiFacts().filingObligations.find((f) => f.id === "s57")?.taxId ?? "—",
     },
     {
       id: "F-FY",
@@ -77,7 +79,7 @@ export function thaiSchemaReadiness(th?: JurCalc | null): ThaiSchemaReadiness {
       source: "Liability dashboard election",
       href: "/thailand/liability",
       status: "mapped",
-      value: "TH001 · Aetherion Thailand Co., Ltd.",
+      value: designee ? `${designee.code} · ${designee.name}` : "Designated Thai taxpayer not set",
     },
     {
       id: "F-QDMTT",

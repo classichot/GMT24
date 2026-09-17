@@ -1,7 +1,8 @@
 import { money } from "./format";
-import { ADJUSTMENTS, ENTITIES, FINANCIALS } from "./model";
+import { DATA } from "./model";
 import { shippingPost } from "./shipping";
 import { deferredTaxAdjustment } from "./deferredTax";
+import { seedFacts } from "./seeds";
 
 export type Article43Kind = "PE" | "tax-transparent" | "CFC" | "hybrid" | "distribution";
 
@@ -24,10 +25,10 @@ export type Article43Line = Article43Fact & {
 };
 
 /**
- * Seeded cross-border tax facts. The engine supports all five Article 4.3.2 routes;
- * this snapshot contains PE, CFC and distribution examples.
+ * Seeded cross-border tax facts per demo group. The engine supports all five Article 4.3.2 routes;
+ * Aetherion carries PE, CFC and distribution examples, ThaiCoal two distribution-tax allocations.
  */
-export const ARTICLE43_FACTS: Article43Fact[] = [
+const AETHERION_FACTS: Article43Fact[] = [
   {
     id: "A43-PE-TH",
     kind: "PE",
@@ -58,10 +59,33 @@ export const ARTICLE43_FACTS: Article43Fact[] = [
   },
 ];
 
+const THAICOAL_FACTS: Article43Fact[] = [
+  {
+    id: "A43-DIST-TC-ID",
+    kind: "distribution",
+    sourceEntityId: "TC-SG-HC",
+    targetEntityId: "TC-ID-COAL",
+    tax: 1_200_000,
+    sourceDoc: "Dividend WHT schedule FY2026.xlsx",
+    detail: "Indonesian dividend withholding tax borne on the PT ThaiCoal Indo Tbk distribution to Singapore, allocated back to the distributing CE under Art. 4.3.2(e). Indonesia is already above 15%; this widens the QDMTT SH margin.",
+  },
+  {
+    id: "A43-DIST-TC-CN",
+    kind: "distribution",
+    sourceEntityId: "TC-TH-PWR",
+    targetEntityId: "TC-CN-PWR",
+    tax: 300_000,
+    sourceDoc: "Dividend WHT schedule FY2026.xlsx",
+    detail: "Chinese 5% treaty withholding on the Shanxi dividend to ThaiCoal Power PCL, allocated to the distributing CE under Art. 4.3.2(e). China stays below 15% after the allocation — the residual still flows to the Thai IIR at the POPE.",
+  },
+];
+
+export const ARTICLE43_FACTS = seedFacts<Article43Fact>({ aetherion: AETHERION_FACTS, thaicoal: THAICOAL_FACTS });
+
 function targetBaseRate(entityId: string) {
-  const f = FINANCIALS.find((x) => x.entityId === entityId);
+  const f = DATA.financials.find((x) => x.entityId === entityId);
   if (!f) return 0;
-  const adjustments = ADJUSTMENTS
+  const adjustments = DATA.adjustments
     .filter((a) => a.entityId === entityId)
     .reduce((sum, a) => sum + a.amount, 0);
   const globe = money(f.fanil + adjustments - shippingPost(entityId).excludedIncome);
@@ -72,8 +96,8 @@ function targetBaseRate(entityId: string) {
 
 export function article43Lines(): Article43Line[] {
   return ARTICLE43_FACTS.map((fact) => {
-    const source = ENTITIES.find((e) => e.id === fact.sourceEntityId);
-    const target = ENTITIES.find((e) => e.id === fact.targetEntityId);
+    const source = DATA.entities.find((e) => e.id === fact.sourceEntityId);
+    const target = DATA.entities.find((e) => e.id === fact.targetEntityId);
     let passiveCap: number | null = null;
     let allocated = fact.tax;
     if ((fact.kind === "CFC" || fact.kind === "hybrid") && fact.passiveIncome != null) {

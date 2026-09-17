@@ -1,4 +1,5 @@
 /** OECD GloBE election master matrix. Scope is architectural: a JURISDICTION election cannot be flipped for one CE. */
+import { seedFacts } from "./seeds";
 
 export const OECD_ELEC_URLS = {
   commentary:
@@ -108,6 +109,7 @@ export const ELECTIONS: ElectionDef[] = [
   { id: "SH_UTPR", n: "H5", family: "harbour", name: "Transitional UTPR Safe Harbour", article: "UTPR SH", scope: "UPE_JURISDICTION", duration: "annual", gir: "jurisdictional", girField: "Transitional UTPR SH", defaultTx: "UTPR applicable", electedTx: "UTPR deemed zero in the UPE jurisdiction", consistency: "UPE jurisdiction", revocable: true, reelect: "yes", qdmtt: "n/a", impact: "US path on this snapshot", href: "/safe-harbours" },
   { id: "SH_SETR", n: "H6", family: "harbour", name: "Simplified ETR Safe Harbour", article: "OECD-SETR-SH · 2026 package", scope: "JURISDICTION", duration: "annual", gir: "jurisdictional", girField: "Simplified ETR SH", defaultTx: "Full GloBE calculation", electedTx: "Simplified 15% ETR calculation — itself contains further elections", consistency: "Tested jurisdiction. Inner elections may lock 5 years and survive a return to full GloBE.", revocable: true, reelect: "yes", qdmtt: "Does not replace Thai QDMTT", impact: "May zero top-up; see SETR inner elections", href: "/elections" },
   { id: "SH_SBTI", n: "H7", family: "harbour", name: "Substance-Based Tax Incentive Safe Harbour", article: "OECD-SBTISH · 2026 package", scope: "JURISDICTION", duration: "annual", gir: "jurisdictional", girField: "SBTI SH", defaultTx: "Ordinary incentive treatment (holiday reduces covered taxes)", electedTx: "Qualified incentive treated as addition to covered taxes, subject to substance limits", consistency: "Jurisdiction · expenditure tracing required", revocable: true, reelect: "yes", qdmtt: "May preserve BOI value inside QDMTT", impact: "ETR support for substance-based incentives", href: "/safe-harbours" },
+  { id: "STISH_CV", n: "H7a", family: "harbour", name: "STISH — 1% carrying-value cap election", article: "GIR Sep 2026 §2.2.1.2(c) · OECD-SBTISH", scope: "JURISDICTION", duration: "five-year", gir: "jurisdictional", girField: "STISH cap basis (payroll / depreciation 5.5% or carrying value 1%) · election or revocation year", defaultTx: "Cap = 5.5% of eligible payroll or 5.5% of eligible-asset depreciation, whichever base is larger", electedTx: "Cap = 1% of the carrying value of eligible tangible assets", consistency: "Jurisdiction · five-year lock; election and revocation year reported in the GIR", revocable: true, reelect: "restricted", qdmtt: "Follows the STISH treatment inside QDMTT where permitted", impact: "Asset-heavy BOI blends: carrying value may give a larger QTI cap than payroll", href: "/gir" },
   { id: "SH_SBS", n: "H8", family: "harbour", name: "Side-by-Side Safe Harbour", article: "2026 Side-by-Side package", scope: "GROUP", duration: "annual", gir: "group", girField: "Side-by-Side SH", defaultTx: "IIR/UTPR apply", electedTx: "IIR/UTPR generally deemed zero for covered group operations", consistency: "Group / UPE path", revocable: true, reelect: "yes", qdmtt: "Domestic QDMTT still possible", impact: "US SbS on this snapshot", href: "/safe-harbours" },
   { id: "SH_UPE", n: "H9", family: "harbour", name: "UPE Safe Harbour", article: "UPE SH · 2026 package", scope: "UPE_JURISDICTION", duration: "annual", gir: "jurisdictional", girField: "UPE safe harbour", defaultTx: "UTPR in UPE jurisdiction", electedTx: "Relief in the UPE jurisdiction", consistency: "UPE jurisdiction", revocable: true, reelect: "yes", qdmtt: "n/a", impact: "Japan UPE path", href: "/safe-harbours" },
 
@@ -132,18 +134,34 @@ export const ELECTION_PLAY = [
   { n: "03", title: "Generate scenarios, then optimise", body: "GMT24 models eligible combinations — not 2^40 switches. Rank lowest FY tax, 5-year lock-in, compliance burden and audit risk. Then file the GIR election fields.", href: "/optimize", hrefLabel: "Optimize GloBE" },
 ];
 
-/** Seeded facts used by the eligibility engine. Amounts in USD. Stock-comp is the Art. 3.2.2 illustration converted from the THB worked example. */
-export const STOCK_COMP = [
-  { iso: "TH", entityId: "TH-CE", name: "Aetherion (Thailand) Ltd.", book: 3_120_936, tax: 7_802_340, note: "THB 120m book / THB 300m tax deduction · BOT 38.45" },
-  { iso: "TH", entityId: "TH-PE", name: "Rayong PE", book: 2_080_624, tax: 2_600_780, note: "THB 80m book / THB 100m tax deduction · BOT 38.45" },
-  { iso: "IE", entityId: "IE-CE", name: "Aetherion Ireland Ltd.", book: 6_400_000, tax: 1_100_000, note: "Tax deduction below book — election would increase GloBE income" },
-];
+export type StockCompFact = { iso: string; entityId: string; name: string; book: number; tax: number; note: string };
+export type RealisationFvFact = { iso: string; amount: number; note: string };
 
-export const REALISATION_FV = [
-  { iso: "TH", amount: 4_200_000, note: "Unrealised revaluation still in FANIL. Art. 3.2.5 would defer until realisation. May be limited to tangible assets." },
-];
+/** Seeded facts used by the eligibility engine, per demo group. Amounts in USD. Aetherion stock-comp is the Art. 3.2.2 illustration converted from the THB worked example. */
+export const STOCK_COMP = seedFacts<StockCompFact>({
+  aetherion: [
+    { iso: "TH", entityId: "TH-CE", name: "Aetherion (Thailand) Ltd.", book: 3_120_936, tax: 7_802_340, note: "THB 120m book / THB 300m tax deduction · BOT 38.45" },
+    { iso: "TH", entityId: "TH-PE", name: "Rayong PE", book: 2_080_624, tax: 2_600_780, note: "THB 80m book / THB 100m tax deduction · BOT 38.45" },
+    { iso: "IE", entityId: "IE-CE", name: "Aetherion Ireland Ltd.", book: 6_400_000, tax: 1_100_000, note: "Tax deduction below book — election would increase GloBE income" },
+  ],
+  thaicoal: [
+    { iso: "TH", entityId: "TC-UPE", name: "ThaiCoal Public Company Limited", book: 1_400_000, tax: 2_100_000, note: "ESOP 2023 — THB 81m tax deduction on exercise vs THB 54m TFRS 2 charge · BOT 38.45" },
+    { iso: "TH", entityId: "TC-TH-PWR", name: "ThaiCoal Power PCL", book: 600_000, tax: 900_000, note: "Listed-subsidiary ESOP — same scheme design, separate grant" },
+    { iso: "SG", entityId: "TC-SG-HC", name: "ThaiCoal Singapore Pte. Ltd.", book: 800_000, tax: 300_000, note: "Tax deduction below book — election would increase Singapore GloBE income" },
+  ],
+});
 
-/** Teaching illustration (THB). Live Aetherion overlay uses STOCK_COMP in USD. */
+export const REALISATION_FV = seedFacts<RealisationFvFact>({
+  aetherion: [
+    { iso: "TH", amount: 4_200_000, note: "Unrealised revaluation still in FANIL. Art. 3.2.5 would defer until realisation. May be limited to tangible assets." },
+  ],
+  thaicoal: [
+    { iso: "TH", amount: 3_100_000, note: "Unrealised fair-value gain on coal-price swaps (ineffective hedge portion) in FANIL. Art. 3.2.5 realisation method would defer it until settlement." },
+    { iso: "AU", amount: -2_600_000, note: "Unrealised FX loss on USD borrowings in the loss-making CE. Deferring under Art. 3.2.5 would deepen the Net GloBE Loss carried forward." },
+  ],
+});
+
+/** Teaching illustration (THB). The live overlay for the open group uses STOCK_COMP in USD. */
 export const WORKED_SBC_THB = {
   rate: 38.45,
   entities: [
@@ -152,7 +170,7 @@ export const WORKED_SBC_THB = {
   ],
   without: { etr: 0.128, topUp: 46_000_000 },
   with: { etr: 0.156, topUp: 0 },
-  note: "Worked example from the Art. 3.2.2 briefing. Not the live Aetherion overlay — that is posted from GloBE Core + STOCK_COMP.",
+  note: "Worked example from the Art. 3.2.2 briefing. Not the live overlay for the open group — that is posted from GloBE Core + STOCK_COMP.",
 };
 
 export function electionById(id: string) {

@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ENTITIES, FINANCIALS } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { EUR_1M_USD, EUR_75M_USD, FX_RATES, fxRate, gaapScreen, usdFromFc } from "@/lib/fx";
 import { eur } from "@/lib/format";
+import { useStore } from "@/lib/store";
+import { gaapByJurisdiction } from "@/lib/gaapMark";
 
 export default function FxPage() {
+  const { electionsOn } = useStore();
+  const byJur = gaapByJurisdiction(electionsOn);
   return (
     <div>
       <div className="callout" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -45,6 +49,33 @@ export default function FxPage() {
         </div>
       </div>
 
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          <h4>GAAP by jurisdiction</h4>
+          <span className="tag tag-outline">{byJur.length} countries</span>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Jur.</th><th>Standard(s)</th><th>FANIL basis</th><th>Local on file</th><th>Art. 3.1.3 used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byJur.map((j) => (
+                <tr key={j.iso}>
+                  <td className="mono">{j.iso}</td>
+                  <td>{j.standards.join(" / ")}</td>
+                  <td>{j.label}</td>
+                  <td>{j.rows.filter((r) => r.localOnFile).length} / {j.rows.length}</td>
+                  <td>{j.localUsed ? <span className="tag tag-accent">{j.localUsed} CE</span> : <span className="tag tag-outline">UPE CFS</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="panel">
         <div className="panel-head"><h4>FANIL translation + GAAP screen</h4></div>
         <div className="table-wrap">
@@ -55,8 +86,8 @@ export default function FxPage() {
               </tr>
             </thead>
             <tbody>
-              {ENTITIES.map((e) => {
-                const f = FINANCIALS.find((x) => x.entityId === e.id);
+              {DATA.entities.map((e) => {
+                const f = DATA.financials.find((x) => x.entityId === e.id);
                 if (!f) return null;
                 const fx = fxRate(e.iso);
                 const usd = f.fanilFc != null ? usdFromFc(e.iso, f.fanilFc) : f.fanil;

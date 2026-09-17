@@ -1,7 +1,7 @@
 import type { JurCalc } from "../engine";
 import { isosIn } from "./i18n";
 import { optimizeGlobe } from "../electionEngine";
-import { eur, pct } from "../format";
+import { etrPct, eur } from "../format";
 import { answerCopilot } from "../copilot";
 import type { XrayFinding, XrayState } from "../xray";
 import { findingStatus } from "../xray";
@@ -78,7 +78,7 @@ export function specialistReply(i: SpecialistInput): Reply {
   const factItems: string[] = [];
   const openFacts: Fact[] = [];
   if (calc) {
-    factItems.push(`${calc.name} (${calc.blendKind} blend): GloBE income ${eur(calc.globeIncome)} · Adjusted Covered Taxes ${eur(calc.coveredTax)} · ETR ${pct(calc.etr, 2)} · SBIE ${eur(calc.sbie)} · top-up ${eur(calc.jurisdictionalTopUp)} · collected by ${calc.collection.payer}.`);
+    factItems.push(`${calc.name} (${calc.blendKind} blend): GloBE income ${eur(calc.globeIncome)} · Adjusted Covered Taxes ${eur(calc.coveredTax)} · ETR ${etrPct(calc, 2)} · SBIE ${eur(calc.sbie)} · top-up ${eur(calc.jurisdictionalTopUp)} · collected by ${calc.collection.payer}.`);
     if (calc.sh.navigator) factItems.push(`Safe harbour: ${calc.sh.navigator}`);
     const scoped = factsFor(i.facts, { iso: calc.iso, topic: topic?.area ?? null });
     for (const f of scoped) {

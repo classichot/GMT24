@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ACTIVITY, MAP_COORDS } from "@/lib/model";
-import { eur, pct } from "@/lib/format";
+import { DATA, MAP_COORDS } from "@/lib/model";
+import { etrPct, eur, pct } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { Amount } from "@/components/Amount";
 import { WorldMap } from "@/components/WorldMap";
 import { FlowBar } from "@/components/FlowBar";
 import { useCalc } from "@/lib/useCalc";
 import { etrHref, summarizeByIso } from "@/lib/engine";
+import { MIN_RATE } from "@/lib/deferredTax";
+import { BlendBadge, EtrGroupsBadge } from "@/components/BlendBadge";
 
 export default function OverviewPage() {
   const { mode, ask, scenario, group, ingestStatus } = useStore();
@@ -35,7 +37,7 @@ export default function OverviewPage() {
       )}
       {group.custom && (
         <div className="callout" style={{ marginBottom: 16 }}>
-          <strong>{group.name} is in onboarding.</strong> Drop the close pack, map the chart, then run the entity test. Numbers below are still the Aetherion teaching snapshot until this pack is posted.{" "}
+          <strong>{group.name} is in onboarding.</strong> Drop the close pack, map the chart, then run the entity test. Numbers below are still the teaching snapshot until this pack is posted.{" "}
           <Link href="/data">Open Data Hub</Link>
         </div>
       )}
@@ -85,6 +87,7 @@ export default function OverviewPage() {
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
           <h4 style={{ margin: 0 }}>Jurisdictional ETR matrix</h4>
           <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="etr-risk-badge">Top-up</span>ETR &lt; 15%</span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--sig-red)", display: "block" }} />Top-up tax</span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--sig-amber)", display: "block" }} />Review / safe harbour</span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--color-accent)", display: "block" }} />No exposure</span>
@@ -93,11 +96,21 @@ export default function OverviewPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 1, background: "var(--color-divider)", border: "1px solid var(--color-divider)" }}>
           {calcs.map((c) => {
             const fill = c.jurisdictionalTopUp > 0 ? "var(--sig-red)" : c.exposure === "Safe harbour" || c.exposure === "Review" ? "var(--sig-amber)" : "var(--color-accent)";
+            const atRisk = c.globeIncome > 0 && c.etr < MIN_RATE;
             return (
-              <button key={c.blendKey} onClick={() => router.push(etrHref(c))} style={{ border: 0, cursor: "pointer", font: "inherit", textAlign: "left", background: "var(--color-bg)", padding: "11px 12px 10px", display: "flex", flexDirection: "column", gap: 7, color: "inherit" }}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 15 }}>{c.iso}</span>
-                  <span style={{ fontSize: 12, color: fill, fontWeight: 800 }}>{pct(c.etr, 1)}</span>
+              <button key={c.blendKey} onClick={() => router.push(etrHref(c))} style={{ border: 0, cursor: "pointer", font: "inherit", textAlign: "left", background: "var(--color-bg)", padding: "11px 12px 10px", display: "flex", flexDirection: "column", gap: 7, color: "inherit", position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                    <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 15 }}>{c.iso}</span>
+                    <BlendBadge blendKind={c.blendKind} />
+                    <EtrGroupsBadge calc={c} calcs={calcs} />
+                    {atRisk && (
+                      <span className="etr-risk-badge" title={`Jurisdictional ETR ${pct(c.etr, 2)} is below ${pct(MIN_RATE, 0)} — top-up risk`}>
+                        Top-up
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 12, color: fill, fontWeight: 800 }}>{etrPct(c, 1)}</span>
                 </div>
                 <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{c.name}</div>
                 <div style={{ height: 5, background: "color-mix(in srgb, var(--color-text) 12%, transparent)" }}>
@@ -125,11 +138,15 @@ export default function OverviewPage() {
               return (
                 <button
                   key={d.iso}
-                  className={`map-dot ${cls}`}
+                  type="button"
+                  className="map-pin"
                   style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  title={`${d.name} ${pct(d.main.etr)}`}
-                  onClick={() => router.push(etrHref(d.main))}
-                />
+                  title={`${d.name} · ETR ${etrPct(d.main, 2)}`}
+                  aria-label={`${d.name}, ETR ${etrPct(d.main, 2)}`}
+                  onClick={() => router.push(`/etr-map?iso=${d.iso}`)}
+                >
+                  <span className={`map-dot ${cls}`} />
+                </button>
               );
             })}
           </div>
@@ -143,7 +160,7 @@ export default function OverviewPage() {
           <div className="panel-body">
             {th && (
               <>
-                <div className="wf-row"><span>ETR</span><Amount n={th.etr} audit={th.trace.etr} /></div>
+                <div className="wf-row"><span>ETR</span><Amount n={th.etr} label={etrPct(th, 2)} audit={th.trace.etr} /></div>
                 <div className="wf-row"><span>GloBE income</span><Amount n={th.globeIncome} audit={th.trace.globe} compact /></div>
                 <div className="wf-row"><span>Covered taxes</span><Amount n={th.coveredTax} audit={th.trace.covered} compact /></div>
                 <div className="wf-row"><span>SBIE</span><Amount n={th.sbie} audit={th.trace.sbie} compact /></div>
@@ -174,7 +191,7 @@ export default function OverviewPage() {
                     <td>{c.name}</td>
                     <td className="num"><Amount n={c.globeIncome} audit={c.trace.globe} compact /></td>
                     <td className="num"><Amount n={c.coveredTax} audit={c.trace.covered} compact /></td>
-                    <td className="num"><Amount n={c.etr} audit={c.trace.etr} compact /></td>
+                    <td className="num"><Amount n={c.etr} label={etrPct(c, 2)} audit={c.trace.etr} compact /></td>
                     <td>{c.jurisdictionalTopUp > 0 ? <span className="tag tag-hot">Exposure</span> : c.exposure === "Safe harbour" ? <span className="tag tag-warn">Review SH</span> : c.exposure === "Review" ? <span className="tag tag-warn">Review SH</span> : <span className="tag tag-ok">No top-up</span>}</td>
                   </tr>
                 ))}
@@ -185,7 +202,7 @@ export default function OverviewPage() {
         <div className="panel">
           <div className="panel-head"><h4>Activity</h4></div>
           <div style={{ padding: "8px 16px 16px" }}>
-            {ACTIVITY.map((a, i) => (
+            {DATA.activity.map((a, i) => (
               <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid var(--color-divider)" }}>
                 <div style={{ fontSize: 13 }}>{a.text}</div>
                 <div className="text-muted" style={{ fontSize: 11 }}>{a.who} · {a.when}</div>

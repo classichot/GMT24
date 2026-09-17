@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FILES } from "@/lib/model";
+import { DATA } from "@/lib/model";
 import { useStore } from "@/lib/store";
 
 export default function EvidencePage() {
@@ -21,7 +21,7 @@ export default function EvidencePage() {
           <table className="table">
             <thead><tr><th>Document</th><th>Kind</th><th>Linked calc</th><th>Access</th></tr></thead>
             <tbody>
-              {FILES.map((f) => (
+              {DATA.files.map((f) => (
                 <tr key={f.id}>
                   <td>{f.name}</td>
                   <td>{f.kind}</td>

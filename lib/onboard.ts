@@ -1,4 +1,4 @@
-import { FIRM, GROUPS, JURISDICTION_PACKS, type Group } from "./model";
+import { DATA, FIRM, GROUPS, type Group } from "./model";
 
 export const ENGAGEMENT_KEY = "gmt24_engagements";
 
@@ -178,7 +178,7 @@ export function draftToGroup(draft: EngagementDraft, extra: Group[]): Group {
     { fy: `FY${y - 1}`, amount: millionsToUsd(draft.rev25) },
     { fy: draft.fy.trim() || `FY${y}`, amount: millionsToUsd(draft.rev26) },
   ];
-  const pack = JURISDICTION_PACKS.find((p) => p.iso === draft.upeIso);
+  const pack = DATA.packs.find((p) => p.iso === draft.upeIso);
   return {
     id: slugEngagement(draft.name, allGroupIds(extra)),
     name: draft.name.trim(),

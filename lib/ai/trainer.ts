@@ -1,4 +1,4 @@
-import { ACCOUNTS } from "../model";
+import { DATA } from "../model";
 import { propose } from "./actions";
 import { catalogForPath, locateCatalog } from "./catalog";
 import { SCREENS, screenFor } from "./context";
@@ -50,7 +50,7 @@ export const ONBOARDING: Record<UserRole, { title: string; steps: WalkStep[] }> 
       { href: "/jurisdictions", target: "scan", text: "Scan the OECD Central Record. Differences become proposals; reviewers decide; you close the change record." },
       { href: "/settings", target: "settings", text: "Operating mode, theme, evidence-history immutability." },
       { href: "/evidence-history", target: "chain", text: "Verify the hash chain. Turning immutability off is itself logged." },
-      { href: "/host", target: "desk", text: "Host desk mints 1–30 day review links. The host key never appears on the public login page." },
+      { href: "/host", target: "desk", text: "Host desk mints 1–45 day review links. The host key never appears on the public login page." },
       { href: "/copilot", target: "quality", text: "Watch Co-Pilot quality: grounded answers, unsupported statements, failed actions." },
     ],
   },
@@ -58,7 +58,7 @@ export const ONBOARDING: Record<UserRole, { title: string; steps: WalkStep[] }> 
 
 /** Validation and workflow messages the product can emit, with corrective steps. */
 export const ERRORS: { match: RegExp; title: string; cause: string; fix: string[]; href: string; action?: { id: "approve-map" | "navigate"; params: Record<string, string> } }[] = [
-  { match: /upload|drop|file (failed|rejected)|classif/i, title: "Upload not posted", cause: "A dropped file is classified and queued, but the demo classifier only posts the full close pack. Single drops stay queued until the pack is loaded.", fix: ["Open Data Hub", "Load the Aetherion FY2026 demo pack (or the sample CSVs)", "Check Evidence history for the 'File received' row"], href: "/data" },
+  { match: /upload|drop|file (failed|rejected)|classif/i, title: "Upload not posted", cause: "A dropped file is classified and queued, but the demo classifier only posts the full close pack. Single drops stay queued until the pack is loaded.", fix: ["Open Data Hub", "Load the FY2026 demo pack for the open group (or the sample CSVs)", "Check Evidence history for the 'File received' row"], href: "/data" },
   { match: /mapping|62%|confidence|830010|held/i, title: "Mapping held below 80% confidence", cause: "Account 830010 FX Gain classified at 62%. The engine posts the account at its default category until a human approves.", fix: ["Open Account mapping", "Read the proposed GloBE category and adjustment", "Approve, or hold with a note for the reviewer"], href: "/mapping", action: { id: "approve-map", params: { account: "830010" } } },
   { match: /gir|xml|schema|preflight|validation error/i, title: "GIR preflight not run", cause: "Sections C and D report missing fields until the preflight reconciles population and collection.", fix: ["Open GIR", "Run Validate XML", "Fix any population mismatch listed, then export"], href: "/gir" },
   { match: /approv(al|e) (is )?blocked|cannot approve|hard.?stop|blocked/i, title: "Approval blocked by X-Ray", cause: "One or more material findings are unconfirmed, unsupported, inconsistently classified or missing reviewer approval.", fix: ["Open Pillar Two X-Ray", "Work the hard-stop list top-down by top-up at risk", "Answer → attach evidence → preparer sign → reviewer sign"], href: "/xray" },
@@ -98,7 +98,7 @@ function screenSections(screen: ScreenMeta): Section[] {
   return sections;
 }
 
-/** Reply that explains a named menu or its playbook. Used by Ask GMT24 and the sidebar Explain control. */
+/** Reply that explains a named menu or its playbook. Used by Ask GMT24 and the "Ask GMT24 about this" button in the inline menu guide. */
 export function explainCatalog(q: string, ctx: WorkContext, forcedHref?: string): Reply | null {
   const hit = forcedHref
     ? (() => {
@@ -179,7 +179,7 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
     sections.push({ kind: "conclusion", text: err.cause });
     sections.push({ kind: "steps", title: "Corrective steps", items: err.fix });
     if (err.title.includes("Mapping")) {
-      const row = ACCOUNTS.find((a) => a.account === "830010");
+      const row = DATA.accounts.find((a) => a.account === "830010");
       if (row) sections.push({ kind: "facts", items: [`Actual validation state: ${row.account} ${row.name} · ${row.confidence}% · ${row.globe} → ${row.adjustment}`] });
     }
     if (err.title.includes("X-Ray")) sections.push({ kind: "facts", items: [`Actual state: ${ctx.outstanding.xrayMaterial} material unresolved · $${ctx.outstanding.xrayExposure.toLocaleString()} top-up at risk.`] });
@@ -195,7 +195,7 @@ export function trainerReply(q: string, ctx: WorkContext, mode: InteractionMode 
       else actions.push(propose("navigate", { href: s.href, label: s.title }, ctx));
     }
     if (ctx.outstanding.mapsPending.length && !actions.some((a) => a.actionId === "approve-map")) {
-      const row = ACCOUNTS.find((a) => a.account === ctx.outstanding.mapsPending[0]);
+      const row = DATA.accounts.find((a) => a.account === ctx.outstanding.mapsPending[0]);
       if (row) sections.push({ kind: "text", title: "Assisted completion", text: `Proposed value for ${row.account} ${row.name}: ${row.globe}${row.adjustment ? ` → ${row.adjustment}` : ""}. Preview before saving is on the action below.` });
     }
   } else if (onboardRole || /onboard|getting started|new here|first time|เริ่มต้น/.test(l)) {

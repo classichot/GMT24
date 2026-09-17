@@ -5,7 +5,7 @@ import { ArrowUp } from "lucide-react";
 import { useAi } from "@/components/AiProvider";
 import { ReplyView } from "@/components/ai/ReplyView";
 import { propose } from "@/lib/ai/actions";
-import { eur, pct } from "@/lib/format";
+import { etrPct, eur } from "@/lib/format";
 import type { Reply } from "@/lib/ai/types";
 
 const EXAMPLES = ["What if we extend the BOI holiday?", "What if we convert the BOI holiday to a 10% rate?", "What if Thai payroll rises by $2m?", "What if the Ireland TP margin drops to 2%?", "Turn on the Art. 3.2.2 stock-comp election in Thailand and claim no SBIE in Vietnam"];
@@ -62,7 +62,7 @@ export default function StrategyPage() {
                       <div className="grid-3" style={{ fontSize: 12 }}>
                         <div>
                           <div className="reply-label">By jurisdiction</div>
-                          <table className="table" style={{ fontSize: 11 }}><thead><tr><th>Jur</th><th className="num">ETR</th><th className="num">Top-up</th><th>Payer</th></tr></thead><tbody>{s.rows.filter((r) => r.topUp || r.baseTopUp).map((r) => <tr key={r.blendKey}><td>{r.name}</td><td className="num">{pct(r.baseEtr, 1)} → {pct(r.etr, 1)}</td><td className="num">{eur(r.baseTopUp)} → {eur(r.topUp)}</td><td>{r.payer}</td></tr>)}</tbody></table>
+                          <table className="table" style={{ fontSize: 11 }}><thead><tr><th>Jur</th><th className="num">ETR</th><th className="num">Top-up</th><th>Payer</th></tr></thead><tbody>{s.rows.filter((r) => r.topUp || r.baseTopUp).map((r) => <tr key={r.blendKey}><td>{r.name}</td><td className="num">{etrPct({ etr: r.baseEtr, globeIncome: r.baseGlobe ?? 1 }, 1)} → {etrPct({ etr: r.etr, globeIncome: r.globe ?? 1 }, 1)}</td><td className="num">{eur(r.baseTopUp)} → {eur(r.topUp)}</td><td>{r.payer}</td></tr>)}</tbody></table>
                         </div>
                         <div>
                           <div className="reply-label">Multi-year</div>
