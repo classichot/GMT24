@@ -26,6 +26,7 @@ import {
   Shield,
   SlidersHorizontal,
   Sparkles,
+  Target,
   Timer,
   Upload,
   X,
@@ -47,6 +48,9 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 const NAV = [
+  { group: "AGI Missions", items: [
+    { href: "/missions", label: "Mission catalog", icon: Target },
+  ]},
   { group: "Overview", items: [
     { href: "/overview", label: "Global dashboard", icon: LayoutGrid },
     { href: "/etr-map", label: "ETR map", icon: Map },
@@ -144,6 +148,7 @@ const TABS = [
 ];
 
 const TITLES: Record<string, [string, string]> = {
+  "/missions": ["AGI mode", "Mission catalog"],
   "/overview": ["Global Minimum Tax", "Exposure"],
   "/etr-map": ["Overview", "Global ETR map"],
   "/exposure": ["Overview", "Top-up tax exposure"],
@@ -243,7 +248,9 @@ function Shell({ children }: { children: ReactNode }) {
     : null;
   const [kicker, title] = book
     ? (["Playbook", book.title] as [string, string])
-    : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
+    : path.startsWith("/missions/")
+      ? (["AGI mode", "Mission card"] as [string, string])
+      : TITLES[path] || (["GMT24", "Pillar Two OS"] as [string, string]);
 
   return (
     <div className="shell">
